@@ -53,7 +53,7 @@ INITIAL_ADMIN_ID = (
 )
 
 
-DATA_FILE = "data/bot_data.json"
+DATA_FILE = "/data/bot_data.json"
 
 
 ANIMATED_FORMATS = (".mp4", ".gif", ".webm")
