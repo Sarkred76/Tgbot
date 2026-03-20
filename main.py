@@ -367,14 +367,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает список команд."""
     try:
-        data = load_data()
         user_id = str(update.effective_user.id)
-        admin = is_admin(user_id, data)
-
-        response = "📜 **Доступные команды:**\n\n"
+        
+        # Безопасная проверка админа
+        try:
+            data = load_data()
+            admin_list = data.get("admins", [])
+            admin = user_id in admin_list
+        except Exception as e:
+            logger.error(f"Ошибка проверки админа: {e}")
+            admin = False
+        
+        response = "📜 Доступные команды:\n\n"
         
         # Основные команды
-        response += "**🎮 Основные команды:**\n"
+        response += "🎮 Основные команды:\n"
         response += "💣 Получить карту - получить карточку\n"
         response += "📂 Мои карты - посмотреть коллекцию\n"
         response += "👤 Мой профиль - статистика игрока\n"
@@ -385,7 +392,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         response += "🔄 Трейд - обмен картами с игроками\n\n"
         
         # Команды для всех
-        response += "**📝 Команды:**\n"
+        response += "📝 Команды:\n"
         response += "/start - начать работу с ботом\n"
         response += "/help - показать это сообщение\n"
         response += "/profile - мой профиль\n"
@@ -398,12 +405,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         
         # Админ-команды
         if admin:
-            response += "\n\n⚙️ **Админ-команды:**\n"
+            response += "\n\n⚙️ Админ-команды:\n"
             response += "/add_card - добавить карточку в систему\n"
             response += "/edit_card - редактировать карту\n"
             response += "/card_info - информация о карте\n"
             response += "/add_card_to_player - добавить карту игроку\n"
             response += "/add_rolls_to_player - добавить попытки игроку\n"
+            response += "/reset_season_points [ID] - сбросить поинты за сезон\n"
             response += "/cards - список всех карт\n"
             response += "/disabled_cards - выключенные карты\n"
             response += "/toggle_card [ID] - вкл/выкл карту\n"
@@ -416,10 +424,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/add_admin [ID] - добавить админа\n"
             response += "/remove_admin [ID] - удалить админа\n"
             
-        response += "\n\n💡 **Нужна помощь?**\n"
+        response += "\n\n💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
         
-        await update.message.reply_text(response, parse_mode="Markdown")
+        # ⭐ УБРАЛИ parse_mode="Markdown" ⭐
+        await update.message.reply_text(response)
         
     except Exception as e:
         logger.error(f"Ошибка в help: {e}")
