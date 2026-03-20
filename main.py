@@ -3278,6 +3278,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             }
             
             # Уведомляем партнёра
+
             try:
                 # Получаем имя отправителя
                 sender_data = data["users"].get(user_id, {})
@@ -3296,6 +3297,14 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
                 cards_text = "\n".join(cards_info) if cards_info else "Нет карт"
     
+                # ⭐ ДОБАВЛЯЕМ ИНЛАЙН-КНОПКИ ⭐
+                keyboard = [
+                    [
+                        InlineKeyboardButton("✅ Принять", callback_data=f"trade_accept_btn_{user_id}"),
+                        InlineKeyboardButton("❌ Отклонить", callback_data=f"trade_decline_btn_{user_id}"),
+                    ]
+                ]
+    
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
@@ -3304,17 +3313,134 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         f"🃏 Карт в обмене: {cards_count}\n\n"
                         f"📋 **Карты отправителя:**\n"
                         f"{cards_text}\n\n"
-                        f"Используйте /trade_accept чтобы увидеть карты и принять\n"
-                        f"Или /trade_decline чтобы отклонить"
+                        f"Нажмите кнопку для действия:"
                     ),
+                    reply_markup=InlineKeyboardMarkup(keyboard),
                     parse_mode="Markdown"
                 )
             except Exception as notify_error:
                 logger.error(f"Не удалось уведомить партнёра: {notify_error}")
                 await query.message.reply_text("⚠️ Не удалось уведомить партнёра")
-    
+
+async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок Принять/Отклонить трейд."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+        data = load_data()
+        
+        # Проверяем, есть ли входящий трейд
+        if user_id not in context.user_data:
+            await query.edit_message_text("❌ У вас нет активных запросов на трейд!")
+            return
+        
+        if "incoming_trade" not in context.user_data[user_id]:
+            await query.edit_message_text("❌ У вас нет активных запросов на трейд!")
+            return
+        
+        trade_info = context.user_data[user_id]["incoming_trade"]
+        from_user = trade_info["from_user"]
+        cards_offered = trade_info["cards_offered"]
+        
+        # Принятие трейда
+        if query.data.startswith("trade_accept_btn_"):
+            # Проверяем, что отправитель существует
+            if from_user not in data["users"]:
+                await query.edit_message_text("❌ Игрок, который отправил трейд, больше не существует!")
+                del context.user_data[user_id]["incoming_trade"]
+                return
+            
+            # Проверяем, что карты ещё существуют у отправителя
+            if not cards_offered:
+                await query.edit_message_text("❌ Карты для обмена больше не доступны!")
+                del context.user_data[user_id]["incoming_trade"]
+                return
+            
+            # Получаем имя отправителя
+            sender_data = data["users"].get(from_user, {})
+            sender_name = sender_data.get("first_name", "Игрок")
+            if sender_data.get("last_name"):
+                sender_name += f" {sender_data['last_name']}"
+            
+            # Запрашиваем карты у партнёра
+            context.user_data[user_id]["step"] = "view_offered_cards"
+            context.user_data[user_id]["trade_partner"] = from_user
+            context.user_data[user_id]["received_cards"] = cards_offered
+            context.user_data[user_id]["current_offer_index"] = 0
+            
+            await query.edit_message_text(
+                f"✅ **Запрос принят от {sender_name}**\n\n"
+                f"🃏 Карт в обмене: {len(cards_offered)}\n\n"
+                f"📋 **Просмотрите карты ниже:**\n"
+                f"Используйте [<] [>] для навигации\n"
+                f"Когда будете готовы, нажмите [✅ Принять обмен]",
+                parse_mode="Markdown"
+            )
+            
+            # Показываем первую карту
+            card = find_card_by_id(cards_offered[0], data["cards"])
+            if card:
+                card_counts = Counter(cards_offered)
+                card_in_offer = card_counts.get(card["id"], 1)
+                
+                caption = (
+                    f"{card['title']}\n"
+                    f"Редкость: {card['rarity']}\n"
+                    f"📦 В предложении: {card_in_offer} шт.\n\n"
+                    f"1/{len(cards_offered)}"
+                )
+                
+                keyboard = []
+                nav_buttons = []
+                
+                if len(cards_offered) > 1:
+                    nav_buttons.append(
+                        InlineKeyboardButton("<", callback_data="trade_offer_prev_0")
+                    )
+                
+                nav_buttons.append(
+                    InlineKeyboardButton(
+                        f"1/{len(cards_offered)}",
+                        callback_data="trade_offer_info"
+                    )
+                )
+                
+                if len(cards_offered) > 1:
+                    nav_buttons.append(
+                        InlineKeyboardButton(">", callback_data="trade_offer_next_0")
+                    )
+                
+                keyboard.append(nav_buttons)
+                keyboard.append([
+                    InlineKeyboardButton("✅ Принять обмен", callback_data="trade_accept_confirm"),
+                    InlineKeyboardButton("❌ Отклонить", callback_data="trade_decline_from_view"),
+                ])
+                
+                await context.bot.send_photo(
+                    chat_id=query.message.chat_id,
+                    photo=card["image_url"],
+                    caption=caption,
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+        
+        # Отклонение трейда
+        elif query.data.startswith("trade_decline_btn_"):
+            del context.user_data[user_id]["incoming_trade"]
+            
+            await query.edit_message_text("❌ Трейд отклонён")
+            
+            # Уведомляем отправителя
+            try:
+                await context.bot.send_message(
+                    chat_id=from_user,
+                    text=f"❌ Игрок отклонил ваш запрос на обмен."
+                )
+            except:
+                pass
+        
     except Exception as e:
-        logger.error(f"Ошибка trade_callback: {e}")
+        logger.error(f"Ошибка trade_button_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
 
@@ -3825,8 +3951,6 @@ def main() -> None:
             CommandHandler("help", help_command),
             CommandHandler("top", top_players),
             CommandHandler("trade", trade_menu),  # ← ДОБАВЬТЕ
-            CommandHandler("trade_accept", trade_accept),  # ← ДОБАВЬТЕ
-            CommandHandler("trade_decline", trade_decline),  # ← ДОБАВЬТЕ
             CommandHandler("add_card", add_card),
             CommandHandler("add_card_to_player", add_card_to_player),
             CommandHandler("add_rolls_to_player", add_rolls_to_player),
@@ -3853,6 +3977,7 @@ def main() -> None:
             CallbackQueryHandler(trade_callback, pattern=r"^trade_.*"),  # ← ДОБАВЬТЕ
             CallbackQueryHandler(trade_return_callback, pattern=r"^trade_return_.*"),  # ← ДОБАВЬТЕ
             CallbackQueryHandler(trade_offer_callback, pattern=r"^trade_offer_.*"),
+            CallbackQueryHandler(trade_button_callback, pattern=r"^trade_(accept|decline)_btn_.*"),
         ]
 
         for handler in handlers:
