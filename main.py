@@ -350,6 +350,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 KeyboardButton("👤 Мой профиль"),
             ],  # ← Добавлена кнопка
             [KeyboardButton("🔨 Крафт"), KeyboardButton("🎮 Мини-игры")],
+            [KeyboardButton("🏆 Топ игроков")],
         ]
 
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -365,55 +366,64 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает список команд."""
-
     try:
-
         data = load_data()
-
         user_id = str(update.effective_user.id)
-
         admin = is_admin(user_id, data)
 
-        response = "📜 Доступные команды:\n\n"
-
+        response = "📜 **Доступные команды:**\n\n"
+        
+        # Основные команды
+        response += "**🎮 Основные команды:**\n"
         response += "💣 Получить карту - получить карточку\n"
-
         response += "📂 Мои карты - посмотреть коллекцию\n"
-
-        response += "🔨 /craft - скрафтить новую карту из 10 дубликатов\n"
-
+        response += "👤 Мой профиль - статистика игрока\n"
+        response += "🏆 Топ игроков - рейтинг по поинтам\n"
+        response += "🎲 Бросить кубик - получить бесплатные попытки\n"
+        response += "🎮 Мини-игры - казино и другие игры\n"
+        response += "🔨 Крафт - скрафтить новую карту из 10 дубликатов\n"
+        response += "🔄 Трейд - обмен картами с игроками\n\n"
+        
+        # Команды для всех
+        response += "**📝 Команды:**\n"
+        response += "/start - начать работу с ботом\n"
+        response += "/help - показать это сообщение\n"
+        response += "/profile - мой профиль\n"
+        response += "/dice - бросить кубик\n"
+        response += "/craft - крафт карт\n"
+        response += "/top - топ игроков\n"
+        response += "/trade - трейд карт\n"
+        response += "/trade_accept - принять трейд\n"
+        response += "/trade_decline - отклонить трейд\n"
+        
+        # Админ-команды
         if admin:
-
-            response += "\n⚙️ Админ-команды:\n"
-
-            response += "/add_card - добавить карточку (многострочно)\n"
-
-            response += "/cards - список карточек\n"
-
-            response += "/toggle_card [ID] - вкл/выкл карточку\n"
-
-            response += "/broadcast [текст] - рассылка\n"
-
-            response += "/reset_all_cards - сбросить все карточки у всех\n"
-
-            response += "/delete_card [ID] - удалить карточку полностью\n"
-
-            response += "/reset_user [ID] - сбросить карточки игрока\n"
-
-            response += "/check_cards - статистика\n"
-
-            response += "/list_admins - список администраторов\n"
-
-            response += "/add_admin [ID] - добавить администратора\n"
-
-            response += "/remove_admin [ID] - удалить администратора\n"
-
-        await update.message.reply_text(response)
-
+            response += "\n\n⚙️ **Админ-команды:**\n"
+            response += "/add_card - добавить карточку в систему\n"
+            response += "/edit_card - редактировать карту\n"
+            response += "/card_info - информация о карте\n"
+            response += "/add_card_to_player - добавить карту игроку\n"
+            response += "/add_rolls_to_player - добавить попытки игроку\n"
+            response += "/cards - список всех карт\n"
+            response += "/disabled_cards - выключенные карты\n"
+            response += "/toggle_card [ID] - вкл/выкл карту\n"
+            response += "/delete_card [ID] - удалить карту\n"
+            response += "/broadcast [текст] - рассылка всем игрокам\n"
+            response += "/reset_all_cards - сбросить все карты\n"
+            response += "/reset_user [ID] - сбросить карты игрока\n"
+            response += "/check_cards - статистика карт\n"
+            response += "/list_admins - список админов\n"
+            response += "/add_admin [ID] - добавить админа\n"
+            response += "/remove_admin [ID] - удалить админа\n"
+            
+        response += "\n\n💡 **Нужна помощь?**\n"
+        response += "Напишите администратору бота."
+        
+        await update.message.reply_text(response, parse_mode="Markdown")
+        
     except Exception as e:
-
         logger.error(f"Ошибка в help: {e}")
-
+        await update.message.reply_text("❌ Ошибка при показе помощи")
 
 async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает коллекцию пользователя (без дубликатов, с количеством)."""
@@ -955,6 +965,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         elif text == "📂 Мои карты":
 
             await show_user_cards(update, context)
+
+        elif text == "🏆 Топ игроков":  # ← ДОБАВЬТЕ ЭТОТ БЛОК
+            
+            await top_players(update, context)
 
     except (NetworkError, TimedOut) as e:
 
@@ -2582,6 +2596,99 @@ async def add_rolls_to_player(
 
         await update.message.reply_text("❌ Ошибка при добавлении попыток")
 
+async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает топ-10 игроков по поинтам в сезоне."""
+    try:
+        data = load_data()
+        users = data.get("users", {})
+        
+        # Сортируем пользователей по season_points
+        sorted_users = sorted(
+            users.items(),
+            key=lambda x: x[1].get("season_points", 0),
+            reverse=True
+        )
+        
+        # Берём топ-10
+        top_10 = sorted_users[:10]
+        
+        # Формируем сообщение
+        message_text = "🏆 **Топ игроков этого сезона**\n\n"
+        
+        for rank, (user_id, user_data) in enumerate(top_10, 1):
+            # Получаем имя из профиля Telegram
+            first_name = user_data.get("first_name", "Игрок")
+            last_name = user_data.get("last_name", "")
+            
+            # Формируем полное имя
+            if last_name:
+                username = f"{first_name} {last_name}"
+            else:
+                username = first_name
+            
+            points = user_data.get("season_points", 0)
+            
+            # Медали для топ-3
+            if rank == 1:
+                medal = "🥇"
+            elif rank == 2:
+                medal = "🥈"
+            elif rank == 3:
+                medal = "🥉"
+            else:
+                medal = f"{rank}."
+            
+            message_text += f"{medal} **{username}** — {points} поинтов\n"
+        
+        # Показываем место текущего пользователя
+        current_user_id = str(update.effective_user.id)
+        current_user_data = users.get(current_user_id, {})
+        current_points = current_user_data.get("season_points", 0)
+        
+        # Находим место пользователя
+        user_rank = None
+        for rank, (user_id, _) in enumerate(sorted_users, 1):
+            if user_id == current_user_id:
+                user_rank = rank
+                break
+        
+        # Если пользователя нет в топе
+        if not user_rank:
+            user_rank = len(sorted_users) + 1
+        
+        message_text += "\n\n" + "─" * 30 + "\n\n"
+        
+        if user_rank <= 10:
+            message_text += f"✅ **Ваше место:** {user_rank}\n"
+        else:
+            message_text += f"📍 **Ваше место:** {user_rank}\n"
+        
+        message_text += f"💊 **Ваши поинты:** {current_points}"
+        
+        # УБРАНА КНОПКА ОБНОВЛЕНИЯ
+        await update.message.reply_text(
+            message_text,
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в top_players: {e}")
+        await update.message.reply_text("❌ Ошибка при загрузке топа")
+
+
+async def top_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопки обновления топа."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        # Просто вызываем top_players заново
+        await top_players(update, context)
+        
+    except Exception as e:
+        logger.error(f"Ошибка в top_callback: {e}")
+        await query.answer("❌ Ошибка при обновлении", show_alert=True)
+
 
 # ===== ЗАПУСК БОТА =====
 
@@ -2614,6 +2721,7 @@ def main() -> None:
             CommandHandler("dice", dice),
             CommandHandler("craft", craft),
             CommandHandler("help", help_command),
+            CommandHandler("top", top_players),
             CommandHandler("add_card", add_card),
             CommandHandler("add_card_to_player", add_card_to_player),
             CommandHandler("add_rolls_to_player", add_rolls_to_player),
@@ -2634,6 +2742,7 @@ def main() -> None:
             CallbackQueryHandler(craft_callback, pattern=r"^craft_.*"),  # Кнопки крафта
             CallbackQueryHandler(dice_callback, pattern=r"^dice_.*"),
             CallbackQueryHandler(casino_callback, pattern=r"^casino_.*"),
+            CallbackQueryHandler(top_callback, pattern=r"^top_.*"),
         ]
 
         for handler in handlers:
