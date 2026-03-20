@@ -2182,7 +2182,11 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         user_data["free_rolls"] = user_data.get("free_rolls", 0) + dice_value
 
-        user_data["last_dice_time"] = current_time
+        admin_list = data.get("admins", [])
+        is_admin_user = user_id in admin_list
+        if not is_admin_user:
+        
+            user_data["last_dice_time"] = current_time
 
         save_data(data)
 
