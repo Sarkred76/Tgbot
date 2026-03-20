@@ -443,7 +443,6 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         user_data = data["users"].get(user_id)
         
         if not user_data or not user_data.get("cards"):
-            # ⭐ ПРОВЕРКА: callback или сообщение ⭐
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.edit_message_text("У вас пока нет карточек!")
             else:
@@ -452,8 +451,6 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         
         user_card_ids = user_data["cards"]
         card_counts = Counter(user_card_ids)
-        
-        # Получаем все уникальные карты пользователя
         unique_card_ids = list(card_counts.keys())
         
         # Считаем карты по редкостям
@@ -509,8 +506,15 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
-            await update.callback_query.edit_message_text(
-                "📂 **Выберите редкость для просмотра:**",
+            query = update.callback_query
+            # ⭐ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ (с фото) И ОТПРАВЛЯЕМ НОВОЕ ⭐
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="📂 **Выберите редкость для просмотра:**",
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
@@ -706,6 +710,11 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         
         elif query.data == "mycards_back_to_rarities":
             # ⭐ ВОЗВРАЩАЕМСЯ К ВЫБОРУ РЕДКОСТЕЙ ⭐
+            # Удаляем сообщение с картой и показываем меню редкостей
+            try:
+                await query.message.delete()
+            except:
+                pass
             await show_user_cards(update, context)
         
         elif query.data.startswith("mycards_rarity_"):
