@@ -2739,7 +2739,7 @@ async def reset_season_points(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"📊 Было поинтов: {old_points}\n"
             f"📈 Стало поинтов: 0\n\n"
             f"⚠️ Общие поинты (total_points) не изменены.",
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         
         logger.info(f"Админ {user_id} сбросил сезонные поинты игроку {target_user_id} ({old_points} → 0)")
