@@ -103,49 +103,32 @@ logger = logging.getLogger(__name__)
 
 def load_data() -> Dict[str, Any]:
     """Загружает данные из файла или создает новую структуру."""
-
     if os.path.exists(DATA_FILE):
-
         try:
-
             with open(DATA_FILE, "r", encoding="utf-8") as f:
-
                 data = json.load(f)
-
+            
+            # Инициализируем активные трейды если нет
+            if "active_trades" not in data:
+                data["active_trades"] = {}
+            
             for user_id, user_data in data.get("users", {}).items():
-
                 if "last_card_time" not in user_data:
-
                     user_data["last_card_time"] = 0
-
                 if "free_rolls" not in user_data:
-
                     user_data["free_rolls"] = 0
-
                 if "last_dice_time" not in user_data:
-
                     user_data["last_dice_time"] = 0
-
-                # ⭐ ДОБАВЬТЕ ЭТИ СТРОКИ ⭐
-
                 if "casino_attempts" not in user_data:
-
                     user_data["casino_attempts"] = 10
-
                 if "last_casino_reset" not in user_data:
-
                     user_data["last_casino_reset"] = 0
-
-                # =================================
-
             return data
-
         except Exception as e:
-
             logger.error(f"Ошибка загрузки данных: {e}")
-
-    return {"users": {}, "cards": [], "season": 1, "admins": [INITIAL_ADMIN_ID]}
-
+            return {"users": {}, "cards": [], "season": 1, "admins": [INITIAL_ADMIN_ID], "active_trades": {}}
+    
+    return {"users": {}, "cards": [], "season": 1, "admins": [INITIAL_ADMIN_ID], "active_trades": {}}
 
 def check_casino_reset(user_data: Dict) -> None:
     """Проверяет и сбрасывает попытки казино в полночь по МСК."""
@@ -3268,21 +3251,17 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # Отправляем запрос партнёру
             partner_id = trade_info["partner_id"]
 
-            # ⭐ ИНИЦИАЛИЗИРУЕМ context.user_data[partner_id] ⭐
-            if partner_id not in context.user_data:
-                context.user_data[partner_id] = {}
-
-            # ⭐ СОХРАНЯЕМ ВХОДЯЩИЙ ТРЕЙД ⭐
-            context.user_data[partner_id]["incoming_trade"] = {
+            # ⭐ СОХРАНЯЕМ ТРЕЙД В ФАЙЛ (вместо context.user_data) ⭐
+            data = load_data()
+            data["active_trades"][partner_id] = {
                 "from_user": user_id,
                 "cards_offered": selected_card_ids,
                 "trade_type": trade_info["trade_type"],
                 "timestamp": int(time.time())
             }
+            save_data(data)
 
-            # ⭐ ЛОГИРОВАНИЕ ДЛЯ ДИАГНОСТИКИ ⭐
-            logger.info(f"Трейд создан: {user_id} → {partner_id}, карты: {selected_card_ids}")
-            logger.info(f"context.user_data[{partner_id}] = {context.user_data.get(partner_id)}")
+            logger.info(f"Трейд сохранён в файл: {user_id} → {partner_id}")
 
             # Уведомляем партнёра
             try:
@@ -3338,41 +3317,35 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
         query = update.callback_query
         await query.answer()
         user_id = str(query.from_user.id)
+        
+        # ⭐ ЧИТАЕМ ТРЕЙД ИЗ ФАЙЛА ⭐
         data = load_data()
         
-        # ⭐ ЛОГИРОВАНИЕ ДЛЯ ДИАГНОСТИКИ ⭐
-        logger.info(f"trade_button_callback: user_id={user_id}, data={query.data}")
-        logger.info(f"context.user_data.get({user_id}) = {context.user_data.get(user_id)}")
-        
-        # Проверяем, есть ли входящий трейд
-        if user_id not in context.user_data:
-            logger.warning(f"Нет сессии для пользователя {user_id}")
-            await query.edit_message_text("❌ У вас нет активных запросов на трейд!")
+        if user_id not in data.get("active_trades", {}):
+            logger.warning(f"Трейд не найден для пользователя {user_id}")
+            await query.edit_message_text("❌ Трейд не найден или истёк!")
             return
         
-        if "incoming_trade" not in context.user_data[user_id]:
-            logger.warning(f"Нет incoming_trade для пользователя {user_id}")
-            await query.edit_message_text("❌ У вас нет активных запросов на трейд!")
-            return
-        
-        trade_info = context.user_data[user_id]["incoming_trade"]
+        trade_info = data["active_trades"][user_id]
         from_user = trade_info["from_user"]
         cards_offered = trade_info["cards_offered"]
         
-        logger.info(f"trade_info: {trade_info}")
+        logger.info(f"trade_button_callback: {user_id} принимает трейд от {from_user}")
         
         # Принятие трейда
         if query.data.startswith("trade_accept_btn_"):
             # Проверяем, что отправитель существует
             if from_user not in data["users"]:
+                del data["active_trades"][user_id]
+                save_data(data)
                 await query.edit_message_text("❌ Игрок, который отправил трейд, больше не существует!")
-                del context.user_data[user_id]["incoming_trade"]
                 return
             
             # Проверяем, что карты ещё существуют у отправителя
             if not cards_offered:
+                del data["active_trades"][user_id]
+                save_data(data)
                 await query.edit_message_text("❌ Карты для обмена больше не доступны!")
-                del context.user_data[user_id]["incoming_trade"]
                 return
             
             # Получаем имя отправителя
@@ -3381,18 +3354,23 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             if sender_data.get("last_name"):
                 sender_name += f" {sender_data['last_name']}"
             
-            # Запрашиваем карты у партнёра
-            context.user_data[user_id]["step"] = "view_offered_cards"
-            context.user_data[user_id]["trade_partner"] = from_user
-            context.user_data[user_id]["received_cards"] = cards_offered
-            context.user_data[user_id]["current_offer_index"] = 0
+            # ⭐ СОХРАНЯЕМ ВРЕМЕННО В context.user_data ДЛЯ НАВИГАЦИИ ⭐
+            context.user_data[user_id] = {
+                "step": "view_offered_cards",
+                "trade_partner": from_user,
+                "received_cards": cards_offered,
+                "current_offer_index": 0
+            }
+            
+            # Удаляем трейд из активных (чтобы не принять дважды)
+            del data["active_trades"][user_id]
+            save_data(data)
             
             await query.edit_message_text(
                 f"✅ **Запрос принят от {sender_name}**\n\n"
                 f"🃏 Карт в обмене: {len(cards_offered)}\n\n"
                 f"📋 **Просмотрите карты ниже:**\n"
-                f"Используйте [<] [>] для навигации\n"
-                f"Когда будете готовы, нажмите [✅ Принять обмен]",
+                f"Используйте [<] [>] для навигации",
                 parse_mode="Markdown"
             )
             
@@ -3444,7 +3422,8 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
         
         # Отклонение трейда
         elif query.data.startswith("trade_decline_btn_"):
-            del context.user_data[user_id]["incoming_trade"]
+            del data["active_trades"][user_id]
+            save_data(data)
             
             await query.edit_message_text("❌ Трейд отклонён")
             
@@ -3608,7 +3587,9 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         query = update.callback_query
         await query.answer()
         user_id = str(query.from_user.id)
+        data = load_data()
         
+        # Читаем из context.user_data (туда сохранили после принятия)
         if user_id not in context.user_data:
             await query.edit_message_text("❌ Сессия трейда истекла!")
             return
@@ -3617,9 +3598,7 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         if trade_info.get("step") != "view_offered_cards":
             return
         
-        data = load_data()
         cards_offered = trade_info.get("received_cards", [])
-        
         if not cards_offered:
             await query.answer("❌ Карты не найдены!", show_alert=True)
             return
