@@ -3409,8 +3409,8 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 
                 keyboard.append(nav_buttons)
                 keyboard.append([
-                    InlineKeyboardButton("✅ Принять обмен", callback_data="trade_accept_confirm"),
-                    InlineKeyboardButton("❌ Отклонить", callback_data="trade_decline_from_view"),
+                    InlineKeyboardButton("✅ Принять обмен", callback_data="trade_offer_accept"),
+                    InlineKeyboardButton("❌ Отклонить", callback_data="trade_offer_decline"),
                 ])
                 
                 await context.bot.send_photo(
@@ -3657,7 +3657,7 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
         
         # Принятие обмена
-        elif query.data == "trade_accept_confirm":
+        elif query.data == "trade_offer_accpet":
             # Переходим к выбору своих карт
             context.user_data[user_id]["step"] = "select_return_cards"
             from_user = trade_info.get("trade_partner")
@@ -3711,7 +3711,7 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 )
         
         # Отклонение обмена
-        elif query.data == "trade_decline_from_view":
+        elif query.data == "trade_offer_decline":
             if "incoming_trade" in context.user_data.get(user_id, {}):
                 trade_info = context.user_data[user_id]["incoming_trade"]
                 from_user = trade_info["from_user"]
