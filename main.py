@@ -3757,14 +3757,95 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
         data = load_data()
         user_card_ids = trade_info.get("user_card_ids", [])
         
-        # Навигация и выбор карт (без изменений)
+        # Навигация
         if query.data.startswith("trade_return_prev_") or query.data.startswith("trade_return_next_"):
-            # ... (код навигации) ...
-            pass
+            action = "prev" if "prev" in query.data else "next"
+            current_index = trade_info.get("current_index", 0)
+            
+            if not user_card_ids:
+                await query.answer("❌ Карты не найдены!", show_alert=True)
+                return
+            
+            if action == "prev":
+                current_index = (current_index - 1) % len(user_card_ids)
+            else:
+                current_index = (current_index + 1) % len(user_card_ids)
+            
+            trade_info["current_index"] = current_index
+            
+            card = find_card_by_id(user_card_ids[current_index], data["cards"])
+            if card:
+                selected_count = len(trade_info.get("selected_cards", []))
+                cards_count = trade_info.get("cards_count", 1)
+                
+                card_counts = Counter(user_card_ids)
+                card_in_collection = card_counts.get(card["id"], 1)
+                
+                caption = (
+                    f"{card['title']}\n"
+                    f"Редкость: {card['rarity']}\n"
+                    f"📦 В коллекции: {card_in_collection} шт.\n\n"
+                    f"{selected_count}/{cards_count} выбрано"
+                )
+                
+                is_selected = current_index in trade_info.get("selected_cards", [])
+                select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
+                
+                keyboard = [
+                    [
+                        InlineKeyboardButton("<", callback_data=f"trade_return_prev_{current_index}"),
+                        InlineKeyboardButton(select_text, callback_data=f"trade_return_select_{current_index}"),
+                        InlineKeyboardButton(">", callback_data=f"trade_return_next_{current_index}"),
+                    ],
+                    [InlineKeyboardButton("➡️ Завершить обмен", callback_data="trade_return_finish")],
+                ]
+                
+                media = InputMediaPhoto(media=card["image_url"], caption=caption)
+                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
         
+        # Выбор карты
         elif query.data.startswith("trade_return_select_"):
-            # ... (код выбора карты) ...
-            pass
+            card_index = int(query.data.split("_")[-1])
+            selected_cards = trade_info.get("selected_cards", [])
+            cards_count = trade_info.get("cards_count", 1)
+            
+            if card_index in selected_cards:
+                selected_cards.remove(card_index)
+            else:
+                if len(selected_cards) >= cards_count:
+                    await query.answer("❌ Максимум карт выбрано!", show_alert=True)
+                    return
+                selected_cards.append(card_index)
+            
+            trade_info["selected_cards"] = selected_cards
+            
+            current_index = trade_info.get("current_index", 0)
+            card = find_card_by_id(user_card_ids[current_index], data["cards"])
+            if card:
+                card_counts = Counter(user_card_ids)
+                card_in_collection = card_counts.get(card["id"], 1)
+                
+                caption = (
+                    f"{card['title']}\n"
+                    f"Редкость: {card['rarity']}\n"
+                    f"📦 В коллекции: {card_in_collection} шт.\n\n"
+                    f"{len(selected_cards)}/{cards_count} выбрано"
+                )
+                
+                is_selected = current_index in selected_cards
+                select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
+                
+                keyboard = [
+                    [
+                        InlineKeyboardButton("<", callback_data=f"trade_return_prev_{current_index}"),
+                        InlineKeyboardButton(select_text, callback_data=f"trade_return_select_{current_index}"),
+                        InlineKeyboardButton(">", callback_data=f"trade_return_next_{current_index}"),
+                    ],
+                    [InlineKeyboardButton("➡️ Завершить обмен", callback_data="trade_return_finish")],
+                ]
+                
+                media = InputMediaPhoto(media=card["image_url"], caption=caption)
+                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
         
         # ⭐ ЗАВЕРШЕНИЕ ВЫБОРА КАРТ ⭐
         elif query.data == "trade_return_finish":
@@ -3823,7 +3904,12 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     parse_mode="Markdown"
                 )
                 
-                await query.edit_message_text(
+                # ⭐ ИСПРАВЛЕНИЕ: удаляем фото и отправляем текстовое сообщение ⭐
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                await query.message.reply_text(
                     "✅ Ваш ответ отправлен!\n\n"
                     "⏳ Ожидайте подтверждения от отправителя..."
                 )
@@ -3836,6 +3922,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
         logger.error(f"Ошибка trade_return_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
+
 async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик финального подтверждения трейда."""
     try:
@@ -3845,7 +3932,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         data = load_data()
         
         # Проверяем сессию
-        if user_id not in context.user_data:
+        if user_id not in context.user_
             await query.edit_message_text("❌ Сессия трейда истекла!")
             return
         
@@ -3859,7 +3946,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         # Подтверждение обмена
         if query.data.startswith("trade_final_confirm_"):
             # Получаем карты, которые выбрал получатель
-            if partner_id not in context.user_data:
+            if partner_id not in context.user_
                 await query.edit_message_text("❌ Ошибка: сессия партнёра не найдена!")
                 return
             
@@ -3893,7 +3980,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             save_data(data)
             
             # Очищаем сессии
-            if user_id in context.user_data:
+            if user_id in context.user_
                 del context.user_data[user_id]
             if partner_id in context.user_data:
                 del context.user_data[partner_id]
@@ -3922,9 +4009,9 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         # Отмена обмена
         elif query.data.startswith("trade_final_decline_"):
             # Очищаем сессии
-            if user_id in context.user_data:
+            if user_id in context.user_
                 del context.user_data[user_id]
-            if partner_id in context.user_data:
+            if partner_id in context.user_
                 del context.user_data[partner_id]
             
             await query.edit_message_text("❌ Обмен отменён")
