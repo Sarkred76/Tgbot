@@ -3156,7 +3156,17 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             if card:
                 selected_count = len(trade_info.get("selected_cards", []))
                 cards_count = trade_info.get("cards_count", 1)
-                caption = f"{card['title']}\nРедкость: {card['rarity']}\n\n{selected_count}/{cards_count} выбрано"
+                
+                # ⭐ СЧИТАЕМ КОЛИЧЕСТВО КАРТЫ В КОЛЛЕКЦИИ ⭐
+                card_counts = Counter(user_card_ids)
+                card_in_collection = card_counts.get(card["id"], 1)
+                
+                caption = (
+                    f"{card['title']}\n"
+                    f"Редкость: {card['rarity']}\n"
+                    f"📦 В коллекции: {card_in_collection} шт.\n\n"
+                    f"{selected_count}/{cards_count} выбрано"
+                )
                 
                 is_selected = current_index in trade_info.get("selected_cards", [])
                 select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
@@ -3194,7 +3204,16 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             current_index = trade_info.get("current_index", 0)
             card = find_card_by_id(user_card_ids[current_index], data["cards"])
             if card:
-                caption = f"{card['title']}\nРедкость: {card['rarity']}\n\n{len(selected_cards)}/{cards_count} выбрано"
+                # ⭐ СЧИТАЕМ КОЛИЧЕСТВО КАРТЫ В КОЛЛЕКЦИИ ⭐
+                card_counts = Counter(user_card_ids)
+                card_in_collection = card_counts.get(card["id"], 1)
+                
+                caption = (
+                    f"{card['title']}\n"
+                    f"Редкость: {card['rarity']}\n"
+                    f"📦 В коллекции: {card_in_collection} шт.\n\n"
+                    f"{len(selected_cards)}/{cards_count} выбрано"
+                )
                 
                 is_selected = current_index in selected_cards
                 select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
@@ -3449,7 +3468,17 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
             if card:
                 selected_count = len(trade_info.get("selected_cards", []))
                 cards_count = trade_info.get("cards_count", 1)
-                caption = f"{card['title']}\nРедкость: {card['rarity']}\n\n{selected_count}/{cards_count} выбрано"
+                
+                # ⭐ СЧИТАЕМ КОЛИЧЕСТВО КАРТЫ В КОЛЛЕКЦИИ ⭐
+                card_counts = Counter(user_card_ids)
+                card_in_collection = card_counts.get(card["id"], 1)
+                
+                caption = (
+                    f"{card['title']}\n"
+                    f"Редкость: {card['rarity']}\n"
+                    f"📦 В коллекции: {card_in_collection} шт.\n\n"
+                    f"{selected_count}/{cards_count} выбрано"
+                )
                 
                 is_selected = current_index in trade_info.get("selected_cards", [])
                 select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
@@ -3485,7 +3514,16 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
             current_index = trade_info.get("current_index", 0)
             card = find_card_by_id(user_card_ids[current_index], data["cards"])
             if card:
-                caption = f"{card['title']}\nРедкость: {card['rarity']}\n\n{len(selected_cards)}/{cards_count} выбрано"
+                # ⭐ СЧИТАЕМ КОЛИЧЕСТВО КАРТЫ В КОЛЛЕКЦИИ ⭐
+                card_counts = Counter(user_card_ids)
+                card_in_collection = card_counts.get(card["id"], 1)
+                
+                caption = (
+                    f"{card['title']}\n"
+                    f"Редкость: {card['rarity']}\n"
+                    f"📦 В коллекции: {card_in_collection} шт.\n\n"
+                    f"{len(selected_cards)}/{cards_count} выбрано"
+                )
                 
                 is_selected = current_index in selected_cards
                 select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
@@ -3570,7 +3608,6 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
     except Exception as e:
         logger.error(f"Ошибка trade_return_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
 
 
 
