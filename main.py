@@ -3970,10 +3970,11 @@ def main() -> None:
             CallbackQueryHandler(dice_callback, pattern=r"^dice_.*"),
             CallbackQueryHandler(casino_callback, pattern=r"^casino_.*"),
             CallbackQueryHandler(top_callback, pattern=r"^top_.*"),
-            CallbackQueryHandler(trade_callback, pattern=r"^trade_.*"),  # ← ДОБАВЬТЕ
-            CallbackQueryHandler(trade_return_callback, pattern=r"^trade_return_.*"),  # ← ДОБАВЬТЕ
-            CallbackQueryHandler(trade_offer_callback, pattern=r"^trade_offer_.*"),
             CallbackQueryHandler(trade_button_callback, pattern=r"^trade_(accept|decline)_btn_.*"),
+            CallbackQueryHandler(trade_offer_callback, pattern=r"^trade_offer_.*"),
+            CallbackQueryHandler(trade_return_callback, pattern=r"^trade_return_.*"),  # ← ДОБАВЬТЕ
+            CallbackQueryHandler(trade_callback, pattern=r"^trade_.*"),  # ← ДОБАВЬТЕ
+     
         ]
 
         for handler in handlers:
