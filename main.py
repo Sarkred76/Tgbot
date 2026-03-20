@@ -443,7 +443,11 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         user_data = data["users"].get(user_id)
         
         if not user_data or not user_data.get("cards"):
-            await update.message.reply_text("У вас пока нет карточек!")
+            # ⭐ ПРОВЕРКА: callback или сообщение ⭐
+            if hasattr(update, 'callback_query') and update.callback_query:
+                await update.callback_query.edit_message_text("У вас пока нет карточек!")
+            else:
+                await update.message.reply_text("У вас пока нет карточек!")
             return
         
         user_card_ids = user_data["cards"]
@@ -463,7 +467,10 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 rarity_cards[rarity].append((card_id, card_counts[card_id]))
         
         if not rarity_cards:
-            await update.message.reply_text("У вас пока нет карточек!")
+            if hasattr(update, 'callback_query') and update.callback_query:
+                await update.callback_query.edit_message_text("У вас пока нет карточек!")
+            else:
+                await update.message.reply_text("У вас пока нет карточек!")
             return
         
         # Создаём клавиатуру с редкостями
@@ -472,10 +479,9 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # Обычные редкости T1-T8
         for rarity in ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"]:
             if rarity in rarity_cards:
-                # ⭐ УБРАЛИ КОЛИЧЕСТВО КАРТ ⭐
                 keyboard.append([
                     InlineKeyboardButton(
-                        rarity,  # ← Просто название редкости
+                        rarity,
                         callback_data=f"mycards_rarity_{rarity}"
                     )
                 ])
@@ -483,12 +489,11 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # Upgrade редкости
         upgrade_rarities = [r for r in rarity_cards.keys() if r.startswith("Upgrade")]
         if upgrade_rarities:
-            keyboard.append([])  # Пустая строка для разделения
+            keyboard.append([])
             for rarity in sorted(upgrade_rarities):
-                # ⭐ УБРАЛИ КОЛИЧЕСТВО КАРТ ⭐
                 keyboard.append([
                     InlineKeyboardButton(
-                        rarity,  # ← Просто название редкости
+                        rarity,
                         callback_data=f"mycards_rarity_{rarity}"
                     )
                 ])
@@ -497,20 +502,31 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         keyboard.append([])
         keyboard.append([
             InlineKeyboardButton(
-                f"📋 Все карты",  # ← Убрали количество
+                "📋 Все карты",
                 callback_data="mycards_all"
             )
         ])
         
-        await update.message.reply_text(
-            "📂 **Выберите редкость для просмотра:**",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
-        )
+        # ⭐ ПРОВЕРКА: callback или сообщение ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.edit_message_text(
+                "📂 **Выберите редкость для просмотра:**",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+        else:
+            await update.message.reply_text(
+                "📂 **Выберите редкость для просмотра:**",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
         
     except Exception as e:
         logger.error(f"Ошибка при показе меню карт: {e}")
-        await update.message.reply_text("Произошла ошибка")
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("Произошла ошибка", show_alert=True)
+        else:
+            await update.message.reply_text("Произошла ошибка")
 
 async def show_cards_by_rarity(
     update: Update, 
@@ -645,13 +661,12 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     try:
         query = update.callback_query
         await query.answer()
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
         
         if query.data == "mycards_all":
             # Показываем все карты (старая логика)
-            user_id = str(query.from_user.id)
-            data = load_data()
-            user_data = data["users"].get(user_id)
-            
             if not user_data or not user_data.get("cards"):
                 await query.edit_message_text("У вас пока нет карточек!")
                 return
@@ -690,7 +705,7 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 )
         
         elif query.data == "mycards_back_to_rarities":
-            # Возвращаемся к выбору редкостей
+            # ⭐ ВОЗВРАЩАЕМСЯ К ВЫБОРУ РЕДКОСТЕЙ ⭐
             await show_user_cards(update, context)
         
         elif query.data.startswith("mycards_rarity_"):
