@@ -249,36 +249,39 @@ def generate_card_caption(
     show_bonus: bool = False,
 ) -> str:
     """Генерирует описание карточки с количеством дубликатов."""
-
     if user_data is None:
-
         if count > 1:
-
-            return f"{card['title']}\nРедкость: {card['rarity']}\n📦 Количество: {count} шт."
-
-        return f"{card['title']}\nРедкость: {card['rarity']}"
-
-    caption = f"💥 BOOM\n" f"{card['title']}\n\n" f"Редкость: {card['rarity']}\n"
-
+            caption = f"{card['title']}\nРедкость: {card['rarity']}"
+        else:
+            caption = f"{card['title']}\nРедкость: {card['rarity']}"
+        
+        # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
+        if card.get("faction"):
+            caption += f"\n⚔️ {card['faction']}"
+        
+        if count > 1:
+            caption += f"\n📦 Количество: {count} шт."
+        return caption
+    
+    caption = f"💥 BOOM\n{card['title']}\nРедкость: {card['rarity']}"
+    
+    # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
+    if card.get("faction"):
+        caption += f"\n⚔️ {card['faction']}"
+    
     # Показываем бонусы только при получении новой карты
-
     if show_bonus:
-
         bonus = RARITY_BONUSES.get(card["rarity"], {"cents": 0, "points": 0})
-
-        caption += f"🪙 +{bonus['cents']} центов\n" f"💊 +{bonus['points']} поинтов\n"
-
+        caption += f"\n🪙 +{bonus['cents']} центов\n💊 +{bonus['points']} поинтов"
+    
     # Добавляем количество, если есть дубликаты
-
     if count > 1:
-
-        caption += f"📦 Количество: {count} шт.\n"
-
+        caption += f"\n📦 Количество: {count} шт."
+    
     caption += (
-        f"\nПоинтов в этом сезоне: {user_data['season_points']}\n"
+        f"\n\nПоинтов в этом сезоне: {user_data['season_points']}\n"
         f"Поинтов за все время: {user_data['total_points']}"
     )
-
     return caption
 
 
@@ -1229,155 +1232,118 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Добавление новой карточки (многострочно)."""
-
     try:
-
         data = load_data()
-
         if not is_admin(str(update.effective_user.id), data):
-
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
-
+        
         full_text = update.message.text
-
         lines = full_text.split("\n")
-
-        if len(lines) < 4:
-
+        
+        # ⭐ НОВЫЙ ФОРМАТ: 5 строк (с фракцией) ⭐
+        if len(lines) < 5:
             await update.message.reply_text(
-                "ℹ️ Формат:\n/add_card\nURL\nНазвание\nРедкость"
+                "ℹ️ Формат:\n"
+                "/add_card\n"
+                "URL\n"
+                "Название\n"
+                "Редкость\n"
+                "Фракция (или 'нет')"
             )
-
             return
-
+        
         url = lines[1].strip()
-
         title = lines[2].strip()
-
         rarity = lines[3].strip()
-
+        faction = lines[4].strip()
+        
         if rarity not in RARITY_BONUSES:
-
             await update.message.reply_text(
                 f"⚠️ Допустимые редкости: {', '.join(RARITY_BONUSES.keys())}"
             )
-
             return
-
+        
         data = load_data()
-
-        # Вычисляем новый ID: если карт нет, то 1, иначе max+1
-
+        
+        # Вычисляем новый ID
         if data["cards"]:
-
             new_id = max(card["id"] for card in data["cards"]) + 1
-
         else:
-
             new_id = 1
-
+        
         media_type = determine_media_type(url, rarity)
-
+        
         new_card = {
             "id": new_id,
             "image_url": url,
             "title": title,
             "rarity": rarity,
+            "faction": faction if faction.lower() != "нет" else None,  # ⭐ ФРАКЦИЯ ⭐
             "available": True,
             "media_type": media_type,
         }
-
+        
         data["cards"].append(new_card)
-
         save_data(data)
-
+        
+        faction_text = f"\n⚔️ {faction}" if faction.lower() != "нет" else ""
+        
         await update.message.reply_text(
             f"✅ Карточка #{new_id} добавлена!\n"
             f"🏷 {title}\n"
-            f"🌟 {rarity}\n"
+            f"🌟 {rarity}{faction_text}\n"
             f"📺 {'Анимация' if media_type == 'animation' else 'Фото'}"
         )
-
+        
     except Exception as e:
-
         logger.error(f"Ошибка добавления карточки: {e}")
-
         await update.message.reply_text("❌ Ошибка при добавлении")
 
 
 async def list_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Список всех карточек (с разбивкой на части)."""
-
     try:
-
         data = load_data()
-
         if not is_admin(str(update.effective_user.id), data):
-
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
-
+        
         if not data["cards"]:
-
             await update.message.reply_text("📭 Нет добавленных карточек.")
-
             return
-
-        # Формируем список карточек
-
+        
         cards_list = []
-
         for card in data["cards"]:
-
             status = "✅" if card["available"] else "❌"
-
+            faction_text = f"⚔️ {card.get('faction', '—')}" if card.get('faction') else "⚔️ —"
+            
             card_info = (
                 f"{status} ID: {card['id']}\n"
                 f"📺 Тип: {'Анимация' if card.get('media_type') == 'animation' else 'Фото'}\n"
                 f"🏷 {card['title']}\n"
                 f"🌟 {card['rarity']}\n"
+                f"{faction_text}\n"  # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
                 f"🔗 {card['image_url'][:30]}...\n"
             )
-
             cards_list.append(card_info)
-
-        # Разбиваем на сообщения по 4000 символов (с запасом)
-
+        
+        # Разбиваем на сообщения по 4000 символов
         MAX_LENGTH = 4000
-
-        current_message = "📋 Все карточки:\n\n"
-
+        current_message = "📋 Все карточки:\n"
+        
         for card_info in cards_list:
-
-            # Если добавление следующей карты превысит лимит
-
             if len(current_message) + len(card_info) + 2 > MAX_LENGTH:
-
-                # Отправляем текущее сообщение
-
                 await update.message.reply_text(current_message)
-
-                # Начинаем новое
-
-                current_message = "📋 Все карточки (продолжение):\n\n" + card_info
-
+                current_message = "📋 Все карточки (продолжение):\n" + card_info
             else:
-
                 current_message += card_info + "\n"
-
-        # Отправляем последнее сообщение
-
+        
         if current_message.strip():
-
             await update.message.reply_text(current_message)
-
+            
     except Exception as e:
-
         logger.error(f"Ошибка показа карточек: {e}")
-
         await update.message.reply_text("❌ Ошибка при получении списка")
 
 
@@ -1716,189 +1682,145 @@ async def list_admins(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Редактирование параметров карты."""
-
     try:
-
         data = load_data()
-
         if not is_admin(str(update.effective_user.id), data):
-
             await update.message.reply_text("🚫 Только для администратора!")
-
             return
-
+        
         # Проверяем аргументы
-
         if not context.args or len(context.args) < 3:
-
             await update.message.reply_text(
-                "ℹ️ **Формат команды:**\n\n"
+                "ℹ️ **Формат команды:**\n"
                 "/edit_card [ID] [параметр] [новое_значение]\n\n"
                 "**Параметры:**\n"
                 "• title - название карты\n"
                 "• url - URL изображения\n"
                 "• rarity - редкость (T1-T8, UpgradeT1-UpgradeT7)\n"
+                "• faction - фракция (текст)\n"  # ← НОВЫЙ ПАРАМЕТР
                 "• available - статус (true/false)\n\n"
                 "**Примеры:**\n"
                 "/edit_card 45 title Новая карта\n"
                 "/edit_card 45 url https://example.com/img.jpg\n"
                 "/edit_card 45 rarity T3\n"
+                "/edit_card 45 faction Демоны\n"  # ← НОВЫЙ ПРИМЕР
                 "/edit_card 45 available false",
                 parse_mode="Markdown",
             )
-
             return
-
+        
         card_id = int(context.args[0])
-
         param = context.args[1].lower()
-
         new_value = " ".join(context.args[2:])
-
+        
         # Находим карту
-
         card = find_card_by_id(card_id, data["cards"])
-
         if not card:
-
             await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена")
-
             return
-
+        
         # Обновляем параметр
-
-        valid_params = ["title", "url", "rarity", "available"]
-
+        valid_params = ["title", "url", "rarity", "faction", "available"]  # ← ДОБАВИЛИ faction
         if param not in valid_params:
-
             await update.message.reply_text(
                 f"⚠️ Неверный параметр! Доступные: {', '.join(valid_params)}"
             )
-
             return
-
+        
         # Сохраняем старое значение
-
         old_value = card.get(param, "не задано")
-
+        
         # Обновляем значение
-
-        if param == "available":  # Преобразуем в boolean
-
+        if param == "available":
             new_value = new_value.lower() in ["true", "1", "yes", "вкл", "on"]
-
             card[param] = new_value
-
         elif param == "rarity":
-
-            # Проверяем валидность редкости
-
             if new_value not in RARITY_BONUSES:
-
                 await update.message.reply_text(
                     f"⚠️ Недопустимая редкость!\n"
                     f"Доступные: {', '.join(RARITY_BONUSES.keys())}"
                 )
-
                 return
-
             card[param] = new_value
-
-            # Обновляем media_type
-
-            card["media_type"] = determine_media_type(
-                card.get("image_url", ""), new_value
-            )
-
+            card["media_type"] = determine_media_type(card.get("image_url", ""), new_value)
         elif param == "url":
-
             card["image_url"] = new_value
-
-            # Обновляем media_type
-
             card["media_type"] = determine_media_type(new_value, card.get("rarity", ""))
-
         else:
-
+            # title или faction
             card[param] = new_value
-
+        
         save_data(data)
-
-        await update.message.reply_text(
-            f"✅ **Карта #{card_id} обновлена!**\n\n"
+        
+        # Формируем ответ
+        response = (
+            f"✅ **Карта #{card_id} обновлена!**\n"
             f"📝 Параметр: {param}\n"
             f"❌ Было: {old_value}\n"
-            f"✅ Стало: {new_value}\n\n"
+            f"✅ Стало: {new_value}\n"
             f"🏷 {card.get('title')}\n"
-            f"🌟 {card.get('rarity')}\n"
-            f"{'✅ Включена' if card.get('available') else '❌ Выключена'}",
-            parse_mode="Markdown",
+            f"🌟 {card.get('rarity')}"
         )
-
+        
+        # Добавляем фракцию в ответ, если она есть
+        if card.get("faction"):
+            response += f"\n⚔️ {card['faction']}"
+        
+        response += f"\n{'✅ Включена' if card.get('available') else '❌ Выключена'}"
+        
+        await update.message.reply_text(response, parse_mode="Markdown")
+        
     except ValueError:
-
         await update.message.reply_text("⚠️ ID должен быть числом!")
-
     except Exception as e:
-
         logger.error(f"Ошибка редактирования карты: {e}")
-
         await update.message.reply_text("❌ Ошибка при редактировании")
 
 
 async def card_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает подробную информацию о карте."""
-
     try:
-
         if not context.args:
-
             await update.message.reply_text("ℹ️ Используйте: /card_info [ID]")
-
             return
-
+        
         card_id = int(context.args[0])
-
         data = load_data()
-
+        
         card = find_card_by_id(card_id, data["cards"])
-
         if not card:
-
             await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена")
-
             return
-
+        
         # Считаем у скольких игроков есть эта карта
-
         players_count = 0
-
         for user_data in data["users"].values():
-
             if card_id in user_data.get("cards", []):
-
                 players_count += 1
-
+        
         info_text = (
             f"📊 **Информация о карте #{card_id}**\n\n"
             f"🏷 **Название:** {card.get('title')}\n"
             f"🌟 **Редкость:** {card.get('rarity')}\n"
+        )
+        
+        # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
+        if card.get("faction"):
+            info_text += f"⚔️ **Фракция:** {card['faction']}\n"
+        
+        info_text += (
             f"📺 **Тип:** {'Анимация' if card.get('media_type') == 'animation' else 'Фото'}\n"
             f"{'✅ **Статус:** Включена\n' if card.get('available') else '❌ **Статус:** Выключена\n'}"
             f"🔗 **URL:** `{card.get('image_url')}`\n\n"
             f"👥 **Есть у игроков:** {players_count}\n"
         )
-
+        
         await update.message.reply_text(info_text, parse_mode="Markdown")
-
+        
     except ValueError:
-
         await update.message.reply_text("⚠️ ID должен быть числом!")
-
     except Exception as e:
-
         logger.error(f"Ошибка показа инфо карты: {e}")
-
         await update.message.reply_text("❌ Ошибка")
 
 
