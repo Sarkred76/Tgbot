@@ -3932,7 +3932,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         data = load_data()
         
         # Проверяем сессию
-        if user_id not in context.user_
+        if user_id not in context.user_data:
             await query.edit_message_text("❌ Сессия трейда истекла!")
             return
         
@@ -3946,7 +3946,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         # Подтверждение обмена
         if query.data.startswith("trade_final_confirm_"):
             # Получаем карты, которые выбрал получатель
-            if partner_id not in context.user_
+            if partner_id not in context.user_data:
                 await query.edit_message_text("❌ Ошибка: сессия партнёра не найдена!")
                 return
             
@@ -3980,7 +3980,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             save_data(data)
             
             # Очищаем сессии
-            if user_id in context.user_
+            if user_id in context.user_data:
                 del context.user_data[user_id]
             if partner_id in context.user_data:
                 del context.user_data[partner_id]
@@ -4009,9 +4009,9 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         # Отмена обмена
         elif query.data.startswith("trade_final_decline_"):
             # Очищаем сессии
-            if user_id in context.user_
+            if user_id in context.user_data:
                 del context.user_data[user_id]
-            if partner_id in context.user_
+            if partner_id in context.user_data:
                 del context.user_data[partner_id]
             
             await query.edit_message_text("❌ Обмен отменён")
