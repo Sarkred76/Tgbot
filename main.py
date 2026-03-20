@@ -3263,22 +3263,28 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 parse_mode="Markdown"
             )
             
+            # В конце функции trade_callback, где сохраняем трейд для партнёра:
+
             # Отправляем запрос партнёру
             partner_id = trade_info["partner_id"]
-            
-            # Сохраняем трейд для партнёра
+
+            # ⭐ ИНИЦИАЛИЗИРУЕМ context.user_data[partner_id] ⭐
             if partner_id not in context.user_data:
                 context.user_data[partner_id] = {}
-            
+
+            # ⭐ СОХРАНЯЕМ ВХОДЯЩИЙ ТРЕЙД ⭐
             context.user_data[partner_id]["incoming_trade"] = {
                 "from_user": user_id,
                 "cards_offered": selected_card_ids,
                 "trade_type": trade_info["trade_type"],
                 "timestamp": int(time.time())
             }
-            
-            # Уведомляем партнёра
 
+            # ⭐ ЛОГИРОВАНИЕ ДЛЯ ДИАГНОСТИКИ ⭐
+            logger.info(f"Трейд создан: {user_id} → {partner_id}, карты: {selected_card_ids}")
+            logger.info(f"context.user_data[{partner_id}] = {context.user_data.get(partner_id)}")
+
+            # Уведомляем партнёра
             try:
                 # Получаем имя отправителя
                 sender_data = data["users"].get(user_id, {})
@@ -3334,18 +3340,26 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
         user_id = str(query.from_user.id)
         data = load_data()
         
+        # ⭐ ЛОГИРОВАНИЕ ДЛЯ ДИАГНОСТИКИ ⭐
+        logger.info(f"trade_button_callback: user_id={user_id}, data={query.data}")
+        logger.info(f"context.user_data.get({user_id}) = {context.user_data.get(user_id)}")
+        
         # Проверяем, есть ли входящий трейд
         if user_id not in context.user_data:
+            logger.warning(f"Нет сессии для пользователя {user_id}")
             await query.edit_message_text("❌ У вас нет активных запросов на трейд!")
             return
         
         if "incoming_trade" not in context.user_data[user_id]:
+            logger.warning(f"Нет incoming_trade для пользователя {user_id}")
             await query.edit_message_text("❌ У вас нет активных запросов на трейд!")
             return
         
         trade_info = context.user_data[user_id]["incoming_trade"]
         from_user = trade_info["from_user"]
         cards_offered = trade_info["cards_offered"]
+        
+        logger.info(f"trade_info: {trade_info}")
         
         # Принятие трейда
         if query.data.startswith("trade_accept_btn_"):
@@ -3446,7 +3460,6 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
     except Exception as e:
         logger.error(f"Ошибка trade_button_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
 
 async def trade_accept(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Принятие трейда с просмотром карт."""
