@@ -2689,6 +2689,65 @@ async def top_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         logger.error(f"Ошибка в top_callback: {e}")
         await query.answer("❌ Ошибка при обновлении", show_alert=True)
 
+async def reset_season_points(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Сбрасывает поинты за сезон у конкретного игрока."""
+    try:
+        data = load_data()
+        
+        # Проверка на админа
+        user_id = str(update.effective_user.id)
+        if not is_admin(user_id, data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # Проверяем аргументы
+        if not context.args:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n\n"
+                "/reset_season_points [ID_игрока]\n\n"
+                "**Пример:**\n"
+                "/reset_season_points 881692999",
+                parse_mode="Markdown"
+            )
+            return
+        
+        target_user_id = context.args[0]
+        
+        # Проверяем существование игрока
+        if target_user_id not in data["users"]:
+            await update.message.reply_text(f"⚠️ Игрок {target_user_id} не найден!")
+            return
+        
+        # Сохраняем старые поинты
+        old_points = data["users"][target_user_id].get("season_points", 0)
+        
+        # Сбрасываем поинты
+        data["users"][target_user_id]["season_points"] = 0
+        
+        save_data(data)
+        
+        # Получаем имя игрока
+        player_data = data["users"][target_user_id]
+        player_name = player_data.get("first_name", "Игрок")
+        if player_data.get("last_name"):
+            player_name += f" {player_data['last_name']}"
+        
+        await update.message.reply_text(
+            f"✅ **Сезонные поинты сброшены!**\n\n"
+            f"👤 Игрок: {player_name}\n"
+            f"🆔 ID: {target_user_id}\n"
+            f"📊 Было поинтов: {old_points}\n"
+            f"📈 Стало поинтов: 0\n\n"
+            f"⚠️ Общие поинты (total_points) не изменены.",
+            parse_mode="Markdown"
+        )
+        
+        logger.info(f"Админ {user_id} сбросил сезонные поинты игроку {target_user_id} ({old_points} → 0)")
+        
+    except Exception as e:
+        logger.error(f"Ошибка reset_season_points: {e}")
+        await update.message.reply_text("❌ Ошибка при сбросе поинтов")
+
 
 # ===== ЗАПУСК БОТА =====
 
@@ -2731,6 +2790,7 @@ def main() -> None:
             CommandHandler("toggle_card", toggle_card),
             CommandHandler("broadcast", broadcast),
             CommandHandler("reset_all_cards", reset_all_cards),
+            CommandHandler("reset_season_points", reset_season_points), 
             CommandHandler("delete_card", delete_card),
             CommandHandler("reset_user", reset_user),
             CommandHandler("check_cards", check_cards),
