@@ -3322,7 +3322,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 logger.error(f"Не удалось уведомить партнёра: {notify_error}")
                 await query.message.reply_text("⚠️ Не удалось уведомить партнёра")
     
-    except Exception as e:  ← except для главного try!
+    except Exception as e:
         logger.error(f"Ошибка trade_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
