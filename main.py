@@ -3321,6 +3321,10 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             except Exception as notify_error:
                 logger.error(f"Не удалось уведомить партнёра: {notify_error}")
                 await query.message.reply_text("⚠️ Не удалось уведомить партнёра")
+    
+    except Exception as e:  ← except для главного try!
+        logger.error(f"Ошибка trade_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
 
 async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопок Принять/Отклонить трейд."""
