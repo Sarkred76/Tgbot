@@ -1851,7 +1851,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # Если есть несколько карт для крафта — показываем выбор
 
-        if len(craftable_by_rarity) > 1:
+        if len(craftable_by_rarity) > 0:
 
             keyboard = []
 
