@@ -3657,7 +3657,7 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
         
         # Принятие обмена
-        elif query.data == "trade_offer_accpet":
+        elif query.data == "trade_offer_accept":
             # Переходим к выбору своих карт
             context.user_data[user_id]["step"] = "select_return_cards"
             from_user = trade_info.get("trade_partner")
