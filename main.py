@@ -3,6 +3,7 @@ import logging
 
 import json
 
+import asyncio
 
 import os
 
@@ -2370,6 +2371,8 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
             # Добавляем 10 бесплатных попыток
 
+            await asyncio.sleep(2)
+
             user_data["free_rolls"] = user_data.get("free_rolls", 0) + 10
 
             save_data(data)
@@ -2384,6 +2387,8 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             )
 
         else:
+
+            await asyncio.sleep(2)
 
             await query.message.reply_text(
                 f"😔 Не повезло! Попробуйте ещё раз.\n\n"
