@@ -2187,6 +2187,7 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         save_data(data)
 
         await update.message.reply_text(
+            await asyncio.sleep(2)
             f"🎲 Выпало: {dice_value}!\n\n"
             f"✨ Получено бесплатных попыток: {dice_value}\n"
             f"📊 Всего бесплатных попыток: {user_data['free_rolls']}\n\n"
