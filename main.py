@@ -38,7 +38,6 @@ from telegram.ext import (
     filters,
     ContextTypes,
     CallbackQueryHandler,
-    JobQueue,
 )
 
 
@@ -4337,7 +4336,6 @@ async def set_achievement_cards(update: Update, context: ContextTypes.DEFAULT_TY
         logger.error(f"Ошибка set_achievement_cards: {e}")
         await update.message.reply_text("❌ Ошибка при настройке достижения")
 
-
 async def send_card_notifications(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Проверяет и отправляет уведомления пользователям, которые могут получить карту."""
     try:
@@ -4387,6 +4385,17 @@ async def send_card_notifications(context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Ошибка в send_card_notifications: {e}")
 
 
+async def periodic_notifications(application: Application) -> None:
+    """Фоновая задача для проверки уведомлений."""
+    while True:
+        try:
+            await asyncio.sleep(60)  # Проверяем каждую минуту
+            await send_card_notifications(application.bot)
+        except Exception as e:
+            logger.error(f"Ошибка в periodic_notifications: {e}")
+            await asyncio.sleep(60)
+
+
 def reset_notification_flag(user_id: str) -> None:
     """Сбрасывает флаг уведомления при получении новой карты."""
     try:
@@ -4423,11 +4432,7 @@ def main() -> None:
             print("Создан новый файл данных")
 
 
-        application = (
-            Application.builder() 
-            .token(BOT_TOKEN)
-            .job_queue(JobQueue())
-            .build()
+        application = Application.builder().token(BOT_TOKEN).build()
         )
         # Регистрируем обработчики
 
@@ -4472,19 +4477,11 @@ def main() -> None:
      
         ]
 
-        for handler in handlers:
-
-            application.add_handler(handler)
-
-        application.job_queue.run_repeating(
-            send_card_notifications, 
-            interval=60,
-            first=10,
-        ) 
+        
         print("Бот успешно запущен! Ctrl+C для остановки")
-
         logger.info("Бот запущен")
 
+        asyncio.create_task(periodic_notifications(application)) 
         application.run_polling(allowed_updates=Update.ALL_TYPES)
 
     except Exception as e:
