@@ -4081,8 +4081,8 @@ def main() -> None:
             CallbackQueryHandler(trade_button_callback, pattern=r"^trade_(accept|decline)_btn_.*"),
             CallbackQueryHandler(trade_offer_callback, pattern=r"^trade_offer_.*"),
             CallbackQueryHandler(trade_return_callback, pattern=r"^trade_return_.*"),
-            CallbackQueryHandler(trade_callback, pattern=r"^trade_.*"),
             CallbackQueryHandler(trade_final_callback, pattern=r"^trade_final_(confirm|decline)_.*"),
+            CallbackQueryHandler(trade_callback, pattern=r"^trade_.*"),
      
         ]
 
