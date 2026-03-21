@@ -3892,7 +3892,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                         f"👤 {sender_name} предлагает:\n"
                         f"{return_cards_text}\n\n"
                         f"📋 **Ваше предложение:**\n"
-                        f"{offered_cards_text}\n\n"
+                        f"{view_offered_cards_text}\n\n"
                         f"Нажмите кнопку для подтверждения:"
                     ),
                     reply_markup=InlineKeyboardMarkup(keyboard),
