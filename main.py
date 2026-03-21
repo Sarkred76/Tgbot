@@ -3857,8 +3857,9 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
             data = load_data()
             data["active_trades"][partner_id] = {
                 "from_user": partner_id,
-                "receiver_cards": selected_card_ids,  # Карты получателя
+                "receiver_id": user_id,
                 "sender_cards": received_cards,  # Карты отправителя
+                "receiver_cards": selected_card_ids,  # Карты получателя
                 "step": "waiting_sender_confirm",
                 "timestamp": int(time.time())
             }
@@ -3993,7 +3994,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             # Уведомляем получателя
             try:
                 await context.bot.send_message(
-                    chat_id=partner_id,
+                    chat_id=user_id,
                     text=(
                         "✅ **Обмен завершён!**\n\n"
                         f"🃏 Вы отдали: {len(selected_return_cards)} карт\n"
