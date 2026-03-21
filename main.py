@@ -2974,11 +2974,9 @@ async def select_trade_partner(update: Update, context: ContextTypes.DEFAULT_TYP
         }
         
         await message.reply_text(
-            "👤 **Введите ID или @никнейм игрока**\n\n"
-            "Примеры:\n"
-            "• 881692999\n"
-            "• @username\n\n"
-            "❌ /cancel - отменить трейд",
+            "👤 **Введите @никнейм игрока**\n\n"
+            "Пример:\n"
+            "• @username\n\n",
             parse_mode="Markdown"
         )
         
@@ -3004,11 +3002,6 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
         if trade_info.get("step") != "select_partner":
             return
         
-        # Отмена
-        if text.lower() == "/cancel":
-            del context.user_data[user_id]
-            await update.message.reply_text("❌ Трейд отменён")
-            return
         
         # Определяем партнёра
         if text.startswith("@"):
@@ -3023,8 +3016,10 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
                 await update.message.reply_text("⚠️ Игрок не найден!")
                 return
         else:
-            # По ID
-            partner_id = text
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            await query.edit_message_text("Неправильно введён @никнейм_игрока, начните трейд заново")
+            return
         
         # Проверяем существование партнёра
         data = load_data()
