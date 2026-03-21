@@ -4431,7 +4431,7 @@ def main() -> None:
 
         application = Application.builder().token(BOT_TOKEN).build() 
 
-        asyncio.create_task(periodic_notifications(applications))
+        asyncio.create_task(periodic_notifications(application))
 
         # Регистрируем обработчики
 
