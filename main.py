@@ -421,6 +421,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         response += "🎮 Мини-игры - казино и другие игры\n"
         response += "🔨 Крафт - скрафтить новую карту из 10 дубликатов\n"
         response += "🔄 Трейд - обмен картами с игроками\n\n"
+        response += "🏆 Достижения - награды за сбор карт фракций\n"
         
         # Команды для всех
         response += "📝 Команды:\n"
