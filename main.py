@@ -111,6 +111,19 @@ def load_data() -> Dict[str, Any]:
             # Инициализируем активные трейды если нет
             if "active_trades" not in data:
                 data["active_trades"] = {}
+
+            if "achievements" not in data:
+                data["achievements"] = {
+                    "Замок": {"cards": [], "reward_claimed": False},
+                    "Оплот": {"cards": [], "reward_claimed": False},
+                    "Башня": {"cards": [], "reward_claimed": False},
+                    "Инферно": {"cards": [], "reward_claimed": False},
+                    "Некрополис": {"cards": [], "reward_claimed": False},
+                    "Темница": {"cards": [], "reward_claimed": False},
+                    "Цитадель": {"cards": [], "reward_claimed": False},
+                    "Крепость": {"cards": [], "reward_claimed": False},
+                    "Сопряжение": {"cards": [], "reward_claimed": False},
+                }
             
             for user_id, user_data in data.get("users", {}).items():
                 if "last_card_time" not in user_data:
@@ -123,12 +136,50 @@ def load_data() -> Dict[str, Any]:
                     user_data["casino_attempts"] = 10
                 if "last_casino_reset" not in user_data:
                     user_data["last_casino_reset"] = 0
+                # ⭐ ДОБАВЛЯЕМ ОТСЛЕЖИВАНИЕ ДОСТИЖЕНИЙ ⭐
+                if "claimed_achievements" not in user_data:
+                    user_data["claimed_achievements"] = []
             return data
+            
         except Exception as e:
             logger.error(f"Ошибка загрузки данных: {e}")
-            return {"users": {}, "cards": [], "season": 1, "admins": [INITIAL_ADMIN_ID], "active_trades": {}}
+            return {
+                "users": {},
+                "cards": [],
+                "season": 1,
+                "admins": [INITIAL_ADMIN_ID],
+                "active_trades": {},
+                "achievements": {
+                    "Замок": {"cards": [], "reward_claimed": False},
+                    "Оплот": {"cards": [], "reward_claimed": False},
+                    "Башня": {"cards": [], "reward_claimed": False},
+                    "Инферно": {"cards": [], "reward_claimed": False},
+                    "Некрополис": {"cards": [], "reward_claimed": False},
+                    "Темница": {"cards": [], "reward_claimed": False},
+                    "Цитадель": {"cards": [], "reward_claimed": False},
+                    "Крепость": {"cards": [], "reward_claimed": False},
+                    "Сопряжение": {"cards": [], "reward_claimed": False},
+                }
+            }
     
-    return {"users": {}, "cards": [], "season": 1, "admins": [INITIAL_ADMIN_ID], "active_trades": {}}
+    return {
+        "users": {},
+        "cards": [],
+        "season": 1,
+        "admins": [INITIAL_ADMIN_ID],
+        "active_trades": {},
+        "achievements": {
+            "Замок": {"cards": [], "reward_claimed": False},
+            "Оплот": {"cards": [], "reward_claimed": False},
+            "Башня": {"cards": [], "reward_claimed": False},
+            "Инферно": {"cards": [], "reward_claimed": False},
+            "Некрополис": {"cards": [], "reward_claimed": False},
+            "Темница": {"cards": [], "reward_claimed": False},
+            "Цитадель": {"cards": [], "reward_claimed": False},
+            "Крепость": {"cards": [], "reward_claimed": False},
+            "Сопряжение": {"cards": [], "reward_claimed": False},
+        }
+    }
 
 def check_casino_reset(user_data: Dict) -> None:
     """Проверяет и сбрасывает попытки казино в полночь по МСК."""
@@ -798,6 +849,8 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
             rarity_text = "Пока нет карт\n"
 
+        claimed_count = len(user_data.get("claimed_achievements", []))
+
         profile_text = (
             f"👤 **Профиль пользователя**\n\n"
             f"🆔 ID: `{user_id}`\n"
@@ -813,15 +866,43 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"📈 **По редкостям:**\n"
             f"{rarity_text}\n"
             f"🎲 **Бесплатные попытки:** {user_data.get('free_rolls', 0)}\n"
+            f"🏆 **Достижения:** {claimed_count}/9\n"
         )
 
-        await update.message.reply_text(profile_text, parse_mode="Markdown")
+        keyboard = [[InlineKeyboardButton("🏆 Достижения", callback_data="achievements_menu")]]
+
+        await update.message.reply_text(
+            profile_text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
 
     except Exception as e:
 
         logger.error(f"Ошибка показа профиля: {e}")
 
         await update.message.reply_text("❌ Произошла ошибка при загрузке профиля")
+
+async def profile_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок профиля."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        if query.data == "achievements_menu":
+            await achievements_menu(update, context)
+        elif query.data == "profile_back":
+            await my_profile(update, context)
+        elif query.data.startswith("achievement_claim_"):
+            await claim_achievement(update, context)
+        elif query.data == "achievement_claimed":
+            await query.answer("✅ Вы уже получили эту награду!", show_alert=True)
+        elif query.data == "achievement_progress":
+            await query.answer("📊 Собирайте карты для завершения!", show_alert=True)
+        
+    except Exception as e:
+        logger.error(f"Ошибка profile_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
 
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -4027,7 +4108,227 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         logger.error(f"Ошибка trade_final_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
+
+async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Меню достижений."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
         
+        if not user_data:
+            await query.edit_message_text("❌ Вы ещё не начали игру!")
+            return
+        
+        # Получаем карты пользователя
+        user_card_ids = user_data.get("cards", [])
+        claimed_achievements = user_data.get("claimed_achievements", [])
+        
+        # Считаем карты по фракциям
+        faction_cards = {}
+        for card_id in user_card_ids:
+            card = find_card_by_id(card_id, data["cards"])
+            if card and card.get("faction"):
+                faction = card["faction"]
+                if faction not in faction_cards:
+                    faction_cards[faction] = set()
+                faction_cards[faction].add(card_id)
+        
+        # Список фракций
+        factions = [
+            "Замок", "Оплот", "Башня", "Инферно",
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение"
+        ]
+        
+        # Создаём клавиатуру
+        keyboard = []
+        for i, faction in enumerate(factions, 1):
+            faction_data = data["achievements"].get(faction, {"cards": []})
+            total_cards = len(faction_data.get("cards", []))
+            user_cards_count = len(faction_cards.get(faction, set()))
+            
+            # Проверяем, собрано ли достижение
+            is_complete = user_cards_count >= total_cards and total_cards > 0
+            is_claimed = faction in claimed_achievements
+            
+            if is_complete and not is_claimed:
+                status = "🎁 ЗАБРАТЬ"
+                callback = f"achievement_claim_{i}"
+            elif is_claimed:
+                status = "✅ Получено"
+                callback = "achievement_claimed"
+            else:
+                status = f"📊 {user_cards_count}/{total_cards}"
+                callback = "achievement_progress"
+            
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"{i}. {faction} - {status}",
+                    callback_data=callback
+                )
+            ])
+        
+        keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="profile_back")])
+        
+        await query.edit_message_text(
+            "🏆 **Достижения**\n\n"
+            "Соберите все карты каждой фракции,\n"
+            "чтобы получить награду!\n\n"
+            "🎁 **Награда за достижение:**\n"
+            "• 20 бесплатных попыток\n"
+            "• 20000 центов\n\n"
+            "Выберите достижение:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в achievements_menu: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Получение награды за достижение."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await query.edit_message_text("❌ Вы ещё не начали игру!")
+            return
+        
+        # Получаем номер достижения из callback_data
+        achievement_num = int(query.data.split("_")[-1])
+        
+        factions = [
+            "Замок", "Оплот", "Башня", "Инферно",
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение"
+        ]
+        
+        if achievement_num < 1 or achievement_num > len(factions):
+            await query.edit_message_text("❌ Неверное достижение!")
+            return
+        
+        faction = factions[achievement_num - 1]
+        claimed_achievements = user_data.get("claimed_achievements", [])
+        
+        # Проверяем, не получена ли уже награда
+        if faction in claimed_achievements:
+            await query.edit_message_text("❌ Вы уже получили награду за это достижение!")
+            return
+        
+        # Получаем карты пользователя
+        user_card_ids = user_data.get("cards", [])
+        
+        # Считаем карты по фракциям
+        faction_cards = set()
+        for card_id in user_card_ids:
+            card = find_card_by_id(card_id, data["cards"])
+            if card and card.get("faction") == faction:
+                faction_cards.add(card_id)
+        
+        # Проверяем, собрано ли достижение
+        faction_data = data["achievements"].get(faction, {"cards": []})
+        total_cards = len(faction_data.get("cards", []))
+        
+        if len(faction_cards) < total_cards or total_cards == 0:
+            await query.edit_message_text(
+                f"❌ Достижение не завершено!\n\n"
+                f"📊 Собрано: {len(faction_cards)}/{total_cards}\n"
+                f"🏷 Фракция: {faction}"
+            )
+            return
+        
+        # ⭐ ВЫДАЁМ НАГРАДУ ⭐
+        user_data["free_rolls"] = user_data.get("free_rolls", 0) + 20
+        user_data["cents"] = user_data.get("cents", 0) + 20000
+        claimed_achievements.append(faction)
+        user_data["claimed_achievements"] = claimed_achievements
+        
+        save_data(data)
+        
+        await query.edit_message_text(
+            f"🎉 **Достижение получено!**\n\n"
+            f"🏆 {achievement_num}. {faction}\n\n"
+            f"🎁 **Награда:**\n"
+            f"• 🎲 +20 бесплатных попыток\n"
+            f"• 🪙 +20000 центов\n\n"
+            f"Поздравляем!",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
+            ]]),
+            parse_mode="Markdown"
+        )
+        
+        logger.info(f"Пользователь {user_id} получил достижение: {faction}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка claim_achievement: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+async def set_achievement_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Добавляет карты в достижение фракции."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        if not context.args or len(context.args) < 2:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/set_achievement_cards [Фракция] [ID_карты1] [ID_карты2] ...\n\n"
+                "**Пример:**\n"
+                "/set_achievement_cards Замок 1 2 3 4 5",
+                parse_mode="Markdown"
+            )
+            return
+        
+        faction = context.args[0]
+        card_ids = [int(x) for x in context.args[1:]]
+        
+        valid_factions = [
+            "Замок", "Оплот", "Башня", "Инферно",
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение"
+        ]
+        
+        if faction not in valid_factions:
+            await update.message.reply_text(
+                f"⚠️ Недопустимая фракция!\n"
+                f"Доступные: {', '.join(valid_factions)}"
+            )
+            return
+        
+        # Проверяем существование карт
+        for card_id in card_ids:
+            if not find_card_by_id(card_id, data["cards"]):
+                await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена!")
+                return
+        
+        # Сохраняем карты достижения
+        data["achievements"][faction]["cards"] = card_ids
+        save_data(data)
+        
+        await update.message.reply_text(
+            f"✅ **Достижение обновлено!**\n\n"
+            f"🏷 Фракция: {faction}\n"
+            f"🃏 Карт: {len(card_ids)}\n"
+            f"📋 ID: {', '.join(map(str, card_ids))}",
+            parse_mode="Markdown"
+        )
+        
+        logger.info(f"Админ обновил достижение {faction}: {card_ids}")
+        
+    except ValueError:
+        await update.message.reply_text("⚠️ ID карт должны быть числами!")
+    except Exception as e:
+        logger.error(f"Ошибка set_achievement_cards: {e}")
+        await update.message.reply_text("❌ Ошибка при настройке достижения")
+
 # ===== ЗАПУСК БОТА =====
 
 
@@ -4077,6 +4378,7 @@ def main() -> None:
             CommandHandler("list_admins", list_admins),
             CommandHandler("add_admin", add_admin),
             CommandHandler("remove_admin", remove_admin),
+            CommandHandler("set_achievement_cards", set_achievement_cards),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(handle_callback, pattern=r"^card_.*"),
             CallbackQueryHandler(mycards_callback, pattern=r"^mycards_.*"),
@@ -4089,6 +4391,7 @@ def main() -> None:
             CallbackQueryHandler(trade_return_callback, pattern=r"^trade_return_.*"),
             CallbackQueryHandler(trade_final_callback, pattern=r"^trade_final_(confirm|decline)_.*"),
             CallbackQueryHandler(trade_callback, pattern=r"^trade_.*"),
+            CallbackQueryHandler(profile_callback, pattern=r"^(achievements_menu|profile_back|achievement_.*)"),
      
         ]
 
