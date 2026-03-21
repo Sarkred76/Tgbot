@@ -237,20 +237,12 @@ def generate_card_caption(
             caption = f"{card['title']}\nРедкость: {card['rarity']}"
         else:
             caption = f"{card['title']}\nРедкость: {card['rarity']}"
-        
-        # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
-        if card.get("faction"):
-            caption += f"\n⚔️ {card['faction']}"
-        
-        if count > 1:
-            caption += f"\n📦 Количество: {count} шт."
-        return caption
     
     caption = f"💥 BOOM\n{card['title']}\nРедкость: {card['rarity']}"
     
     # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
     if card.get("faction"):
-        caption += f"\n⚔️ {card['faction']}"
+        caption += f"\nФракция: {card['faction']}"
     
     # Показываем бонусы только при получении новой карты
     if show_bonus:
@@ -2194,6 +2186,7 @@ async def process_craft(
             f"🪙 +{bonus['cents']} центов\n"
             f"💊 +{bonus['points']} поинтов\n\n"
             f"Редкость: {new_card['rarity']}"
+            f"Фракция: {new_card['faction']}"
         )
 
         if query:
