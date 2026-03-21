@@ -3012,6 +3012,11 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
                 if udata.get("username") == text[1:]:
                     partner_id = uid
                     break
+        else:
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            await query.edit_message_text("Неправильно введён @никнейм_игрока, начните трейд заново")
+            return
         
         # Проверяем существование партнёра
         data = load_data()
