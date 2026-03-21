@@ -3326,7 +3326,7 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
         trade_info = data["active_trades"][user_id]
         from_user = trade_info["from_user"] # Это ОТПРАВИТЕЛЬ (Игрок А)
-        cards_offered =_offered"]
+        cards_offered = trade_info["cards_offered"]
         trade_type = trade_info["trade_type"]
         timestamp = trade_info["timestamp"]
 
