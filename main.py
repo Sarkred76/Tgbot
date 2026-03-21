@@ -38,6 +38,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
     CallbackQueryHandler,
+    JobQueue,
 )
 
 
@@ -4336,13 +4337,14 @@ async def set_achievement_cards(update: Update, context: ContextTypes.DEFAULT_TY
         logger.error(f"Ошибка set_achievement_cards: {e}")
         await update.message.reply_text("❌ Ошибка при настройке достижения")
 
+
 async def send_card_notifications(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Проверяет и отправляет уведомления пользователям, которые могут получить карту."""
     try:
         data = load_data()
         current_time = int(time.time())
         COOLDOWN_SECONDS = 61 * 60  # 61 минута
-        NOTIFICATION_SENT_KEY = "card_notification_sent"  # Флаг отправки уведомления
+        NOTIFICATION_SENT_KEY = "card_notification_sent"
         
         notified_count = 0
         
@@ -4384,6 +4386,7 @@ async def send_card_notifications(context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.error(f"Ошибка в send_card_notifications: {e}")
 
+
 def reset_notification_flag(user_id: str) -> None:
     """Сбрасывает флаг уведомления при получении новой карты."""
     try:
@@ -4396,16 +4399,6 @@ def reset_notification_flag(user_id: str) -> None:
             
     except Exception as e:
         logger.error(f"Ошибка сброса флага уведомления: {e}")
-
-async def periodic_notifications(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Периодическая проверка и отправка уведомлений."""
-    while True:
-        try:
-            await asyncio.sleep(60)  # Проверяем каждую минуту
-            await send_card_notifications(context)
-        except Exception as e:
-            logger.error(f"Ошибка в periodic_notifications: {e}")
-            await asyncio.sleep(60)
             
 
 # ===== ЗАПУСК БОТА =====
@@ -4429,10 +4422,13 @@ def main() -> None:
 
             print("Создан новый файл данных")
 
-        application = Application.builder().token(BOT_TOKEN).build() 
 
-        asyncio.create_task(periodic_notifications(application))
-
+        application = (
+            Application.builder() 
+            .token(BOT_TOKEN)
+            .job_queue(JobQueue())
+            .build()
+        )
         # Регистрируем обработчики
 
         handlers = [
@@ -4480,6 +4476,11 @@ def main() -> None:
 
             application.add_handler(handler)
 
+        application.job_queue.run_repeating(
+            send_card_notifications, 
+            interval=60,
+            first=10,
+        ) 
         print("Бот успешно запущен! Ctrl+C для остановки")
 
         logger.info("Бот запущен")
