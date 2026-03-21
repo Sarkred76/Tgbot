@@ -4410,7 +4410,7 @@ def main() -> None:
      
         ]
 
-        For handler in handlers:
+        for handler in handlers:
             application.add_handler(handler) 
 
         
