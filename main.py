@@ -3874,8 +3874,17 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     card = find_card_by_id(card_id, data["cards"])
                     if card:
                         return_cards_info.append(f"• {card['title']} ({card['rarity']})")
-                
+        
                 return_cards_text = "\n".join(return_cards_info) if return_cards_info else "Нет карт"
+        
+                # Информация о картах отправителя (что он получит)
+                offered_cards_info = []
+                for card_id in received_cards:
+                    card = find_card_by_id(card_id, data["cards"])
+                    if card:
+                        offered_cards_info.append(f"• {card['title']} ({card['rarity']})")
+        
+                offered_cards_text = "\n".join(offered_cards_info) if offered_cards_info else "Нет карт"
                 
                 # Инлайн-кнопки для подтверждения
                 keyboard = [
@@ -3892,7 +3901,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                         f"👤 {sender_name} предлагает:\n"
                         f"{return_cards_text}\n\n"
                         f"📋 **Ваше предложение:**\n"
-                        f"{view_offered_cards}\n\n"
+                        f"{offered_cards_text}\n\n"
                         f"Нажмите кнопку для подтверждения:"
                     ),
                     reply_markup=InlineKeyboardMarkup(keyboard),
