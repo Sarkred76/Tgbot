@@ -4367,6 +4367,7 @@ def main() -> None:
             print("Создан новый файл данных")
 
         # Регистрируем обработчики
+        application = Application.builder().token(BOT_TOKEN).build()
 
         handlers = [
             CommandHandler("start", start),
