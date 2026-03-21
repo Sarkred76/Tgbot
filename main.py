@@ -2933,8 +2933,6 @@ async def trade_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         
         keyboard = [
             [InlineKeyboardButton("1 ↔ 1", callback_data="trade_1v1")],
-            [InlineKeyboardButton("2 ↔ 2", callback_data="trade_2v2")],
-            [InlineKeyboardButton("3 ↔ 3", callback_data="trade_3v3")],
             [InlineKeyboardButton("❌ Отмена", callback_data="trade_cancel")],
         ]
         
@@ -2942,8 +2940,6 @@ async def trade_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             "🔄 **Трейд карт**\n\n"
             "Выберите тип обмена:\n"
             "• 1 ↔ 1 - обмен 1 карты на 1\n"
-            "• 2 ↔ 2 - обмен 2 карт на 2\n"
-            "• 3 ↔ 3 - обмен 3 карт на 3\n\n"
             "📝 После выбора нужно будет указать игрока и выбрать карты.",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
@@ -3896,7 +3892,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                         f"👤 {sender_name} предлагает:\n"
                         f"{return_cards_text}\n\n"
                         f"📋 **Ваше предложение:**\n"
-                        f"• {len(received_cards)} карт(ы)\n\n"
+                        f"{offered_cards_text}\n\n"
                         f"Нажмите кнопку для подтверждения:"
                     ),
                     reply_markup=InlineKeyboardMarkup(keyboard),
@@ -3994,7 +3990,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             # Уведомляем получателя
             try:
                 await context.bot.send_message(
-                    chat_id=user_id,
+                    chat_id=partner_id,
                     text=(
                         "✅ **Обмен завершён!**\n\n"
                         f"🃏 Вы отдали: {len(selected_return_cards)} карт\n"
