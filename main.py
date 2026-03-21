@@ -4410,6 +4410,9 @@ def main() -> None:
      
         ]
 
+        For handler in handlers:
+            application.add_handler(handler) 
+
         
         print("Бот успешно запущен! Ctrl+C для остановки")
         logger.info("Бот запущен")
