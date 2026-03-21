@@ -4433,7 +4433,6 @@ def main() -> None:
 
 
         application = Application.builder().token(BOT_TOKEN).build()
-        )
         # Регистрируем обработчики
 
         handlers = [
