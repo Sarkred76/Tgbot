@@ -3853,11 +3853,17 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
             received_cards = trade_info.get("received_cards", [])  # Карты от отправителя
             partner_id = trade_info.get("trade_partner")  # ID отправителя (Игрок А)
             
-            # ⭐ НЕ ВЫПОЛНЯЕМ ОБМЕН СРАЗУ ⭐
-            # Сохраняем выбор для подтверждения отправителем
-            context.user_data[user_id]["step"] = "waiting_for_sender_confirm"
-            context.user_data[user_id]["selected_return_cards"] = selected_card_ids
-            
+                # ⭐ СОХРАНЯЕМ В ФАЙЛ ВМЕСТО context.user_data ⭐
+            data = load_data()
+            data["active_trades"][partner_id] = {
+                "from_user": partner_id,
+                "receiver_cards": selected_card_ids,  # Карты получателя
+                "sender_cards": received_cards,  # Карты отправителя
+                "step": "waiting_sender_confirm",
+                "timestamp": int(time.time())
+            }
+            save_data(data)
+
             # Отправляем уведомление отправителю (Игрок А)
             try:
                 sender_data = data["users"].get(partner_id, {})
@@ -3923,28 +3929,24 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         user_id = str(query.from_user.id)  # Это ОТПРАВИТЕЛЬ (Игрок А)
         data = load_data()
         
-        # Проверяем сессию
-        if user_id not in context.user_data:
-            await query.edit_message_text("❌ Сессия трейда истекла!")
+        # ⭐ ЧИТАЕМ ИЗ ФАЙЛА ВМЕСТО context.user_data ⭐
+        if user_id not in data.get("active_trades", {}):
+            await query.edit_message_text("❌ Трейд не найден или истёк!")
             return
         
-        trade_info = context.user_data[user_id]
-        if trade_info.get("step") != "waiting_for_receiver_response":
+        trade_info = data["active_trades"][user_id]
+        
+        # Проверяем шаг
+        if trade_info.get("step") != "waiting_sender_confirm":
+            await query.edit_message_text("❌ Трейд не ожидает подтверждения!")
             return
         
-        partner_id = trade_info.get("trade_partner")  # ID получателя (Игрок Б)
-        received_cards = trade_info.get("selected_card_ids", [])  # Карты, которые отправитель предлагает
+        partner_id = trade_info.get("receiver_id") or trade_info.get("from_user")  # ID получателя (Игрок Б)
+        received_cards = trade_info.get("sender_cards", [])  # Карты, которые отправитель предлагает
+        selected_return_cards = trade_info.get("receiver_cards", [])  # Карты, которые выбрал получатель
         
         # Подтверждение обмена
         if query.data.startswith("trade_final_confirm_"):
-            # Получаем карты, которые выбрал получатель
-            if partner_id not in context.user_data:
-                await query.edit_message_text("❌ Ошибка: сессия партнёра не найдена!")
-                return
-            
-            partner_trade_info = context.user_data[partner_id]
-            selected_return_cards = partner_trade_info.get("selected_return_cards", [])
-            
             if not selected_return_cards:
                 await query.edit_message_text("❌ Ошибка: карты партнёра не найдены!")
                 return
@@ -3971,7 +3973,11 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             
             save_data(data)
             
-            # Очищаем сессии
+            # Очищаем трейд
+            del data["active_trades"][user_id]
+            save_data(data)
+            
+            # Очищаем context.user_data
             if user_id in context.user_data:
                 del context.user_data[user_id]
             if partner_id in context.user_data:
@@ -4000,7 +4006,11 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         
         # Отмена обмена
         elif query.data.startswith("trade_final_decline_"):
-            # Очищаем сессии
+            # Очищаем трейд
+            del data["active_trades"][user_id]
+            save_data(data)
+            
+            # Очищаем context.user_data
             if user_id in context.user_data:
                 del context.user_data[user_id]
             if partner_id in context.user_data:
@@ -4020,8 +4030,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         logger.error(f"Ошибка trade_final_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
-
+        
 # ===== ЗАПУСК БОТА =====
 
 
