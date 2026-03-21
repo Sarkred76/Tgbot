@@ -32,7 +32,6 @@ from telegram import (
 
 
 from telegram.ext import (
-    Application,
     CommandHandler,
     MessageHandler,
     filters,
@@ -139,8 +138,6 @@ def load_data() -> Dict[str, Any]:
                 # ⭐ ДОБАВЛЯЕМ ОТСЛЕЖИВАНИЕ ДОСТИЖЕНИЙ ⭐
                 if "claimed_achievements" not in user_data:
                     user_data["claimed_achievements"] = []
-                if "card_notification_sent" not in user_data:
-                    user_data["card_notification_sent"] = False
             
             return data
             
@@ -1257,7 +1254,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
                 user_data["last_card_time"] = current_time
             
-            user_data["card_notification_sent"] = False
 
             save_data(data)
 
@@ -4336,45 +4332,7 @@ async def set_achievement_cards(update: Update, context: ContextTypes.DEFAULT_TY
         logger.error(f"Ошибка set_achievement_cards: {e}")
         await update.message.reply_text("❌ Ошибка при настройке достижения")
 
-async def send_card_notifications(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Проверяет и отправляет уведомления пользователям, которые могут получить карту."""
-    try:
-        data = load_data()
-        current_time = int(time.time())
-        COOLDOWN_SECONDS = 61 * 60  # 61 минута
-        NOTIFICATION_SENT_KEY = "card_notification_sent"
-        
-        notified_count = 0
-        
-        for user_id, user_data in data["users"].items():
-            last_card_time = user_data.get("last_card_time", 0)
-            notification_sent = user_data.get(NOTIFICATION_SENT_KEY, False)
-            
-            # Проверяем, прошло ли 61 минута и не отправлено ли уже уведомление
-            if last_card_time > 0 and not notification_sent:
-                time_passed = current_time - last_card_time
-                
-                if time_passed >= COOLDOWN_SECONDS:
-                    try:
-                        await context.bot.send_message(
-                            chat_id=user_id,
-                            text=(
-                                "🎉 **Вы снова можете получить карту!**\n\n"
-                                "⏰ Кулдаун завершился.\n"
-                                "💣 Нажмите кнопку «💣 Получить карту» или используйте /start\n\n"
-                                "🎲 Не забудьте бросить кубик для бесплатных попыток!"
-                            ),
-                            parse_mode="Markdown"
-                        )
-                        
-                        # Помечаем, что уведомление отправлено
-                        user_data[NOTIFICATION_SENT_KEY] = True
-                        notified_count += 1
-                        
-                        logger.info(f"Уведомление отправлено пользователю {user_id}")
-                        
-                    except Exception as send_error:
-                        logger.error(f"Не удалось отправить уведомление пользователю {user_id}: {send_error}")
+
         
         # Сохраняем данные если были отправлены уведомления
         if notified_count > 0:
@@ -4385,30 +4343,6 @@ async def send_card_notifications(context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Ошибка в send_card_notifications: {e}")
 
 
-async def periodic_notifications(application: Application) -> None:
-    """Фоновая задача для проверки уведомлений."""
-    while True:
-        try:
-            await asyncio.sleep(60)  # Проверяем каждую минуту
-            await send_card_notifications(application.bot)
-        except Exception as e:
-            logger.error(f"Ошибка в periodic_notifications: {e}")
-            await asyncio.sleep(60)
-
-
-def reset_notification_flag(user_id: str) -> None:
-    """Сбрасывает флаг уведомления при получении новой карты."""
-    try:
-        data = load_data()
-        
-        if user_id in data["users"]:
-            # Сбрасываем флаг при получении карты
-            data["users"][user_id]["card_notification_sent"] = False
-            save_data(data)
-            
-    except Exception as e:
-        logger.error(f"Ошибка сброса флага уведомления: {e}")
-            
 
 # ===== ЗАПУСК БОТА =====
 
@@ -4431,8 +4365,6 @@ def main() -> None:
 
             print("Создан новый файл данных")
 
-
-        application = Application.builder().token(BOT_TOKEN).build()
         # Регистрируем обработчики
 
         handlers = [
@@ -4480,7 +4412,7 @@ def main() -> None:
         print("Бот успешно запущен! Ctrl+C для остановки")
         logger.info("Бот запущен")
 
-        asyncio.create_task(periodic_notifications(application)) 
+        
         application.run_polling(allowed_updates=Update.ALL_TYPES)
 
     except Exception as e:
