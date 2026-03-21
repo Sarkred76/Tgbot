@@ -2185,8 +2185,6 @@ async def process_craft(
             f"🎁 Получено: {new_card['title']}\n"
             f"🪙 +{bonus['cents']} центов\n"
             f"💊 +{bonus['points']} поинтов\n\n"
-            f"Редкость: {new_card['rarity']}"
-            f"Фракция: {new_card['faction']}"
         )
 
         if query:
