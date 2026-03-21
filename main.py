@@ -2342,7 +2342,7 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         save_data(data)
 
-        await asyncio.sleep(5)
+        await asyncio.sleep(4)
 
         await update.message.reply_text(
             f"🎲 Выпало: {dice_value}!\n\n"
