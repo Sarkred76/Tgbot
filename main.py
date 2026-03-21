@@ -4171,7 +4171,7 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 )
             ])
         
-        keyboard.append([InlineKeyboardButton("🔙 Назад", await query.message.delete()")])
+        keyboard.append([InlineKeyboardButton("🔙 Назад", await query.message.delete())])
         
         await query.edit_message_text(
             "🏆 **Достижения**\n\n"
