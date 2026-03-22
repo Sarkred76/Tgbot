@@ -769,91 +769,68 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает профиль пользователя."""
-
     try:
-
-        user_id = str(update.effective_user.id)
-
+        # ⭐ ОПРЕДЕЛЯЕМ: callback query или команда ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            user_id = str(query.from_user.id)
+            chat_id = query.message.chat_id
+            is_callback = True
+        else:
+            user_id = str(update.effective_user.id)
+            chat_id = update.effective_chat.id
+            is_callback = False
+        
         data = load_data()
-
         user_data = data["users"].get(user_id)
-
+        
         if not user_data:
-
-            await update.message.reply_text("❌ Вы ещё не начали игру!\nНажмите /start")
-
+            if is_callback:
+                await query.edit_message_text("❌ Вы ещё не начали игру!\nНажмите /start")
+            else:
+                await update.message.reply_text("❌ Вы ещё не начали игру!\nНажмите /start")
             return
-
+        
         # Считаем уникальные карты пользователя
-
         user_card_ids = user_data.get("cards", [])
-
         unique_cards = len(set(user_card_ids))
-
+        
         # Считаем общее количество доступных карт в игре
-
         total_available_cards = len(
             [card for card in data["cards"] if card.get("available", True)]
         )
-
+        
         # Процент коллекции
-
         collection_percent = (
             round((unique_cards / total_available_cards * 100), 1)
             if total_available_cards > 0
             else 0
         )
-
+        
         # Считаем карты по редкостям
-
         card_counts = Counter(user_card_ids)
-
         rarity_stats = {}
-
         for card_id in set(user_card_ids):
-
             card = find_card_by_id(card_id, data["cards"])
-
             if card:
-
                 rarity = card.get("rarity", "T1")
-
                 rarity_stats[rarity] = rarity_stats.get(rarity, 0) + 1
-
+        
         # Формируем статистику по редкостям
-
-        # Формируем статистику по редкостям
-
         rarity_text = ""
-
         for rarity in [
-            "T1",
-            "T2",
-            "T3",
-            "T4",
-            "T5",
-            "T6",
-            "T7",
-            "T8",
-            "UpgradeT1",
-            "UpgradeT2",
-            "UpgradeT3",
-            "UpgradeT4",
-            "UpgradeT5",
-            "UpgradeT6",
-            "UpgradeT7",
+            "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8",
+            "UpgradeT1", "UpgradeT2", "UpgradeT3", "UpgradeT4",
+            "UpgradeT5", "UpgradeT6", "UpgradeT7",
         ]:
-
             if rarity in rarity_stats:
-
                 rarity_text += f"• {rarity}: {rarity_stats[rarity]} шт.\n"
-
+        
         if not rarity_text:
-
             rarity_text = "Пока нет карт\n"
-
+        
         claimed_count = len(user_data.get("claimed_achievements", []))
-
+        
         profile_text = (
             f"👤 **Профиль пользователя**\n\n"
             f"🆔 ID: `{user_id}`\n"
@@ -871,20 +848,36 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"🎲 **Бесплатные попытки:** {user_data.get('free_rolls', 0)}\n"
             f"🏆 **Достижения:** {claimed_count}/9\n"
         )
-
+        
         keyboard = [[InlineKeyboardButton("🏆 Достижения", callback_data="achievements_menu")]]
-
-        await update.message.reply_text(
-            profile_text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
-        )
-
+        
+        # ⭐ ОТПРАВЛЯЕМ В ЗАВИСИМОСТИ ОТ ТИПА ⭐
+        if is_callback:
+            # Удаляем старое сообщение и отправляем новое
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=profile_text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+        else:
+            await update.message.reply_text(
+                profile_text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+        
     except Exception as e:
-
         logger.error(f"Ошибка показа профиля: {e}")
-
-        await update.message.reply_text("❌ Произошла ошибка при загрузке профиля")
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Произошла ошибка", show_alert=True)
+        else:
+            await update.message.reply_text("❌ Произошла ошибка при загрузке профиля")
+            
 
 async def profile_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопок профиля."""
@@ -895,7 +888,7 @@ async def profile_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if query.data == "achievements_menu":
             await achievements_menu(update, context)
         elif query.data == "profile_back":
-            await my_profile(update, context)
+            await my_profile(update, context)  # ← Вызывает универсальную my_profile
         elif query.data.startswith("achievement_claim_"):
             await claim_achievement(update, context)
         elif query.data == "achievement_claimed":
@@ -906,7 +899,6 @@ async def profile_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     except Exception as e:
         logger.error(f"Ошибка profile_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик инлайн-кнопок навигации."""
@@ -4178,6 +4170,7 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 )
             ])
         
+        # ⭐ КНОПКА НАЗАД ⭐
         keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="profile_back")])
         
         await query.edit_message_text(
