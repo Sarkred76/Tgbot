@@ -4463,8 +4463,9 @@ def main() -> None:
         print("Бот успешно запущен! Ctrl+C для остановки")
         logger.info("Бот запущен")
 
-        asyncio.create_task(check_card_notifications(application))
         application.run_polling(allowed_updates=Update.ALL_TYPES)
+        
+        asyncio.create_task(check_card_notifications(application))
 
     except Exception as e:
 
