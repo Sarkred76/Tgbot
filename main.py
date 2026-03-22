@@ -140,6 +140,8 @@ def load_data() -> Dict[str, Any]:
                 # ⭐ ДОБАВЛЯЕМ ОТСЛЕЖИВАНИЕ ДОСТИЖЕНИЙ ⭐
                 if "claimed_achievements" not in user_data:
                     user_data["claimed_achievements"] = []
+                if "notification_sent" not in user_data:
+                    user_data["notification_sent"] = False
             
             return data
             
@@ -1247,11 +1249,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 # ⭐ Админам НЕ обновляем время (чтобы кулдаун не сбрасывался) ⭐
 
                 user_data["last_card_time"] = current_time
-
-            asyncio.create_task(send_notification_after_delay(user_id, context)) 
-
             
-
+            user_data["notification_sent"] = False  # ← ДОБАВЬТЕ
+            
             save_data(data)
 
             caption = generate_card_caption(card, user_data, count=1, show_bonus=True)
@@ -4341,12 +4341,54 @@ async def set_achievement_cards(update: Update, context: ContextTypes.DEFAULT_TY
         logger.error(f"Ошибка в send_card_notifications: {e}")
 
 
-async def send_notification_after_delay(user_id: str, context: ContextTypes.DEFAULT_TYPE):
-    await asyncio.sleep(61 * 60)  # Ждём 61 минуту
-    await context.bot.send_message(
-        chat_id=user_id,
-        text="🎉 Вы снова можете получить карту!"
-    )
+async def check_card_notifications(application: Application) -> None:
+    """Фоновая проверка уведомлений каждую минуту."""
+    while True:
+        try:
+            await asyncio.sleep(60)  # Проверяем каждую минуту
+            data = load_data()
+            current_time = int(time.time())
+            COOLDOWN_SECONDS = 61 * 60
+            
+            notified_count = 0
+            
+            for user_id, user_data in data["users"].items():
+                last_card_time = user_data.get("last_card_time", 0)
+                notification_sent = user_data.get("notification_sent", False)
+                
+                # Проверяем: прошло ли 61 минута И уведомление ещё не отправлено
+                if last_card_time > 0 and not notification_sent:
+                    time_passed = current_time - last_card_time
+                    
+                    if time_passed >= COOLDOWN_SECONDS:
+                        try:
+                            await application.bot.send_message(
+                                chat_id=user_id,
+                                text=(
+                                    "🎉 **Вы снова можете получить карту!**\n\n"
+                                    "⏰ Кулдаун завершился.\n"
+                                    "💣 Нажмите кнопку «💣 Получить карту»"
+                                ),
+                                parse_mode="Markdown"
+                            )
+                            
+                            # Помечаем что уведомление отправлено
+                            user_data["notification_sent"] = True
+                            notified_count += 1
+                            
+                            logger.info(f"Уведомление отправлено пользователю {user_id}")
+                            
+                        except Exception as send_error:
+                            logger.error(f"Не удалось отправить уведомление {user_id}: {send_error}")
+            
+            # Сохраняем данные если были уведомления
+            if notified_count > 0:
+                save_data(data)
+                logger.info(f"Отправлено {notified_count} уведомлений")
+            
+        except Exception as e:
+            logger.error(f"Ошибка в check_card_notifications: {e}")
+            await asyncio.sleep(60)
 
 
 # ===== ЗАПУСК БОТА =====
@@ -4421,7 +4463,7 @@ def main() -> None:
         print("Бот успешно запущен! Ctrl+C для остановки")
         logger.info("Бот запущен")
 
-        
+        asyncio.create_task(check_card_notifications(application))
         application.run_polling(allowed_updates=Update.ALL_TYPES)
 
     except Exception as e:
