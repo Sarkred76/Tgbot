@@ -4,6 +4,7 @@ import logging
 import json
 
 import asyncio
+import threading
 
 import os
 
@@ -1254,6 +1255,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 # ⭐ Админам НЕ обновляем время (чтобы кулдаун не сбрасывался) ⭐
 
                 user_data["last_card_time"] = current_time
+
+            asyncio.create_task(send_notification_after_delay(user_id, context)) 
+
             
 
             save_data(data)
@@ -4343,6 +4347,13 @@ async def set_achievement_cards(update: Update, context: ContextTypes.DEFAULT_TY
     except Exception as e:
         logger.error(f"Ошибка в send_card_notifications: {e}")
 
+
+async def send_notification_after_delay(user_id: str, context: ContextTypes.DEFAULT_TYPE):
+    await asyncio.sleep(61 * 60)  # Ждём 61 минуту
+    await context.bot.send_message(
+        chat_id=user_id,
+        text="🎉 Вы снова можете получить карту!"
+    )
 
 
 # ===== ЗАПУСК БОТА =====
