@@ -2839,14 +2839,21 @@ async def add_rolls_to_player(
         await update.message.reply_text("❌ Ошибка при добавлении наймов")
 
 async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает топ-10 игроков по поинтам в сезоне."""
+    """Показывает топ-10 игроков по поинтам в сезоне (без админов)."""
     try:
         data = load_data()
         users = data.get("users", {})
+        admin_list = data.get("admins", [])
+        
+        # ⭐ ФИЛЬТРУЕМ АДМИНОВ ⭐
+        non_admin_users = {
+            uid: udata for uid, udata in users.items()
+            if uid not in admin_list
+        }
         
         # Сортируем пользователей по season_points
         sorted_users = sorted(
-            users.items(),
+            non_admin_users.items(),
             key=lambda x: x[1].get("season_points", 0),
             reverse=True
         )
@@ -2857,49 +2864,59 @@ async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         # Формируем сообщение
         message_text = "🏆 **Топ героев этого сезона**\n\n"
         
-        for rank, (user_id, user_data) in enumerate(top_10, 1):
-            # Получаем имя из профиля Telegram
-            first_name = user_data.get("first_name", "Герой")
-            last_name = user_data.get("last_name", "")
-            
-            # Формируем полное имя
-            if last_name:
-                username = f"{first_name} {last_name}"
-            else:
-                username = first_name
-            
-            points = user_data.get("season_points", 0)
-            
-            # Медали для топ-3
-            if rank == 1:
-                medal = "🥇"
-            elif rank == 2:
-                medal = "🥈"
-            elif rank == 3:
-                medal = "🥉"
-            else:
-                medal = f"{rank}."
-            
-            message_text += f"{medal} **{username}** — {points} опыта\n"
+        if not top_10:
+            message_text += "📭 Пока нет героев в топе!"
+        else:
+            for rank, (user_id, user_data) in enumerate(top_10, 1):
+                # Получаем имя из профиля Telegram
+                first_name = user_data.get("first_name", "Герой")
+                last_name = user_data.get("last_name", "")
+                
+                # Формируем полное имя
+                if last_name:
+                    username = f"{first_name} {last_name}"
+                else:
+                    username = first_name
+                
+                points = user_data.get("season_points", 0)
+                
+                # Медали для топ-3
+                if rank == 1:
+                    medal = "🥇"
+                elif rank == 2:
+                    medal = "🥈"
+                elif rank == 3:
+                    medal = "🥉"
+                else:
+                    medal = f"{rank}."
+                
+                message_text += f"{medal} **{username}** — {points} опыта\n"
         
-        # Показываем место текущего пользователя
+        # ⭐ ПОКАЗЫВАЕМ МЕСТО ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ ⭐
         current_user_id = str(update.effective_user.id)
         current_user_data = users.get(current_user_id, {})
         current_points = current_user_data.get("season_points", 0)
         
-        # Находим место пользователя
+        # Находим место пользователя (включая админов для честности)
+        all_sorted_users = sorted(
+            users.items(),
+            key=lambda x: x[1].get("season_points", 0),
+            reverse=True
+        )
+        
         user_rank = None
-        for rank, (user_id, _) in enumerate(sorted_users, 1):
-            if user_id == current_user_id:
+        for rank, (uid, _) in enumerate(all_sorted_users, 1):
+            if uid == current_user_id:
                 user_rank = rank
                 break
         
         # Если пользователя нет в топе
         if not user_rank:
-            user_rank = len(sorted_users) + 1
+            user_rank = len(all_sorted_users) + 1
         
-        message_text += "\n\n" + "─" * 30 + "\n\n"
+        message_text += "\n" + "─" * 30 + "\n"
         
+        # ⭐ ПОКАЗЫВАЕМ МЕСТО ДАЖЕ ЕСЛИ АДМИН ⭐
         if user_rank <= 10:
             message_text += f"✅ **Ваше место:** {user_rank}\n"
         else:
@@ -2916,7 +2933,6 @@ async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     except Exception as e:
         logger.error(f"Ошибка в top_players: {e}")
         await update.message.reply_text("❌ Ошибка при загрузке топа")
-
 
 async def top_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопки обновления топа."""
