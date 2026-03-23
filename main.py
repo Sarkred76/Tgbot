@@ -293,7 +293,7 @@ def generate_card_caption(
         else:
             caption = f"{card['title']}\nРедкость: {card['rarity']}"
     
-    caption = f"💥 BOOM\n{card['title']}\nРедкость: {card['rarity']}"
+    caption = f"⚔️ Вы наняли существо\n{card['title']}\nРедкость: {card['rarity']}"
     
     # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
     if card.get("faction"):
@@ -302,15 +302,15 @@ def generate_card_caption(
     # Показываем бонусы только при получении новой карты
     if show_bonus:
         bonus = RARITY_BONUSES.get(card["rarity"], {"cents": 0, "points": 0})
-        caption += f"\n🪙 +{bonus['cents']} центов\n💊 +{bonus['points']} поинтов"
+        caption += f"\n💰 +{bonus['cents']} золота\n💥 +{bonus['points']} опыта"
     
     # Добавляем количество, если есть дубликаты
     if count > 1:
         caption += f"\n📦 Количество: {count} шт."
     
     caption += (
-        f"\n\nПоинтов в этом сезоне: {user_data['season_points']}\n"
-        f"Поинтов за все время: {user_data['total_points']}"
+        f"\n\nОпыта в этом сезоне: {user_data['season_points']}\n"
+        f"Опыта за все время: {user_data['total_points']}"
     )
     return caption
 
@@ -377,14 +377,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
 
         keyboard = [
-            [KeyboardButton("💣 Получить карту")],
+            [KeyboardButton("⚔️ Нанять существо")],
             [KeyboardButton("🎲 Бросить кубик")],
             [
-                KeyboardButton("📂 Мои карты"),
-                KeyboardButton("👤 Мой профиль"),
+                KeyboardButton("🛡 Казарма"),
+                KeyboardButton("👑 Мой герой"),
             ],  # ← Добавлена кнопка
-            [KeyboardButton("🔨 Крафт"), KeyboardButton("🎮 Мини-игры")],
-            [KeyboardButton("🏆 Топ игроков")],
+            [KeyboardButton("🔨 Крафт"), KeyboardButton("🍺 Таверна")],
+            [KeyboardButton("🏆 Топ героев")],
             [KeyboardButton("🔄 Трейд")],  # ← ДОБАВЬТЕ
         ]
 
@@ -417,14 +417,14 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         
         # Основные команды
         response += "🎮 Основные команды:\n"
-        response += "💣 Получить карту - получить карточку\n"
-        response += "📂 Мои карты - посмотреть коллекцию\n"
-        response += "👤 Мой профиль - статистика игрока\n"
-        response += "🏆 Топ игроков - рейтинг по поинтам\n"
-        response += "🎲 Бросить кубик - получить бесплатные попытки\n"
-        response += "🎮 Мини-игры - казино и другие игры\n"
-        response += "🔨 Крафт - скрафтить новую карту из 10 дубликатов\n"
-        response += "🔄 Трейд - обмен картами с игроками\n\n"
+        response += "⚔️ Нанять существо - нанять существо\n"
+        response += "🛡 Казарма - посмотреть нанятых существ\n"
+        response += "👑 Мой герой - статистика героя\n"
+        response += "🏆 Топ героев - рейтинг по опыту\n"
+        response += "🎲 Бросить кубик - получить бесплатные наймы\n"
+        response += "🍺 Таверна - казино, трейд и другие игры\n"
+        response += "🔨 Крафт - скрафтить новое существо из 10 дубликатов\n"
+        response += "🔄 Трейд - обмен картами с героями\n\n"
         response += "🏆 Достижения - награды за сбор карт фракций\n"
         
         # Команды для всех
@@ -433,9 +433,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         response += "/help - показать это сообщение\n"
         response += "/profile - мой профиль\n"
         response += "/dice - бросить кубик\n"
-        response += "/craft - крафт карт\n"
-        response += "/top - топ игроков\n"
-        response += "/trade - трейд карт\n"
+        response += "/craft - крафт существ\n"
+        response += "/top - топ героев\n"
+        response += "/trade - трейд существ\n"
         response += "/trade_accept - принять трейд\n"
         response += "/trade_decline - отклонить трейд\n"
         
@@ -479,9 +479,9 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         
         if not user_data or not user_data.get("cards"):
             if hasattr(update, 'callback_query') and update.callback_query:
-                await update.callback_query.edit_message_text("У вас пока нет карточек!")
+                await update.callback_query.edit_message_text("У вас пока нет существ!")
             else:
-                await update.message.reply_text("У вас пока нет карточек!")
+                await update.message.reply_text("У вас пока нет существ!")
             return
         
         user_card_ids = user_data["cards"]
@@ -500,9 +500,9 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         
         if not rarity_cards:
             if hasattr(update, 'callback_query') and update.callback_query:
-                await update.callback_query.edit_message_text("У вас пока нет карточек!")
+                await update.callback_query.edit_message_text("У вас пока нет существ!")
             else:
-                await update.message.reply_text("У вас пока нет карточек!")
+                await update.message.reply_text("У вас пока нет существ!")
             return
         
         # Создаём клавиатуру с редкостями
@@ -534,7 +534,7 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         keyboard.append([])
         keyboard.append([
             InlineKeyboardButton(
-                "📋 Все карты",
+                "📋 Все существа",
                 callback_data="mycards_all"
             )
         ])
@@ -561,7 +561,7 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
         
     except Exception as e:
-        logger.error(f"Ошибка при показе меню карт: {e}")
+        logger.error(f"Ошибка при показе меню существ: {e}")
         if hasattr(update, 'callback_query') and update.callback_query:
             await update.callback_query.answer("Произошла ошибка", show_alert=True)
         else:
@@ -582,9 +582,9 @@ async def show_cards_by_rarity(
         
         if not user_data or not user_data.get("cards"):
             if query:
-                await query.edit_message_text("У вас нет карточек!")
+                await query.edit_message_text("У вас нет существ!")
             else:
-                await update.message.reply_text("У вас нет карточек!")
+                await update.message.reply_text("У вас нет существ!")
             return
         
         user_card_ids = user_data["cards"]
@@ -599,9 +599,9 @@ async def show_cards_by_rarity(
         
         if not rarity_cards:
             if query:
-                await query.edit_message_text(f"У вас нет карт редкости {rarity}!")
+                await query.edit_message_text(f"У вас нет существ редкости {rarity}!")
             else:
-                await update.message.reply_text(f"У вас нет карт редкости {rarity}!")
+                await update.message.reply_text(f"У вас нет существ редкости {rarity}!")
             return
         
         # Сортируем карты по ID
@@ -829,25 +829,23 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                 rarity_text += f"• {rarity}: {rarity_stats[rarity]} шт.\n"
         
         if not rarity_text:
-            rarity_text = "Пока нет карт\n"
+            rarity_text = "Пока нет существ\n"
         
         claimed_count = len(user_data.get("claimed_achievements", []))
         
         profile_text = (
-            f"👤 **Профиль пользователя**\n\n"
+            f"👤 **Профиль героя**\n\n"
             f"🆔 ID: `{user_id}`\n"
-            f"👤 Имя: {user_data.get('first_name', 'Неизвестно')}\n\n"
-            f"💰 **Баланс:**\n"
-            f"🪙 Центы: {user_data.get('cents', 0)}\n"
-            f"💊 Поинты (сезон): {user_data.get('season_points', 0)}\n"
-            f"💎 Поинты (всего): {user_data.get('total_points', 0)}\n\n"
-            f"🃏 **Коллекция:**\n"
-            f"📦 Собрано карт: {unique_cards}/{total_available_cards}\n"
+            f"💰 Золото: {user_data.get('cents', 0)}\n"
+            f"💥 Опыта (сезон): {user_data.get('season_points', 0)}\n"
+            f"💎 Опыта (всего): {user_data.get('total_points', 0)}\n\n"
+            f"🐦‍🔥 **Коллекция:**\n"
+            f"📦 Собрано существ: {unique_cards}/{total_available_cards}\n"
             f"📊 Заполненность: {collection_percent}%\n"
             f"🔢 Всего получено: {len(user_card_ids)} (с дубликатами)\n\n"
             f"📈 **По редкостям:**\n"
             f"{rarity_text}\n"
-            f"🎲 **Бесплатные попытки:** {user_data.get('free_rolls', 0)}\n"
+            f"🎲 **Бесплатные наймы:** {user_data.get('free_rolls', 0)}\n"
             f"🏆 **Достижения:** {claimed_count}/9\n"
         )
         
@@ -896,7 +894,7 @@ async def profile_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         elif query.data == "achievement_claimed":
             await query.answer("✅ Вы уже получили эту награду!", show_alert=True)
         elif query.data == "achievement_progress":
-            await query.answer("📊 Собирайте карты для завершения!", show_alert=True)
+            await query.answer("📊 Собирайте существ для завершения!", show_alert=True)
         
     except Exception as e:
         logger.error(f"Ошибка profile_callback: {e}")
@@ -919,7 +917,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         if not user_data or not user_data.get("cards"):
 
-            await query.edit_message_text("У вас больше нет карточек!")
+            await query.edit_message_text("У вас больше нет существ!")
 
             return
 
@@ -962,7 +960,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ⭐ ДОБАВЬТЕ ЛОГИРОВАНИЕ ⭐
 
             logger.info(
-                f"Попытка показать карту #{card['id']}: {card['image_url'][:100]}"
+                f"Попытка показать существо #{card['id']}: {card['image_url'][:100]}"
             )
 
             try:
@@ -974,7 +972,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             except Exception as edit_error:
 
                 logger.error(
-                    f"❌ Ошибка редактирования карты #{card['id']}: {edit_error}"
+                    f"❌ Ошибка редактирования существа #{card['id']}: {edit_error}"
                 )
 
                 logger.error(f"URL: {card['image_url']}")
@@ -1105,7 +1103,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         user_data = None
 
-        if text == "💣 Получить карту":
+        if text == "⚔️ Нанять существо":
 
             user_data = data["users"].get(user_id)
 
@@ -1188,8 +1186,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 time_text += f"{seconds} сек"
 
                 await update.message.reply_text(
-                    f"⏳ До следующей карты: {time_text}\n\n"
-                    f"🎲 Или бросьте кубик для бесплатной попытки!"
+                    f"⏳ До следующего найма: {time_text}\n\n"
+                    f"🎲 Или бросьте кубик для бесплатного найма!"
                 )
 
                 return
@@ -1214,7 +1212,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
             if not available_cards:
 
-                await update.message.reply_text("⏳ Ожидайте новых карточек!")
+                await update.message.reply_text("⏳ Ожидайте новых существ!")
 
                 return
 
@@ -1222,7 +1220,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
             if not card:
 
-                await update.message.reply_text("⏳ Ожидайте новых карточек!")
+                await update.message.reply_text("⏳ Ожидайте новых существ!")
 
                 return
 
@@ -1258,7 +1256,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
             await send_card(update, card, context, caption=caption)
 
-        elif text == "🎮 Мини-игры":
+        elif text == "🍺 Таверна":
 
             await mini_games(update, context)
 
@@ -1266,7 +1264,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
             await dice(update, context)
 
-        elif text == "👤 Мой профиль":
+        elif text == "👑 Мой герой":
 
             await my_profile(update, context)
 
@@ -1274,11 +1272,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
             await craft(update, context)
 
-        elif text == "📂 Мои карты":
+        elif text == "🛡 Казарма":
 
             await show_user_cards(update, context)
 
-        elif text == "🏆 Топ игроков":  # ← ДОБАВЬТЕ ЭТОТ БЛОК
+        elif text == "🏆 Топ героев":  # ← ДОБАВЬТЕ ЭТОТ БЛОК
             
             await top_players(update, context)
 
@@ -2011,7 +2009,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         if not user_data or not user_data.get("cards"):
 
-            await update.message.reply_text("❌ У вас нет карточек для крафта!")
+            await update.message.reply_text("❌ У вас нет существ для крафта!")
 
             return
 
@@ -2028,8 +2026,8 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not craftable_cards:
 
             await update.message.reply_text(
-                "❌ Нет карт для крафта!\n\n"
-                "📋 Для крафта нужно 10 одинаковых карт.\n"
+                "❌ Нет существ для крафта!\n\n"
+                "📋 Для крафта нужно 10 одинаковых существ.\n"
                 "🔹 10x T1 → UpgradeT1\n"
                 "🔹 10x T2 → UpgradeT2\n"
                 "🔹 10x T3 → UpgradeT3\n"
@@ -2069,7 +2067,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not craftable_by_rarity:
 
             await update.message.reply_text(
-                "❌ Для крафта подходят только карты редкости T1-T7!"
+                "❌ Для крафта подходят только существа редкости T1-T7!"
             )
 
             return
@@ -2096,8 +2094,8 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
 
             await update.message.reply_text(
-                "🔨 Выберите карту для крафта:\n\n"
-                "10 карт будут удалены, вы получите 1 случайную карту улучшенной редкости",
+                "🔨 Выберите существо для крафта:\n\n"
+                "10 существ будут уничтожены, вы получите 1 случайное существо улучшенной редкости",
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
 
@@ -2138,11 +2136,11 @@ async def process_craft(
 
             if query:
 
-                await query.edit_message_text("❌ Недостаточно карт для крафта!")
+                await query.edit_message_text("❌ Недостаточно существ для крафта!")
 
             else:
 
-                await update.message.reply_text("❌ Недостаточно карт для крафта!")
+                await update.message.reply_text("❌ Недостаточно существ для крафта!")
 
             return
 
@@ -2154,11 +2152,11 @@ async def process_craft(
 
             if query:
 
-                await query.edit_message_text("❌ Карта не найдена!")
+                await query.edit_message_text("❌ Существо не найдена!")
 
             else:
 
-                await update.message.reply_text("❌ Карта не найдена!")
+                await update.message.reply_text("❌ Существо не найдена!")
 
             return
 
@@ -2181,13 +2179,13 @@ async def process_craft(
             if query:
 
                 await query.edit_message_text(
-                    f"❌ Карты редкости {source_rarity} нельзя скрафтить!"
+                    f"❌ Существ редкости {source_rarity} нельзя скрафтить!"
                 )
 
             else:
 
                 await update.message.reply_text(
-                    f"❌ Карты редкости {source_rarity} нельзя скрафтить!"
+                    f"❌ Существ редкости {source_rarity} нельзя скрафтить!"
                 )
 
             return
@@ -2207,15 +2205,15 @@ async def process_craft(
             if query:
 
                 await query.edit_message_text(
-                    f"❌ В системе нет карт редкости {target_rarity}!\n"
-                    "Попросите администратора добавить такие карты."
+                    f"❌ В системе нет существ редкости {target_rarity}!\n"
+                    "Попросите администратора добавить таких существ."
                 )
 
             else:
 
                 await update.message.reply_text(
-                    f"❌ В системе нет карт редкости {target_rarity}!\n"
-                    "Попросите администратора добавить такие карты."
+                    f"❌ В системе нет существ редкости {target_rarity}!\n"
+                    "Попросите администратора добавить таких существ."
                 )
 
             return
@@ -2264,8 +2262,8 @@ async def process_craft(
             f"✅ Крафт успешен!\n\n"
             f"🔨 Использовано: 10x {card['title']} ({card['rarity']})\n"
             f"🎁 Получено: {new_card['title']}\n"
-            f"🪙 +{bonus['cents']} центов\n"
-            f"💊 +{bonus['points']} поинтов\n\n"
+            f"💰 +{bonus['cents']} золота\n"
+            f"💥 +{bonus['points']} опыта\n\n"
         )
 
         if query:
@@ -2387,7 +2385,7 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
             await update.message.reply_text(
                 f"⏳ Следующий бросок через: {hours} ч {minutes} мин\n\n"
-                f"🎲 У вас есть {user_data.get('free_rolls', 0)} бесплатных попыток"
+                f"🎲 У вас есть {user_data.get('free_rolls', 0)} бесплатных наймов"
             )
 
             return
@@ -2418,8 +2416,8 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         await update.message.reply_text(
             f"🎲 Выпало: {dice_value}!\n\n"
-            f"✨ Получено бесплатных попыток: {dice_value}\n"
-            f"📊 Всего бесплатных попыток: {user_data['free_rolls']}\n\n"
+            f"✨ Получено бесплатных наймов: {dice_value}\n"
+            f"📊 Всего бесплатных наймов: {user_data['free_rolls']}\n\n"
             f"⏳ Следующий бросок через 6 часов"
         )
 
@@ -2446,7 +2444,7 @@ async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await update.message.reply_text(
-            "🎮 **Мини-игры**\n\n" "Выберите игру:",
+            "🍺 **Таверна**\n\n" "Выберите игру:",
             reply_markup=reply_markup,
             parse_mode="Markdown",
         )
@@ -2488,7 +2486,7 @@ async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         cents = user_data.get("cents", 0)
 
         keyboard = [
-            [InlineKeyboardButton("🎰 Играть (2000¢)", callback_data="casino_play")]
+            [InlineKeyboardButton("🎰 Играть (2000 золота)", callback_data="casino_play")]
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -2496,12 +2494,12 @@ async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             f"🎰 **Казино**\n\n"
             f"📜 **Правила:**\n"
-            f"• Стоимость игры: 2000 центов\n"
+            f"• Стоимость игры: 2000 золота\n"
             f"• Крутите слот и получите 3 одинаковых значения\n"
-            f"• При победе: 10 бесплатных попыток получения карт\n"
+            f"• При победе: 10 бесплатных наймов существ\n"
             f"• Попыток сегодня: {attempts}/10\n"
             f"• Сброс в 00:00 МСК\n\n"
-            f"💰 Ваш баланс: {cents} центов\n"
+            f"💰 Ваш баланс: {cents} золота\n"
             f"🎲 Осталось попыток: {attempts}",
             reply_markup=reply_markup,
             parse_mode="Markdown",
@@ -2566,10 +2564,10 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             if cents < 2000:
 
                 await query.edit_message_text(
-                    f"❌ **Недостаточно центов!**\n\n"
-                    f"Нужно: 2000¢\n"
-                    f"У вас: {cents}¢\n\n"
-                    f"Собирайте карты и получайте больше наград! 💰",
+                    f"❌ **Недостаточно золота!**\n\n"
+                    f"Нужно: 2000 золота\n"
+                    f"У вас: {cents} золота\n\n"
+                    f"Нанимайте существ и получайте больше наград! 💰",
                     parse_mode="Markdown",
                 )
 
@@ -2610,8 +2608,8 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             await query.message.reply_text(
                 f"🎉 **ДЖЕКПОТ!** 🎉\n\n"
                 f"✨ **3 одинаковых символа!**\n"
-                f"🎁 Получено: 10 бесплатных попыток\n"
-                f"📊 Всего попыток: {user_data['free_rolls']}\n\n"
+                f"🎁 Получено: 10 бесплатных наймов\n"
+                f"📊 Всего наймов: {user_data['free_rolls']}\n\n"
                 f"🎲 Осталось попыток в казино: {user_data['casino_attempts']}",
                 parse_mode="Markdown",
             )
@@ -2622,9 +2620,9 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
             await query.message.reply_text(
                 f"😔 Не повезло! Попробуйте ещё раз.\n\n"
-                f"💰 Списано: 2000¢\n"
+                f"💰 Списано: 2000 золота\n"
                 f"🎲 Осталось попыток: {user_data['casino_attempts']}\n"
-                f"💵 Ваш баланс: {user_data['cents']}¢",
+                f"💰 Ваш баланс: {user_data['cents']} золота",
                 parse_mode="Markdown",
             )
 
@@ -2698,7 +2696,7 @@ async def add_card_to_player(
 
         if target_user_id not in data["users"]:
 
-            await update.message.reply_text(f"⚠️ Игрок {target_user_id} не найден!")
+            await update.message.reply_text(f"⚠️ герой {target_user_id} не найден!")
 
             return
 
@@ -2708,7 +2706,7 @@ async def add_card_to_player(
 
         if not card:
 
-            await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена!")
+            await update.message.reply_text(f"⚠️ Существо #{card_id} не найдено!")
 
             return
 
@@ -2821,12 +2819,12 @@ async def add_rolls_to_player(
         save_data(data)
 
         await update.message.reply_text(
-            f"✅ **Попытки добавлены!**\n\n"
-            f"👤 Игрок: {target_user_id}\n"
+            f"✅ **Наймы добавлены!**\n\n"
+            f"👤 Герой: {target_user_id}\n"
             f"🎲 Добавлено: {rolls_count}\n"
             f"📊 Было: {old_rolls}\n"
             f"📈 Стало: {user_data['free_rolls']}\n\n"
-            f"{'🆕 Игрок создан!' if created else ''}",
+            f"{'🆕 Герой создан!' if created else ''}",
             parse_mode="Markdown",
         )
 
@@ -2836,9 +2834,9 @@ async def add_rolls_to_player(
 
     except Exception as e:
 
-        logger.error(f"Ошибка добавления попыток игроку: {e}")
+        logger.error(f"Ошибка добавления наймов герою: {e}")
 
-        await update.message.reply_text("❌ Ошибка при добавлении попыток")
+        await update.message.reply_text("❌ Ошибка при добавлении наймов")
 
 async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает топ-10 игроков по поинтам в сезоне."""
@@ -2857,11 +2855,11 @@ async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         top_10 = sorted_users[:10]
         
         # Формируем сообщение
-        message_text = "🏆 **Топ игроков этого сезона**\n\n"
+        message_text = "🏆 **Топ героев этого сезона**\n\n"
         
         for rank, (user_id, user_data) in enumerate(top_10, 1):
             # Получаем имя из профиля Telegram
-            first_name = user_data.get("first_name", "Игрок")
+            first_name = user_data.get("first_name", "Герой")
             last_name = user_data.get("last_name", "")
             
             # Формируем полное имя
@@ -2882,7 +2880,7 @@ async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             else:
                 medal = f"{rank}."
             
-            message_text += f"{medal} **{username}** — {points} поинтов\n"
+            message_text += f"{medal} **{username}** — {points} опыта\n"
         
         # Показываем место текущего пользователя
         current_user_id = str(update.effective_user.id)
@@ -2907,7 +2905,7 @@ async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         else:
             message_text += f"📍 **Ваше место:** {user_rank}\n"
         
-        message_text += f"💊 **Ваши поинты:** {current_points}"
+        message_text += f"💥 **Ваш опыт:** {current_points}"
         
         # УБРАНА КНОПКА ОБНОВЛЕНИЯ
         await update.message.reply_text(
@@ -2948,7 +2946,7 @@ async def reset_season_points(update: Update, context: ContextTypes.DEFAULT_TYPE
         if not context.args:
             await update.message.reply_text(
                 "ℹ️ **Формат команды:**\n\n"
-                "/reset_season_points [ID_игрока]\n\n"
+                "/reset_season_points [ID_героя]\n\n"
                 "**Пример:**\n"
                 "/reset_season_points 881692999",
                 parse_mode="Markdown"
@@ -2959,7 +2957,7 @@ async def reset_season_points(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         # Проверяем существование игрока
         if target_user_id not in data["users"]:
-            await update.message.reply_text(f"⚠️ Игрок {target_user_id} не найден!")
+            await update.message.reply_text(f"⚠️ Герой {target_user_id} не найден!")
             return
         
         # Сохраняем старые поинты
@@ -2972,21 +2970,21 @@ async def reset_season_points(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         # Получаем имя игрока
         player_data = data["users"][target_user_id]
-        player_name = player_data.get("first_name", "Игрок")
+        player_name = player_data.get("first_name", "Герой")
         if player_data.get("last_name"):
             player_name += f" {player_data['last_name']}"
         
         await update.message.reply_text(
-            f"✅ **Сезонные поинты сброшены!**\n\n"
-            f"👤 Игрок: {player_name}\n"
+            f"✅ **Сезонный опыт сброшен!**\n\n"
+            f"👤 Герой: {player_name}\n"
             f"🆔 ID: {target_user_id}\n"
-            f"📊 Было поинтов: {old_points}\n"
-            f"📈 Стало поинтов: 0\n\n"
-            f"⚠️ Общие поинты (total_points) не изменены.",
+            f"📊 Было опыта: {old_points}\n"
+            f"📈 Стало опыта: 0\n\n"
+            f"⚠️ Общий опыт (total_points) не изменен.",
             parse_mode="HTML"
         )
         
-        logger.info(f"Админ {user_id} сбросил сезонные поинты игроку {target_user_id} ({old_points} → 0)")
+        logger.info(f"Админ {user_id} сбросил сезонный опыт герою {target_user_id} ({old_points} → 0)")
         
     except Exception as e:
         logger.error(f"Ошибка reset_season_points: {e}")
@@ -3000,7 +2998,7 @@ async def trade_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         user_data = data["users"].get(user_id)
         
         if not user_data or not user_data.get("cards"):
-            await update.message.reply_text("❌ У вас нет карт для трейда!")
+            await update.message.reply_text("❌ У вас нет существ для трейда!")
             return
         
         keyboard = [
@@ -3009,10 +3007,10 @@ async def trade_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         ]
         
         await update.message.reply_text(
-            "🔄 **Трейд карт**\n\n"
+            "🔄 **Трейд существ**\n\n"
             "Выберите тип обмена:\n"
-            "• 1 ↔ 1 - обмен 1 карты на 1\n"
-            "📝 После выбора нужно будет указать игрока и выбрать карты.",
+            "• 1 ↔ 1 - обмен 1 существо на 1\n"
+            "📝 После выбора нужно будет указать героя и выбрать карты.",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
@@ -3042,7 +3040,7 @@ async def select_trade_partner(update: Update, context: ContextTypes.DEFAULT_TYP
         }
         
         await message.reply_text(
-            "👤 **Введите @никнейм игрока**\n\n"
+            "👤 **Введите @никнейм героя**\n\n"
             "Пример:\n"
             "• @username\n\n",
             parse_mode="Markdown"
@@ -3083,13 +3081,13 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
         else:
             if user_id in context.user_data:
                 del context.user_data[user_id]
-            await query.edit_message_text("Неправильно введён @никнейм_игрока, начните трейд заново")
+            await query.edit_message_text("Неправильно введён @никнейм_героя, начните трейд заново")
             return
         
         # Проверяем существование партнёра
         data = load_data()
         if partner_id not in data["users"]:
-            await update.message.reply_text("⚠️ Игрок не найден!")
+            await update.message.reply_text("⚠️ Герой не найден!")
             return
         
         if partner_id == user_id:
@@ -3108,7 +3106,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
         
         await update.message.reply_text(
             f"✅ Партнёр: {partner_id}\n\n"
-            f"🃏 Выберите {cards_count} карт для обмена.\n\n"
+            f"🐦‍🔥 Выберите {cards_count} существ для обмена.\n\n"
             "Используйте кнопки для навигации:\n"
             "• [<] [>] - листать карты\n"
             "• [✅ Выбрать] - добавить карту\n"
@@ -3121,7 +3119,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
         user_card_ids = user_data.get("cards", [])
         
         if len(user_card_ids) < cards_count:
-            await update.message.reply_text("❌ Недостаточно карт для трейда!")
+            await update.message.reply_text("❌ Недостаточно существ для трейда!")
             del context.user_data[user_id]
             return
         
@@ -3185,7 +3183,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_card_ids = trade_info.get("user_card_ids", [])
             
             if not user_card_ids:
-                await query.answer("❌ Карты не найдены!", show_alert=True)
+                await query.answer("❌ Существа не найдены!", show_alert=True)
                 return
             
             if action == "prev":
@@ -3207,7 +3205,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 caption = (
                     f"{card['title']}\n"
                     f"Редкость: {card['rarity']}\n"
-                    f"📦 В коллекции: {card_in_collection} шт.\n\n"
+                    f"🛡 В казарме: {card_in_collection} шт.\n\n"
                     f"{selected_count}/{cards_count} выбрано"
                 )
                 
@@ -3237,7 +3235,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 selected_cards.remove(card_index)
             else:
                 if len(selected_cards) >= cards_count:
-                    await query.answer("❌ Максимум карт выбрано!", show_alert=True)
+                    await query.answer("❌ Максимум существ выбрано!", show_alert=True)
                     return
                 selected_cards.append(card_index)
             
@@ -3254,7 +3252,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 caption = (
                     f"{card['title']}\n"
                     f"Редкость: {card['rarity']}\n"
-                    f"📦 В коллекции: {card_in_collection} шт.\n\n"
+                    f"🛡 В казарме: {card_in_collection} шт.\n\n"
                     f"{len(selected_cards)}/{cards_count} выбрано"
                 )
                 
@@ -3280,7 +3278,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_card_ids = trade_info.get("user_card_ids", [])
             
             if len(selected_cards) != cards_count:
-                await query.answer(f"❌ Выберите ровно {cards_count} карт!", show_alert=True)
+                await query.answer(f"❌ Выберите ровно {cards_count} существ!", show_alert=True)
                 return
             
             # Переходим к подтверждению
@@ -3299,7 +3297,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=(
-                    f"✅ Вы выбрали {cards_count} карт(ы)\n\n"
+                    f"✅ Вы выбрали {cards_count} существ\n\n"
                     f"👤 Партнёр: {trade_info['partner_id']}\n\n"
                     f"📩 Отправляю запрос на обмен..."
                 ),
@@ -3333,7 +3331,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             try:
                 # Получаем имя отправителя
                 sender_data = data["users"].get(user_id, {})
-                sender_name = sender_data.get("first_name", "Игрок")
+                sender_name = sender_data.get("first_name", "Герой")
                 if sender_data.get("last_name"):
                     sender_name += f" {sender_data['last_name']}"
                 if sender_data.get("username"):
@@ -3346,7 +3344,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     if card:
                         cards_info.append(f"• {card['title']} ({card['rarity']})")
     
-                cards_text = "\n".join(cards_info) if cards_info else "Нет карт"
+                cards_text = "\n".join(cards_info) if cards_info else "Нет существ"
     
                 # ⭐ ДОБАВЛЯЕМ ИНЛАЙН-КНОПКИ ⭐
                 keyboard = [
@@ -3361,7 +3359,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     text=(
                         f"🔄 **Вам предложили обмен!**\n\n"
                         f"👤 От: {sender_name}\n"
-                        f"🃏 Карт в обмене: {cards_count}\n\n"
+                        f"🐦‍🔥 Существ в обмене: {cards_count}\n\n"
                         f"📋 **Карты отправителя:**\n"
                         f"{cards_text}\n\n"
                         f"Нажмите кнопку для действия:"
@@ -3371,7 +3369,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 )
             except Exception as notify_error:
                 logger.error(f"Не удалось уведомить партнёра: {notify_error}")
-                await query.message.reply_text("⚠️ Не удалось уведомить партнёра")
+                await query.message.reply_text("⚠️ Не удалось уведомить героя")
     
     except Exception as e:
         logger.error(f"Ошибка trade_callback: {e}")
@@ -3404,7 +3402,7 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             if from_user not in data["users"]:
                 del data["active_trades"][user_id]
                 save_data(data)
-                await query.edit_message_text("❌ Игрок, который отправил трейд, больше не существует!")
+                await query.edit_message_text("❌ Герой, который отправил трейд, больше не существует!")
                 return
             
             # Проверяем, что карты ещё существуют у отправителя
@@ -3416,7 +3414,7 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             
             # Получаем имя отправителя
             sender_data = data["users"].get(from_user, {})
-            sender_name = sender_data.get("first_name", "Игрок")
+            sender_name = sender_data.get("first_name", "Герой")
             if sender_data.get("last_name"):
                 sender_name += f" {sender_data['last_name']}"
             
@@ -3434,8 +3432,8 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             
             await query.edit_message_text(
                 f"✅ **Запрос принят от {sender_name}**\n\n"
-                f"🃏 Карт в обмене: {len(cards_offered)}\n\n"
-                f"📋 **Просмотрите карты ниже:**\n"
+                f"🐦‍🔥 Существ в обмене: {len(cards_offered)}\n\n"
+                f"📋 **Просмотрите существ ниже:**\n"
                 f"Используйте [<] [>] для навигации",
                 parse_mode="Markdown"
             )
@@ -3497,7 +3495,7 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             try:
                 await context.bot.send_message(
                     chat_id=from_user,
-                    text=f"❌ Игрок отклонил ваш запрос на обмен."
+                    text=f"❌ Герой отклонил ваш запрос на обмен."
                 )
             except:
                 pass
@@ -3532,19 +3530,19 @@ async def trade_accept(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         
         # Проверяем, что отправитель существует
         if from_user not in data["users"]:
-            await update.message.reply_text("❌ Игрок, который отправил трейд, больше не существует!")
+            await update.message.reply_text("❌ Герой, который отправил трейд, больше не существует!")
             del context.user_data[user_id]["incoming_trade"]
             return
         
         # Получаем имя отправителя
         sender_data = data["users"].get(from_user, {})
-        sender_name = sender_data.get("first_name", "Игрок")
+        sender_name = sender_data.get("first_name", "Герой")
         if sender_data.get("last_name"):
             sender_name += f" {sender_data['last_name']}"
         
         # Проверяем, что карты ещё существуют у отправителя
         if not cards_offered:
-            await update.message.reply_text("❌ Карты для обмена больше не доступны!")
+            await update.message.reply_text("❌ Существа для обмена больше не доступны!")
             del context.user_data[user_id]["incoming_trade"]
             return
         
@@ -3556,8 +3554,8 @@ async def trade_accept(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         
         await update.message.reply_text(
             f"✅ **Запрос на обмен от {sender_name}**\n\n"
-            f"🃏 Карт в обмене: {len(cards_offered)}\n\n"
-            f"📋 **Просмотрите карты ниже:**\n"
+            f"🐦‍🔥 Существ в обмене: {len(cards_offered)}\n\n"
+            f"📋 **Просмотрите существ ниже:**\n"
             f"Используйте [<] [>] для навигации\n"
             f"Когда будете готовы, нажмите [✅ Принять обмен]",
             parse_mode="Markdown"
@@ -3608,7 +3606,7 @@ async def trade_accept(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         else:
-            await update.message.reply_text("❌ Ошибка при загрузке карты!")
+            await update.message.reply_text("❌ Ошибка при загрузке существа!")
         
     except KeyError as e:
         logger.error(f"KeyError в trade_accept: {e}")
@@ -3637,7 +3635,7 @@ async def trade_decline(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         try:
             await context.bot.send_message(
                 chat_id=from_user,
-                text=f"❌ Игрок отклонил ваш запрос на обмен."
+                text=f"❌ Герой отклонил ваш запрос на обмен."
             )
         except:
             pass
@@ -3666,7 +3664,7 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         
         cards_offered = trade_info.get("received_cards", [])
         if not cards_offered:
-            await query.answer("❌ Карты не найдены!", show_alert=True)
+            await query.answer("❌ Существа не найдены!", show_alert=True)
             return
         
         # Навигация
@@ -3731,7 +3729,7 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             
             await query.message.reply_text(
                 f"✅ Запрос принят!\n\n"
-                f"🃏 Теперь выберите {cards_count} карт для обмена\n\n"
+                f"🐦‍🔥 Теперь выберите {cards_count} существ для обмена\n\n"
                 "Используйте кнопки для выбора...",
                 parse_mode="Markdown"
             )
@@ -3742,8 +3740,8 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             
             if len(user_card_ids) < cards_count:
                 await query.message.reply_text(
-                    f"❌ Недостаточно карт для трейда!\n"
-                    f"У вас: {len(user_card_ids)} карт, нужно: {cards_count}"
+                    f"❌ Недостаточно существ для трейда!\n"
+                    f"У вас: {len(user_card_ids)} существ, нужно: {cards_count}"
                 )
                 if "incoming_trade" in context.user_data.get(user_id, {}):
                     del context.user_data[user_id]["incoming_trade"]
@@ -3756,7 +3754,7 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             
             # Показываем первую карту
             if not user_card_ids:
-                await query.message.reply_text("❌ У вас нет карт!")
+                await query.message.reply_text("❌ У вас нет существ!")
                 return
             
             card = find_card_by_id(user_card_ids[0], data["cards"])
@@ -3768,7 +3766,7 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                         InlineKeyboardButton("✅ Выбрать", callback_data="trade_return_select_0"),
                         InlineKeyboardButton(">", callback_data="trade_return_next_0"),
                     ],
-                    [InlineKeyboardButton("➡️ Завершить обмен", callback_data="trade_return_finish")],
+                    [InlineKeyboardButton("➡️ Отправить встречное предложение", callback_data="trade_return_finish")],
                 ]
                 await query.message.reply_photo(
                     photo=card["image_url"],
@@ -3790,7 +3788,7 @@ async def trade_offer_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 try:
                     await context.bot.send_message(
                         chat_id=from_user,
-                        text=f"❌ Игрок отклонил ваш запрос на обмен."
+                        text=f"❌ Герой отклонил ваш запрос на обмен."
                     )
                 except:
                     pass
@@ -3823,7 +3821,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
             current_index = trade_info.get("current_index", 0)
             
             if not user_card_ids:
-                await query.answer("❌ Карты не найдены!", show_alert=True)
+                await query.answer("❌ Существа не найдены!", show_alert=True)
                 return
             
             if action == "prev":
@@ -3844,7 +3842,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 caption = (
                     f"{card['title']}\n"
                     f"Редкость: {card['rarity']}\n"
-                    f"📦 В коллекции: {card_in_collection} шт.\n\n"
+                    f"🛡 В казарме: {card_in_collection} шт.\n\n"
                     f"{selected_count}/{cards_count} выбрано"
                 )
                 
@@ -3873,7 +3871,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 selected_cards.remove(card_index)
             else:
                 if len(selected_cards) >= cards_count:
-                    await query.answer("❌ Максимум карт выбрано!", show_alert=True)
+                    await query.answer("❌ Максимум существ выбрано!", show_alert=True)
                     return
                 selected_cards.append(card_index)
             
@@ -3888,7 +3886,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 caption = (
                     f"{card['title']}\n"
                     f"Редкость: {card['rarity']}\n"
-                    f"📦 В коллекции: {card_in_collection} шт.\n\n"
+                    f"🛡 В казарме: {card_in_collection} шт.\n\n"
                     f"{len(selected_cards)}/{cards_count} выбрано"
                 )
                 
@@ -3913,7 +3911,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
             cards_count = trade_info.get("cards_count", 1)
             
             if len(selected_cards) != cards_count:
-                await query.answer(f"❌ Выберите ровно {cards_count} карт!", show_alert=True)
+                await query.answer(f"❌ Выберите ровно {cards_count} существ!", show_alert=True)
                 return
             
             # Получаем выбранные карты
@@ -3935,8 +3933,8 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
             # Отправляем уведомление отправителю (Игрок А)
             try:
-                sender_data = data["users"].get(partner_id, {})
-                sender_name = sender_data.get("first_name", "Игрок")
+                sender_data = data["users"].get(user_id, {})
+                sender_name = sender_data.get("first_name", "Герой")
                 if sender_data.get("last_name"):
                     sender_name += f" {sender_data['last_name']}"
                 
@@ -3969,7 +3967,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
-                        f"🔄 **Игрок готов к обмену!**\n\n"
+                        f"🔄 **Герой готов к обмену!**\n\n"
                         f"👤 {sender_name} предлагает:\n"
                         f"{return_cards_text}\n\n"
                         f"📋 **Ваше предложение:**\n"
@@ -4063,8 +4061,8 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             
             await query.edit_message_text(
                 "✅ **Обмен завершён!**\n\n"
-                f"🃏 Вы отдали: {len(received_cards)} карт\n"
-                f"🃏 Вы получили: {len(selected_return_cards)} карт",
+                f"🐦‍🔥 Вы отдали: {len(received_cards)} существ\n"
+                f"🐦‍🔥 Вы получили: {len(selected_return_cards)} существ",
                 parse_mode="Markdown"
             )
             
@@ -4074,8 +4072,8 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                     chat_id=partner_id,
                     text=(
                         "✅ **Обмен завершён!**\n\n"
-                        f"🃏 Вы отдали: {len(selected_return_cards)} карт\n"
-                        f"🃏 Вы получили: {len(received_cards)} карт"
+                        f"🐦‍🔥 Вы отдали: {len(selected_return_cards)} существ\n"
+                        f"🐦‍🔥 Вы получили: {len(received_cards)} существ"
                     ),
                     parse_mode="Markdown"
                 )
@@ -4175,11 +4173,11 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         
         await query.edit_message_text(
             "🏆 **Достижения**\n\n"
-            "Соберите все карты каждой фракции,\n"
+            "Соберите всех существ отдельной фракции,\n"
             "чтобы получить награду!\n\n"
             "🎁 **Награда за достижение:**\n"
             "• 20 бесплатных попыток\n"
-            "• 20000 центов\n\n"
+            "• 20000 золота\n\n"
             "Выберите достижение:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
@@ -4256,8 +4254,8 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             f"🎉 **Достижение получено!**\n\n"
             f"🏆 {achievement_num}. {faction}\n\n"
             f"🎁 **Награда:**\n"
-            f"• 🎲 +20 бесплатных попыток\n"
-            f"• 🪙 +20000 центов\n\n"
+            f"• 🎲 +20 бесплатных наймов\n"
+            f"• 💰 +20000 золота\n\n"
             f"Поздравляем!",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
@@ -4307,7 +4305,7 @@ async def set_achievement_cards(update: Update, context: ContextTypes.DEFAULT_TY
         # Проверяем существование карт
         for card_id in card_ids:
             if not find_card_by_id(card_id, data["cards"]):
-                await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена!")
+                await update.message.reply_text(f"⚠️ Существо #{card_id} не найдено!")
                 return
         
         # Сохраняем карты достижения
@@ -4317,7 +4315,7 @@ async def set_achievement_cards(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text(
             f"✅ **Достижение обновлено!**\n\n"
             f"🏷 Фракция: {faction}\n"
-            f"🃏 Карт: {len(card_ids)}\n"
+            f"🐦‍🔥 Существ: {len(card_ids)}\n"
             f"📋 ID: {', '.join(map(str, card_ids))}",
             parse_mode="Markdown"
         )
@@ -4365,9 +4363,9 @@ async def check_card_notifications(application: Application) -> None:
                             await application.bot.send_message(
                                 chat_id=user_id,
                                 text=(
-                                    "🎉 **Вы снова можете получить карту!**\n\n"
+                                    "🎉 **Вы снова можете нанять существо!**\n\n"
                                     "⏰ Кулдаун завершился.\n"
-                                    "💣 Нажмите кнопку «💣 Получить карту»"
+                                    "⚔️ Нажмите кнопку «⚔️ Нанять существо»"
                                 ),
                                 parse_mode="Markdown"
                             )
@@ -4478,4 +4476,4 @@ def main() -> None:
 
 if __name__ == "__main__":
 
-    main()
+    main() #💰⚰️🪦🔑⚔️🗡️💥🐦‍🔥
