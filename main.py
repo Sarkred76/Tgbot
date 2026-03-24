@@ -2866,7 +2866,7 @@ async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if not top_10:
             message_text += "📭 Пока нет героев в топе!"
         else:
-            for rank, (user_id, user_data) in enumerate(top_10, 1):
+            for rank, (user_id, user_data) in enumerate(top_10, 0):
                 # Получаем имя из профиля Telegram
                 first_name = user_data.get("first_name", "Герой")
                 last_name = user_data.get("last_name", "")
