@@ -4191,8 +4191,8 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             "Соберите всех существ отдельной фракции,\n"
             "чтобы получить награду!\n\n"
             "🎁 **Награда за достижение:**\n"
-            "• 20 бесплатных попыток\n"
-            "• 20000 золота\n\n"
+            "• 50 бесплатных попыток\n"
+            "• 50000 золота\n\n"
             "Выберите достижение:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
@@ -4258,8 +4258,8 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             return
         
         # ⭐ ВЫДАЁМ НАГРАДУ ⭐
-        user_data["free_rolls"] = user_data.get("free_rolls", 0) + 20
-        user_data["cents"] = user_data.get("cents", 0) + 20000
+        user_data["free_rolls"] = user_data.get("free_rolls", 0) + 50
+        user_data["cents"] = user_data.get("cents", 0) + 50000
         claimed_achievements.append(faction)
         user_data["claimed_achievements"] = claimed_achievements
         
@@ -4269,8 +4269,8 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             f"🎉 **Достижение получено!**\n\n"
             f"🏆 {achievement_num}. {faction}\n\n"
             f"🎁 **Награда:**\n"
-            f"• 🎲 +20 бесплатных наймов\n"
-            f"• 💰 +20000 золота\n\n"
+            f"• 🎲 +50 бесплатных наймов\n"
+            f"• 💰 +50000 золота\n\n"
             f"Поздравляем!",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
