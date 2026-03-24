@@ -1997,7 +1997,7 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Крафт 10 одинаковых карт в новую карту редкости Upgrade."""
+    """Крафт 2 одинаковых карт в новую карту редкости Upgrade."""
 
     try:
 
@@ -2017,24 +2017,24 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         card_counts = Counter(user_data["cards"])
 
-        # Находим карты, которых 10 или больше
+        # Находим карты, которых 2 или больше
 
         craftable_cards = {
-            card_id: count for card_id, count in card_counts.items() if count >= 10
+            card_id: count for card_id, count in card_counts.items() if count >= 2
         }
 
         if not craftable_cards:
 
             await update.message.reply_text(
                 "❌ Нет существ для крафта!\n\n"
-                "📋 Для крафта нужно 10 одинаковых существ.\n"
-                "🔹 10x T1 → UpgradeT1\n"
-                "🔹 10x T2 → UpgradeT2\n"
-                "🔹 10x T3 → UpgradeT3\n"
-                "🔹 10x T4 → UpgradeT4\n"
-                "🔹 10x T5 → UpgradeT5\n"
-                "🔹 10x T6 → UpgradeT6\n"
-                "🔹 10x T7 → UpgradeT7\n\n"
+                "📋 Для крафта нужно 2 одинаковых существа.\n"
+                "🔹 2x T1 → UpgradeT1\n"
+                "🔹 2x T2 → UpgradeT2\n"
+                "🔹 2x T3 → UpgradeT3\n"
+                "🔹 2x T4 → UpgradeT4\n"
+                "🔹 2x T5 → UpgradeT5\n"
+                "🔹 2x T6 → UpgradeT6\n"
+                "🔹 2x T7 → UpgradeT7\n\n"
                 "Собирайте дубликаты и попробуйте снова!"
             )
 
@@ -2078,7 +2078,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
             keyboard = []
 
-            for card_id, info in list(craftable_by_rarity.items())[:5]:
+            for card_id, info in list(craftable_by_rarity.items())[:10]:
 
                 keyboard.append(
                     [
@@ -2095,13 +2095,12 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
             await update.message.reply_text(
                 "🔨 Выберите существо для крафта:\n\n"
-                "10 существ будут уничтожены, вы получите 1 случайное существо улучшенной редкости",
+                "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости",
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
 
             return
 
-        # Если только одна карта — крафтим сразу
 
         card_id = list(craftable_by_rarity.keys())[0]
 
@@ -2128,11 +2127,11 @@ async def process_craft(
 
         user_data = data["users"].get(user_id)
 
-        # Проверяем, что у пользователя ещё есть 10+ карт
+        # Проверяем, что у пользователя ещё есть 2+ карт
 
         card_counts = Counter(user_data["cards"])
 
-        if card_counts.get(card_id, 0) < 10:
+        if card_counts.get(card_id, 0) < 2:
 
             if query:
 
@@ -2218,7 +2217,7 @@ async def process_craft(
 
             return
 
-        # Удаляем 10 карт из коллекции
+        # Удаляем 2 существа из казармы
 
         removed = 0
 
@@ -2226,7 +2225,7 @@ async def process_craft(
 
         for cid in user_data["cards"]:
 
-            if cid == card_id and removed < 10:
+            if cid == card_id and removed < 2:
 
                 removed += 1
 
@@ -2260,7 +2259,7 @@ async def process_craft(
 
         result_text = (
             f"✅ Крафт успешен!\n\n"
-            f"🔨 Использовано: 10x {card['title']} ({card['rarity']})\n"
+            f"🔨 Использовано: 2x {card['title']} ({card['rarity']})\n"
             f"🎁 Получено: {new_card['title']}\n"
             f"💰 +{bonus['cents']} золота\n"
             f"💥 +{bonus['points']} опыта\n\n"
