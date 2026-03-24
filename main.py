@@ -2838,7 +2838,7 @@ async def add_rolls_to_player(
         await update.message.reply_text("❌ Ошибка при добавлении наймов")
 
 async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает топ-10 игроков по поинтам в сезоне (без админов)."""
+    """Показывает топ-10 героев по опыту игроков по поинтам в сезоне (админы исключены)."""
     try:
         data = load_data()
         users = data.get("users", {})
@@ -2850,7 +2850,7 @@ async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             if uid not in admin_list
         }
         
-        # Сортируем пользователей по season_points
+        # Сортируем пользователей по season_points (только не-админы)
         sorted_users = sorted(
             non_admin_users.items(),
             key=lambda x: x[1].get("season_points", 0),
@@ -2866,7 +2866,7 @@ async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if not top_10:
             message_text += "📭 Пока нет героев в топе!"
         else:
-            for rank, (user_id, user_data) in enumerate(top_10, 0):
+            for rank, (user_id, user_data) in enumerate(top_10, 1):
                 # Получаем имя из профиля Telegram
                 first_name = user_data.get("first_name", "Герой")
                 last_name = user_data.get("last_name", "")
@@ -2891,39 +2891,39 @@ async def top_players(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 
                 message_text += f"{medal} **{username}** — {points} опыта\n"
         
-        # ⭐ ПОКАЗЫВАЕМ МЕСТО ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ ⭐
+        # ⭐ ПОКАЗЫВАЕМ МЕСТО ТОЛЬКО ЕСЛИ ПОЛЬЗОВАТЕЛЬ НЕ АДМИН ⭐
         current_user_id = str(update.effective_user.id)
-        current_user_data = users.get(current_user_id, {})
-        current_points = current_user_data.get("season_points", 0)
         
-        # Находим место пользователя (включая админов для честности)
-        all_sorted_users = sorted(
-            users.items(),
-            key=lambda x: x[1].get("season_points", 0),
-            reverse=True
-        )
-        
-        user_rank = None
-        for rank, (uid, _) in enumerate(all_sorted_users, 1):
-            if uid == current_user_id:
-                user_rank = rank
-                break
-        
-        # Если пользователя нет в топе
-        if not user_rank:
-            user_rank = len(all_sorted_users) + 1
-        
-        message_text += "\n" + "─" * 30 + "\n"
-        
-        # ⭐ ПОКАЗЫВАЕМ МЕСТО ДАЖЕ ЕСЛИ АДМИН ⭐
-        if user_rank <= 10:
-            message_text += f"✅ **Ваше место:** {user_rank}\n"
+        # Проверяем, является ли текущий пользователь админом
+        if current_user_id not in admin_list:
+            current_user_data = users.get(current_user_id, {})
+            current_points = current_user_data.get("season_points", 0)
+            
+            # Находим место пользователя (среди не-админов)
+            user_rank = None
+            for rank, (uid, _) in enumerate(sorted_users, 1):
+                if uid == current_user_id:
+                    user_rank = rank
+                    break
+            
+            # Если пользователя нет в топе
+            if not user_rank:
+                user_rank = len(sorted_users) + 1
+            
+            message_text += "\n" + "─" * 30 + "\n"
+            
+            if user_rank <= 10:
+                message_text += f"✅ **Ваше место:** {user_rank}\n"
+            else:
+                message_text += f"📍 **Ваше место:** {user_rank}\n"
+            
+            message_text += f"💥 **Ваш опыт:** {current_points}"
         else:
-            message_text += f"📍 **Ваше место:** {user_rank}\n"
+            # ⭐ ДЛЯ АДМИНОВ - СООБЩЕНИЕ ЧТО ОНИ НЕ УЧАСТВУЮТ ⭐
+            message_text += "\n" + "─" * 30 + "\n"
+            message_text += "⚙️ **Вы администратор**\n"
+            message_text += "Ваш прогресс не учитывается в топе"
         
-        message_text += f"💥 **Ваш опыт:** {current_points}"
-        
-        # УБРАНА КНОПКА ОБНОВЛЕНИЯ
         await update.message.reply_text(
             message_text,
             parse_mode="Markdown"
