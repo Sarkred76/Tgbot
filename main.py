@@ -68,14 +68,14 @@ AUTO_ANIMATED_RARITIES = ["Animated!"]
 
 
 RARITY_BONUSES = {
-    "T1": {"cents": 100, "points": 100, "probability": 45},
-    "T2": {"cents": 250, "points": 250, "probability": 25},
-    "T3": {"cents": 500, "points": 500, "probability": 12},
-    "T4": {"cents": 1000, "points": 1000, "probability": 8},
-    "T5": {"cents": 2000, "points": 2000, "probability": 5},
-    "T6": {"cents": 5000, "points": 5000, "probability": 3},
-    "T7": {"cents": 10000, "points": 10000, "probability": 1.5},
-    "T8": {"cents": 50000, "points": 50000, "probability": 0.5},
+    "T1": {"cents": 100, "points": 100, "probability": 53.16},
+    "T2": {"cents": 250, "points": 250, "probability": 20.8},
+    "T3": {"cents": 500, "points": 500, "probability": 11.8},
+    "T4": {"cents": 1000, "points": 1000, "probability": 6.91},
+    "T5": {"cents": 2000, "points": 2000, "probability": 4.51},
+    "T6": {"cents": 5000, "points": 5000, "probability": 1.96},
+    "T7": {"cents": 10000, "points": 10000, "probability": 0.78},
+    "T8": {"cents": 50000, "points": 50000, "probability": 0.08},
     "UpgradeT1": {"cents": 200, "points": 200, "probability": 100},
     "UpgradeT2": {"cents": 500, "points": 500, "probability": 100},
     "UpgradeT3": {"cents": 1000, "points": 1000, "probability": 100},
