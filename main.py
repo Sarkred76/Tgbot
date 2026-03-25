@@ -3388,7 +3388,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         f"Нажмите кнопку для действия:"
                     ),
                     reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode="Markdown"
+                    parse_mode="HTML"
                 )
             except Exception as notify_error:
                 logger.error(f"Не удалось уведомить партнёра: {notify_error}")
