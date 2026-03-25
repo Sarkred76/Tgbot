@@ -113,6 +113,9 @@ def load_data() -> Dict[str, Any]:
             if "active_trades" not in data:
                 data["active_trades"] = {}
 
+            if "promo_codes" not in data:
+                data["promo_codes"] = {}
+
             if "achievements" not in data:
                 data["achievements"] = {
                     "Замок": {"cards": [], "reward_claimed": False},
@@ -142,6 +145,8 @@ def load_data() -> Dict[str, Any]:
                     user_data["claimed_achievements"] = []
                 if "notification_sent" not in user_data:
                     user_data["notification_sent"] = False
+                if "used_promo_codes" not in user_data:
+                    user_data["used_promo_codes"] = []
             
             return data
             
@@ -459,6 +464,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             response += "/list_admins - список админов\n"
             response += "/add_admin [ID] - добавить админа\n"
             response += "/remove_admin [ID] - удалить админа\n"
+            response += "/create_promo [КОД] [ID_карты] [лимит] - создать промокод\n"
+            response += "/delete_promo [КОД] - удалить промокод\n"
+            response += "/list_promo - список всех промокодов\n"
             
         response += "\n\n💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
@@ -4403,7 +4411,260 @@ async def check_card_notifications(application: Application) -> None:
             logger.error(f"Ошибка в check_card_notifications: {e}")
             await asyncio.sleep(60)
 
+async def create_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Создание промокода на карту."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # Проверяем аргументы
+        if not context.args or len(context.args) < 3:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/create_promo [КОД] [ID_карты] [кол-во_использований]\n\n"
+                "**Примеры:**\n"
+                "/create_promo NEWCARD2024 45 100\n"
+                "/create_promo BONUS 12 50",
+                parse_mode="Markdown"
+            )
+            return
+        
+        promo_code = context.args[0].upper()  # Приводим к верхнему регистру
+        card_id = int(context.args[1])
+        max_uses = int(context.args[2])
+        
+        # Проверяем существование карты
+        card = find_card_by_id(card_id, data["cards"])
+        if not card:
+            await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена!")
+            return
+        
+        # Проверяем, не существует ли уже такой промокод
+        if promo_code in data["promo_codes"]:
+            await update.message.reply_text(
+                f"⚠️ Промокод **{promo_code}** уже существует!\n"
+                f"Удалите его сначала командой /delete_promo {promo_code}",
+                parse_mode="Markdown"
+            )
+            return
+        
+        # Создаём промокод
+        data["promo_codes"][promo_code] = {
+            "card_id": card_id,
+            "card_title": card["title"],
+            "card_rarity": card["rarity"],
+            "max_uses": max_uses,
+            "current_uses": 0,
+            "created_by": str(update.effective_user.id),
+            "created_at": int(time.time())
+        }
+        
+        save_data(data)
+        
+        await update.message.reply_text(
+            f"✅ **Промокод создан!**\n\n"
+            f"🎁 Код: **{promo_code}**\n"
+            f"🃏 Карта: {card['title']} (#{card_id})\n"
+            f"🌟 Редкость: {card['rarity']}\n"
+            f"📊 Лимит использований: {max_uses}\n"
+            f"⏰ Создан: {time.strftime('%d.%m.%Y %H:%M', time.localtime())}\n\n"
+            f"Игроки могут активировать командой:\n"
+            f"`/promo {promo_code}`",
+            parse_mode="Markdown"
+        )
+        
+        logger.info(f"Админ создал промокод {promo_code} на карту #{card_id}")
+        
+    except ValueError:
+        await update.message.reply_text("⚠️ ID карты и количество должны быть числами!")
+    except Exception as e:
+        logger.error(f"Ошибка create_promo_code: {e}")
+        await update.message.reply_text("❌ Ошибка при создании промокода")
 
+async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Активация промокода игроком."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        # Проверяем аргументы
+        if not context.args:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/promo [КОД]\n\n"
+                "**Пример:**\n"
+                "/promo NEWCARD2024",
+                parse_mode="Markdown"
+            )
+            return
+        
+        promo_code = context.args[0].upper()  # Приводим к верхнему регистру
+        
+        # Проверяем существование промокода
+        if promo_code not in data["promo_codes"]:
+            await update.message.reply_text(
+                "❌ **Промокод не найден!**\n\n"
+                "Проверьте правильность ввода кода."
+            )
+            return
+        
+        promo_info = data["promo_codes"][promo_code]
+        
+        # Проверяем, не использовал ли игрок этот промокод раньше
+        user_data = data["users"].get(user_id, {})
+        used_promo_codes = user_data.get("used_promo_codes", [])
+        
+        if promo_code in used_promo_codes:
+            await update.message.reply_text(
+                "❌ **Вы уже использовали этот промокод!**\n\n"
+                "Один промокод можно активировать только один раз."
+            )
+            return
+        
+        # Проверяем лимит использований
+        if promo_info["current_uses"] >= promo_info["max_uses"]:
+            await update.message.reply_text(
+                "❌ **Лимит активаций исчерпан!**\n\n"
+                "Этот промокод больше не действителен."
+            )
+            return
+        
+        # Проверяем существование карты
+        card_id = promo_info["card_id"]
+        card = find_card_by_id(card_id, data["cards"])
+        if not card:
+            await update.message.reply_text(
+                "❌ **Ошибка!**\n\n"
+                "Карта для этого промокода больше не существует."
+            )
+            return
+        
+        # Проверяем, существует ли пользователь в базе
+        if user_id not in data["users"]:
+            user_data = {
+                "username": update.effective_user.username or "",
+                "first_name": update.effective_user.first_name or "",
+                "last_name": update.effective_user.last_name or "",
+                "cards": [],
+                "total_points": 0,
+                "season_points": 0,
+                "cents": 0,
+                "last_card_time": 0,
+                "free_rolls": 0,
+                "last_dice_time": 0,
+                "used_promo_codes": []
+            }
+            data["users"][user_id] = user_data
+        
+        # Добавляем карту игроку
+        data["users"][user_id]["cards"].append(card_id)
+        
+        # Отмечаем промокод как использованный
+        data["users"][user_id]["used_promo_codes"].append(promo_code)
+        
+        # Увеличиваем счётчик использований
+        data["promo_codes"][promo_code]["current_uses"] += 1
+        
+        save_data(data)
+        
+        # Отправляем карту игроку
+        caption = (
+            f"🎉 **Промокод активирован!**\n\n"
+            f"🎁 Код: {promo_code}\n"
+            f"🃏 Вы получили: {card['title']}\n"
+            f"🌟 Редкость: {card['rarity']}\n\n"
+            f"Приятной игры!"
+        )
+        
+        await send_card(update, card, context, caption=caption)
+        
+        logger.info(f"Игрок {user_id} активировал промокод {promo_code}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка activate_promo_code: {e}")
+        await update.message.reply_text("❌ Ошибка при активации промокода")
+
+async def delete_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Удаление промокода."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        if not context.args:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/delete_promo [КОД]\n\n"
+                "**Пример:**\n"
+                "/delete_promo NEWCARD2024",
+                parse_mode="Markdown"
+            )
+            return
+        
+        promo_code = context.args[0].upper()
+        
+        if promo_code not in data["promo_codes"]:
+            await update.message.reply_text(f"⚠️ Промокод **{promo_code}** не найден!")
+            return
+        
+        promo_info = data["promo_codes"][promo_code]
+        del data["promo_codes"][promo_code]
+        save_data(data)
+        
+        await update.message.reply_text(
+            f"✅ **Промокод удалён!**\n\n"
+            f"🎁 Код: {promo_code}\n"
+            f"🃏 Карта: {promo_info['card_title']}\n"
+            f"📊 Использован раз: {promo_info['current_uses']}/{promo_info['max_uses']}"
+        )
+        
+        logger.info(f"Админ удалил промокод {promo_code}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка delete_promo_code: {e}")
+        await update.message.reply_text("❌ Ошибка при удалении промокода")
+
+async def list_promo_codes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Список всех промокодов."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        promo_codes = data.get("promo_codes", {})
+        
+        if not promo_codes:
+            await update.message.reply_text("📭 Нет активных промокодов!")
+            return
+        
+        message_text = "🎁 **Активные промокоды:**\n\n"
+        
+        for code, info in promo_codes.items():
+            status = "✅ Активен" if info["current_uses"] < info["max_uses"] else "❌ Исчерпан"
+            message_text += (
+                f"🔖 **{code}**\n"
+                f"🃏 Карта: {info['card_title']} (#{info['card_id']})\n"
+                f"🌟 Редкость: {info['card_rarity']}\n"
+                f"📊 Использовано: {info['current_uses']}/{info['max_uses']}\n"
+                f"📈 Статус: {status}\n\n"
+            )
+        
+        # Разбиваем на сообщения по 4000 символов
+        MAX_LENGTH = 4000
+        if len(message_text) > MAX_LENGTH:
+            parts = [message_text[i:i+MAX_LENGTH] for i in range(0, len(message_text), MAX_LENGTH)]
+            for part in parts:
+                await update.message.reply_text(part, parse_mode="Markdown")
+        else:
+            await update.message.reply_text(message_text, parse_mode="Markdown")
+        
+    except Exception as e:
+        logger.error(f"Ошибка list_promo_codes: {e}")
+        await update.message.reply_text("❌ Ошибка при получении списка промокодов")
 # ===== ЗАПУСК БОТА =====
 
 
@@ -4453,6 +4714,10 @@ def main() -> None:
             CommandHandler("add_admin", add_admin),
             CommandHandler("remove_admin", remove_admin),
             CommandHandler("set_achievement_cards", set_achievement_cards),
+            CommandHandler("create_promo", create_promo_code),
+            CommandHandler("delete_promo", delete_promo_code),
+            CommandHandler("list_promo", list_promo_codes),
+            CommandHandler("promo", activate_promo_code),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(handle_callback, pattern=r"^card_.*"),
             CallbackQueryHandler(mycards_callback, pattern=r"^mycards_.*"),
