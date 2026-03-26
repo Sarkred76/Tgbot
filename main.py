@@ -5321,6 +5321,7 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
             if step == "search_mode":
                 trade_info["step"] = "select_cards" # Возвращаемся к выбору
                 await update.message.reply_text(" bird:‍🔥 Выберите существо кнопками:")
+            )
             return
         
         # Показываем результаты поиска
