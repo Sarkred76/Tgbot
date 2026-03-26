@@ -5289,9 +5289,12 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
             return
         
         trade_info = context.user_data[user_id]
-        if trade_info.get("step") not in ["select_cards", "select_return_cards"]:
-            await update.message.reply_text("❌ Сначала выберите партнёра для трейда!")
-            return
+        step = trade_info.get("step", "")
+        if step not in ["select_cards", "select_return_cards", "search_mode"]:
+            if step != "search_mode":
+                if step not in ["select_cards", "select_return_cards", "search_mode"]:
+                    await update.message.reply_text(f"❌ Невозможно выполнить поиск. Текущий шаг трейда: '{step}'.")
+                          return
         
         # Проверяем, есть ли данные пользователя
         data = load_data()
@@ -5315,6 +5318,9 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
             await update.message.reply_text(
                 f"❌ Существ с названием \"{text}\" не найдено!\n"
                 "Попробуйте другой запрос или введите @никнейм для выбора партнёра."
+            if step == "search_mode":
+                trade_info["step"] = "select_cards" # Возвращаемся к выбору
+                await update.message.reply_text(" bird:‍🔥 Выберите существо кнопками:")
             )
             return
         
@@ -5342,6 +5348,13 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
+            trade_info["step"] = "search_results"
+            trade_info["search_query"] = search_query
+            await update.message.reply_photo(
+                photo=card["image_url"],
+                caption=f"{card['title']}\nРедкость: {card['rarity']}\n🛡 В казарме: {count} шт.",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
         else:
             # Если найдено несколько — показываем список
             keyboard = []
@@ -5365,6 +5378,10 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
         # Сохраняем информацию о поиске
         trade_info["step"] = "search_results"
         trade_info["search_query"] = search_query
+        await update.message.reply_text(
+                "Выберите существо для трейда:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
         
     except Exception as e:
         logger.error(f"Ошибка search_creatures_for_trade: {e}")
@@ -5449,6 +5466,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 )
         
         elif query.data == "trade_search_cancel":
+            user_id = str(query.from_user.id)
             if user_id in context.user_data:
                 trade_info = context.user_data[user_id]
                 trade_info["step"] = "select_cards"
@@ -5457,6 +5475,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
             except:
                 pass
             await query.message.reply_text("❌ Поиск отменён\nВыберите существо кнопками или введите название:")
+            return
         
         elif query.data == "trade_search_button":
             # Кнопка "Поиск" в интерфейсе выбора карт
