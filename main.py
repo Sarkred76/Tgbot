@@ -3625,7 +3625,7 @@ async def select_trade_partner(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def process_partner_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработка выбора партнёра."""
+    """Обработка выбора партнёра или поиска существа."""
     try:
         user_id = str(update.effective_user.id)
         text = update.message.text.strip()
@@ -3635,9 +3635,27 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
             return
         
         trade_info = context.user_data[user_id]
-        if trade_info.get("step") != "select_partner":
+        step = trade_info.get("step", "")
+        
+        # ⭐ ОТМЕНА ПОИСКА ⭐
+        if text.lower() == "/cancel":
+            if step == "search_mode":
+                trade_info["step"] = "select_cards"
+                await update.message.reply_text("❌ Поиск отменён\nВыберите существо кнопками:")
+                return
+            elif step == "select_partner":
+                del context.user_data[user_id]
+                await update.message.reply_text("❌ Трейд отменён")
+                return
+        
+        # ⭐ ПОИСК СУЩЕСТВ (не @username) ⭐
+        if step == "search_mode":
+            await search_creatures_for_trade(update, context)
             return
         
+        # ⭐ ВЫБОР ПАРТНЁРА ⭐
+        if step != "select_partner":
+            return
         
         # Определяем партнёра
         if text.startswith("@"):
@@ -3648,10 +3666,14 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
                 if udata.get("username") == text[1:]:
                     partner_id = uid
                     break
+            
+            if not partner_id:
+                if user_id in context.user_data:
+                    del context.user_data[user_id]
+                await update.message.reply_text("⚠️ Герой с таким @никнеймом не найден!\nНачните трейд заново /trade")
+                return
         else:
-            if user_id in context.user_data:
-                del context.user_data[user_id]
-            await query.edit_message_text("Неправильно введён @никнейм_героя, начните трейд заново")
+            await update.message.reply_text("⚠️ Введите @никнейм героя или название существа для поиска")
             return
         
         # Проверяем существование партнёра
@@ -3669,25 +3691,25 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
         trade_info["step"] = "select_cards"
         
         # Получаем количество карт для трейда
-        trade_type = trade_info["trade_type"]  # "1v1", "2v2", "3v3"
+        trade_type = trade_info["trade_type"]
         cards_count = int(trade_type.split("v")[0])
         trade_info["cards_count"] = cards_count
         trade_info["selected_cards"] = []
         
         await update.message.reply_text(
-            f"✅ Партнёр: {partner_id}\n\n"
+            f"✅ Партнёр: {partner_id}\n"
             f"🐦‍🔥 Выберите {cards_count} существ для обмена.\n\n"
-            "Используйте кнопки для навигации:\n"
-            "• [<] [>] - листать карты\n"
-            "• [✅ Выбрать] - добавить карту\n"
-            "• [➡️ Далее] - завершить выбор",
+            f"Используйте кнопки для навигации:\n"
+            f"• [<] [>] - листать карты\n"
+            f"• [✅ Выбрать] - добавить карту\n"
+            f"• [🔍 Поиск] - найти по названию\n"
+            f"• [➡️ Далее] - завершить выбор",
             parse_mode="Markdown"
         )
         
         # Показываем первую карту
         user_data = data["users"][user_id]
         user_card_ids = user_data.get("cards", [])
-        
         if len(user_card_ids) < cards_count:
             await update.message.reply_text("❌ Недостаточно существ для трейда!")
             del context.user_data[user_id]
@@ -3698,7 +3720,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
         
         card = find_card_by_id(user_card_ids[0], data["cards"])
         if card:
-            caption = f"{card['title']}\nРедкость: {card['rarity']}\n\n0/{cards_count} выбрано"
+            caption = f"{card['title']}\nРедкость: {card['rarity']}\n0/{cards_count} выбрано"
             keyboard = [
                 [
                     InlineKeyboardButton("<", callback_data="trade_prev_0"),
@@ -3706,6 +3728,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
                     InlineKeyboardButton(">", callback_data="trade_next_0"),
                 ],
                 [InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select")],
+                [InlineKeyboardButton("🔍 Поиск", callback_data="trade_search_button")],  # ⭐ КНОПКА ПОИСКА ⭐
             ]
             await update.message.reply_photo(
                 photo=card["image_url"],
@@ -3789,6 +3812,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         InlineKeyboardButton(">", callback_data=f"trade_next_{current_index}"),
                     ],
                     [InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select")],
+                    [InlineKeyboardButton("🔍 Поиск", callback_data="trade_search_button")],
                 ]
                 
                 media = InputMediaPhoto(media=card["image_url"], caption=caption)
@@ -5212,6 +5236,210 @@ async def list_promo_codes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     except Exception as e:
         logger.error(f"Ошибка list_promo_codes: {e}")
         await update.message.reply_text("❌ Ошибка при получении списка промокодов")
+
+async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Поиск существ по названию во время трейда."""
+    try:
+        user_id = str(update.effective_user.id)
+        text = update.message.text.strip()
+        
+        # Проверяем, находится ли пользователь в режиме выбора карт для трейда
+        if user_id not in context.user_data:
+            await update.message.reply_text("❌ Вы не находитесь в режиме трейда!\nНачните с команды /trade")
+            return
+        
+        trade_info = context.user_data[user_id]
+        if trade_info.get("step") not in ["select_cards", "select_return_cards"]:
+            await update.message.reply_text("❌ Сначала выберите партнёра для трейда!")
+            return
+        
+        # Проверяем, есть ли данные пользователя
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        if not user_data or not user_data.get("cards"):
+            await update.message.reply_text("❌ У вас нет существ для трейда!")
+            return
+        
+        # Ищем существ по названию
+        search_query = text.lower()
+        user_card_ids = user_data["cards"]
+        card_counts = Counter(user_card_ids)
+        
+        found_creatures = []
+        for card_id, count in card_counts.items():
+            card = find_card_by_id(card_id, data["cards"])
+            if card and search_query in card["title"].lower():
+                found_creatures.append((card, count, card_id))
+        
+        if not found_creatures:
+            await update.message.reply_text(
+                f"❌ Существ с названием \"{text}\" не найдено!\n"
+                "Попробуйте другой запрос или введите @никнейм для выбора партнёра."
+            )
+            return
+        
+        # Показываем результаты поиска
+        if len(found_creatures) == 1:
+            # Если найдено одно существо — показываем его сразу
+            card, count, card_id = found_creatures[0]
+            
+            # Проверяем, сколько карт нужно выбрать
+            cards_count = trade_info.get("cards_count", 1)
+            selected_cards = trade_info.get("selected_cards", [])
+            
+            keyboard = [
+                [InlineKeyboardButton(f"✅ Выбрать: {card['title']}", callback_data=f"trade_search_select_{card_id}")]
+            ]
+            keyboard.append([InlineKeyboardButton("❌ Отмена поиска", callback_data="trade_search_cancel")])
+            
+            await update.message.reply_text(
+                f"🔍 **Найдено существо:**\n\n"
+                f"🏷 {card['title']}\n"
+                f"🌟 Редкость: {card['rarity']}\n"
+                f"🛡 В казарме: {count} шт.\n"
+                f"📊 Выбрано: {len(selected_cards)}/{cards_count}\n\n"
+                f"Выберите это существо для трейда:",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+        else:
+            # Если найдено несколько — показываем список
+            keyboard = []
+            for card, count, card_id in found_creatures[:10]:  # Показываем максимум 10
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"{card['title']} ({count} шт.)",
+                        callback_data=f"trade_search_select_{card_id}"
+                    )
+                ])
+            keyboard.append([InlineKeyboardButton("❌ Отмена поиска", callback_data="trade_search_cancel")])
+            
+            await update.message.reply_text(
+                f"🔍 **Найдено существ: {len(found_creatures)}**\n\n"
+                f"По запросу: \"{text}\"\n\n"
+                f"Выберите существо для трейда:",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+        
+        # Сохраняем информацию о поиске
+        trade_info["step"] = "search_results"
+        trade_info["search_query"] = search_query
+        
+    except Exception as e:
+        logger.error(f"Ошибка search_creatures_for_trade: {e}")
+        await update.message.reply_text("❌ Ошибка при поиске существ")
+
+async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик выбора существа из поиска."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+        
+        if query.data.startswith("trade_search_select_"):
+            card_id = int(query.data.split("_")[-1])
+            
+            if user_id not in context.user_data:
+                await query.edit_message_text("❌ Сессия трейда истекла!")
+                return
+            
+            trade_info = context.user_data[user_id]
+            data = load_data()
+            
+            # Проверяем, есть ли у игрока это существо
+            user_data = data["users"].get(user_id)
+            if not user_data or card_id not in user_data.get("cards", []):
+                await query.edit_message_text("❌ У вас нет этого существа!")
+                return
+            
+            # Возвращаемся к выбору карт
+            trade_info["step"] = "select_cards"
+            
+            # Добавляем карту в выбранные
+            selected_cards = trade_info.get("selected_cards", [])
+            cards_count = trade_info.get("cards_count", 1)
+            user_card_ids = user_data.get("cards", [])
+            
+            # Находим индекс карты
+            card_index = user_card_ids.index(card_id) if card_id in user_card_ids else 0
+            
+            if card_index not in selected_cards:
+                if len(selected_cards) >= cards_count:
+                    await query.answer("❌ Максимум существ выбрано!", show_alert=True)
+                    return
+                selected_cards.append(card_index)
+            
+            trade_info["selected_cards"] = selected_cards
+            trade_info["current_index"] = card_index
+            
+            # Удаляем сообщение с поиском
+            try:
+                await query.message.delete()
+            except:
+                pass
+            
+            # Показываем интерфейс выбора карт
+            card = find_card_by_id(card_id, data["cards"])
+            if card:
+                card_counts = Counter(user_card_ids)
+                card_in_collection = card_counts.get(card["id"], 1)
+                caption = (
+                    f"{card['title']}\n"
+                    f"Редкость: {card['rarity']}\n"
+                    f"🛡 В казарме: {card_in_collection} шт.\n"
+                    f"{len(selected_cards)}/{cards_count} выбрано"
+                )
+                is_selected = card_index in selected_cards
+                select_text = "❌ Убрать" if is_selected else "✅ Выбрать"
+                keyboard = [
+                    [
+                        InlineKeyboardButton("<", callback_data=f"trade_prev_{card_index}"),
+                        InlineKeyboardButton(select_text, callback_data=f"trade_select_{card_index}"),
+                        InlineKeyboardButton(">", callback_data=f"trade_next_{card_index}"),
+                    ],
+                    [InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select")],
+                    [InlineKeyboardButton("🔍 Поиск", callback_data="trade_search_button")],
+                ]
+                await context.bot.send_photo(
+                    chat_id=query.message.chat_id,
+                    photo=card["image_url"],
+                    caption=caption,
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+        
+        elif query.data == "trade_search_cancel":
+            if user_id in context.user_data:
+                trade_info = context.user_data[user_id]
+                trade_info["step"] = "select_cards"
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await query.message.reply_text("❌ Поиск отменён\nВыберите существо кнопками или введите название:")
+        
+        elif query.data == "trade_search_button":
+            # Кнопка "Поиск" в интерфейсе выбора карт
+            if user_id in context.user_data:
+                trade_info = context.user_data[user_id]
+                trade_info["step"] = "search_mode"
+            await query.answer("🔍 Введите название существа для поиска", show_alert=False)
+            await query.message.reply_text(
+                "🔍 **Поиск существ**\n\n"
+                "Введите часть названия существа:\n"
+                "Например: \"дракон\", \"демон\", \"огр\"\n\n"
+                "❌ Для отмены: /cancel",
+                parse_mode="Markdown"
+            )
+        
+    except Exception as e:
+        logger.error(f"Ошибка trade_search_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+
+
+
+
 # ===== ЗАПУСК БОТА =====
 
 
@@ -5278,6 +5506,7 @@ def main() -> None:
             CallbackQueryHandler(trade_final_callback, pattern=r"^trade_final_(confirm|decline)_.*"),
             CallbackQueryHandler(trade_callback, pattern=r"^trade_.*"),
             CallbackQueryHandler(profile_callback, pattern=r"^(achievements_menu|profile_back|achievement_.*)"),
+            CallbackQueryHandler(trade_search_callback, pattern=r"^trade_search_.*"),
      
         ]
 
