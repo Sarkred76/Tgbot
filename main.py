@@ -2006,119 +2006,225 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Крафт 2 одинаковых карт в новую карту редкости Upgrade."""
-
     try:
-
         user_id = str(update.effective_user.id)
-
         data = load_data()
-
         user_data = data["users"].get(user_id)
-
+        
         if not user_data or not user_data.get("cards"):
-
-            await update.message.reply_text("❌ У вас нет существ для крафта!")
-
+            if hasattr(update, 'callback_query') and update.callback_query:
+                await update.callback_query.edit_message_text("❌ У вас нет существ для крафта!")
+            else:
+                await update.message.reply_text("❌ У вас нет существ для крафта!")
             return
-
+        
         # Считаем количество каждой карты
-
         card_counts = Counter(user_data["cards"])
-
+        
         # Находим карты, которых 2 или больше
-
         craftable_cards = {
             card_id: count for card_id, count in card_counts.items() if count >= 2
         }
-
+        
         if not craftable_cards:
-
-            await update.message.reply_text(
-                "❌ Нет существ для крафта!\n\n"
-                "📋 Для крафта нужно 2 одинаковых существа.\n"
-                "🔹 2x T1 → UpgradeT1\n"
-                "🔹 2x T2 → UpgradeT2\n"
-                "🔹 2x T3 → UpgradeT3\n"
-                "🔹 2x T4 → UpgradeT4\n"
-                "🔹 2x T5 → UpgradeT5\n"
-                "🔹 2x T6 → UpgradeT6\n"
-                "🔹 2x T7 → UpgradeT7\n\n"
-                "Собирайте дубликаты и попробуйте снова!"
-            )
-
+            if hasattr(update, 'callback_query') and update.callback_query:
+                await update.callback_query.edit_message_text(
+                    "❌ Нет существ для крафта!\n"
+                    "📋 Для крафта нужно 2 одинаковых существа.\n"
+                    "🔹 2x T1 → UpgradeT1\n"
+                    "🔹 2x T2 → UpgradeT2\n"
+                    "🔹 2x T3 → UpgradeT3\n"
+                    "🔹 2x T4 → UpgradeT4\n"
+                    "🔹 2x T5 → UpgradeT5\n"
+                    "🔹 2x T6 → UpgradeT6\n"
+                    "🔹 2x T7 → UpgradeT7\n"
+                    "Собирайте дубликаты и попробуйте снова!"
+                )
+            else:
+                await update.message.reply_text(
+                    "❌ Нет существ для крафта!\n"
+                    "📋 Для крафта нужно 2 одинаковых существа.\n"
+                    "🔹 2x T1 → UpgradeT1\n"
+                    "🔹 2x T2 → UpgradeT2\n"
+                    "🔹 2x T3 → UpgradeT3\n"
+                    "🔹 2x T4 → UpgradeT4\n"
+                    "🔹 2x T5 → UpgradeT5\n"
+                    "🔹 2x T6 → UpgradeT6\n"
+                    "🔹 2x T7 → UpgradeT7\n"
+                    "Собирайте дубликаты и попробуйте снова!"
+                )
             return
-
+        
         # Фильтруем только карты, которые можно крафтить (T1-T7)
-
         craftable_by_rarity = {}
-
         for card_id, count in craftable_cards.items():
-
             card = find_card_by_id(card_id, data["cards"])
-
-            if card and card.get("rarity") in [
-                "T1",
-                "T2",
-                "T3",
-                "T4",
-                "T5",
-                "T6",
-                "T7",
-            ]:
-
+            if card and card.get("rarity") in ["T1", "T2", "T3", "T4", "T5", "T6", "T7"]:
                 craftable_by_rarity[card_id] = {
                     "count": count,
                     "rarity": card["rarity"],
                     "title": card["title"],
                 }
-
+        
         if not craftable_by_rarity:
-
-            await update.message.reply_text(
-                "❌ Для крафта подходят только существа редкости T1-T7!"
-            )
-
+            if hasattr(update, 'callback_query') and update.callback_query:
+                await update.callback_query.edit_message_text("❌ Для крафта подходят только существа редкости T1-T7!")
+            else:
+                await update.message.reply_text("❌ Для крафта подходят только существа редкости T1-T7!")
             return
-
-        # Если есть несколько карт для крафта — показываем выбор
-
-        if len(craftable_by_rarity) > 0:
-
-            keyboard = []
-
-            for card_id, info in list(craftable_by_rarity.items())[:10]:
-
-                keyboard.append(
-                    [
-                        InlineKeyboardButton(
-                            f"{info['title']} ({info['count']} шт.) → Upgrade{info['rarity']}",
-                            callback_data=f"craft_{card_id}",
-                        )
-                    ]
-                )
-
-            keyboard.append(
-                [InlineKeyboardButton("❌ Отмена", callback_data="craft_cancel")]
-            )
-
-            await update.message.reply_text(
-                "🔨 Выберите существо для крафта:\n\n"
-                "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-            )
-
-            return
-
-
-        card_id = list(craftable_by_rarity.keys())[0]
-
-        await process_craft(update, context, user_id, card_id, data, query=None)
-
+        
+        # ⭐ СОХРАНЯЕМ СПИСОК КАРТ В context.user_data ⭐
+        context.user_data[user_id] = {
+            "step": "craft_select",
+            "craftable_cards": craftable_by_rarity,
+            "craft_page": 0,
+            "craft_cards_per_page": 5,  # 5 карт на странице
+        }
+        
+        # ⭐ ПОКАЗЫВАЕМ ПЕРВУЮ СТРАНИЦУ ⭐
+        await show_craft_page(update, context, 0)
+        
     except Exception as e:
-
         logger.error(f"Ошибка крафта: {e}")
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Произошла ошибка", show_alert=True)
+        else:
+            await update.message.reply_text("❌ Произошла ошибка при крафте")
 
-        await update.message.reply_text("❌ Произошла ошибка при крафте")
+
+async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int) -> None:
+    """Показывает страницу списка карт для крафта."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        if user_id not in context.user_data:
+            if hasattr(update, 'callback_query') and update.callback_query:
+                await update.callback_query.edit_message_text("❌ Сессия крафта истекла!")
+            else:
+                await update.message.reply_text("❌ Сессия крафта истекла!")
+            return
+        
+        craft_info = context.user_data[user_id]
+        craftable_cards = craft_info.get("craftable_cards", {})
+        cards_per_page = craft_info.get("craft_cards_per_page", 5)
+        
+        if not craftable_cards:
+            if hasattr(update, 'callback_query') and update.callback_query:
+                await update.callback_query.edit_message_text("❌ Нет существ для крафта!")
+            else:
+                await update.message.reply_text("❌ Нет существ для крафта!")
+            return
+        
+        # ⭐ КОНВЕРТИРУЕМ В СПИСОК ⭐
+        cards_list = list(craftable_cards.items())
+        total_cards = len(cards_list)
+        
+        # ⭐ РАСЧЁТ СТРАНИЦ ⭐
+        total_pages = (total_cards + cards_per_page - 1) // cards_per_page
+        
+        # Корректируем страницу
+        if page < 0:
+            page = 0
+        elif page >= total_pages:
+            page = total_pages - 1
+        
+        context.user_data[user_id]["craft_page"] = page
+        
+        # Получаем карты для текущей страницы
+        start_index = page * cards_per_page
+        end_index = min(start_index + cards_per_page, total_cards)
+        page_cards = cards_list[start_index:end_index]
+        
+        # Создаём клавиатуру
+        keyboard = []
+        for card_id, info in page_cards:
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"{info['title']} ({info['count']} шт.) → Upgrade{info['rarity']}",
+                    callback_data=f"craft_{card_id}"
+                )
+            ])
+        
+        # ⭐ КНОПКИ НАВИГАЦИИ ⭐
+        nav_buttons = []
+        
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"craft_nav_{page - 1}"))
+        
+        nav_buttons.append(InlineKeyboardButton(f"{page + 1}/{total_pages}", callback_data="craft_page_info"))
+        
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"craft_nav_{page + 1}"))
+        
+        keyboard.append(nav_buttons)
+        keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data="craft_cancel")])
+        
+        # ⭐ ОТПРАВЛЯЕМ СООБЩЕНИЕ ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                await query.edit_message_text(
+                    "🔨 **Выберите существо для крафта:**\n\n"
+                    "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n\n"
+                    f"📄 Страница {page + 1}/{total_pages}\n"
+                    f"🐦‍🔥 Доступно для крафта: {total_cards}",
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+            except Exception as edit_error:
+                logger.error(f"Ошибка редактирования: {edit_error}")
+                await query.message.delete()
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=(
+                        "🔨 **Выберите существо для крафта:**\n\n"
+                        "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n\n"
+                        f"📄 Страница {page + 1}/{total_pages}\n"
+                        f"🐦‍🔥 Доступно для крафта: {total_cards}"
+                    ),
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+        else:
+            await update.message.reply_text(
+                "🔨 **Выберите существо для крафта:**\n\n"
+                "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n\n"
+                f"📄 Страница {page + 1}/{total_pages}\n"
+                f"🐦‍🔥 Доступно для крафта: {total_cards}",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+        
+    except Exception as e:
+        logger.error(f"Ошибка show_craft_page: {e}")
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Произошла ошибка", show_alert=True)
+        else:
+            await update.message.reply_text("❌ Произошла ошибка")
+
+async def craft_nav_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик навигации по страницам крафта."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        if query.data.startswith("craft_nav_"):
+            page = int(query.data.split("_")[-1])
+            await show_craft_page(update, context, page)
+        
+        elif query.data == "craft_page_info":
+            await query.answer("📄 Используйте ◀️ и ▶️ для навигации", show_alert=False)
+        
+        elif query.data == "craft_cancel":
+            user_id = str(query.from_user.id)
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            await query.edit_message_text("❌ Крафт отменён")
+        
+    except Exception as e:
+        logger.error(f"Ошибка craft_nav_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
 
 
 async def process_craft(
@@ -2314,37 +2420,25 @@ async def process_craft(
 
 async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопок крафта."""
-
     try:
-
         query = update.callback_query
-
         await query.answer()
-
-        if query.data == "craft_cancel":
-
-            await query.edit_message_text("❌ Крафт отменён")
-
+        
+        # ⭐ НАВИГАЦИЯ ПО СТРАНИЦАМ ⭐
+        if query.data.startswith("craft_nav_") or query.data in ["craft_page_info", "craft_cancel"]:
+            await craft_nav_callback(update, context)
             return
-
+        
+        # ⭐ ВЫБОР КАРТЫ ДЛЯ КРАФТА ⭐
         if query.data.startswith("craft_"):
-
             user_id = str(query.from_user.id)
-
             card_id = int(query.data.split("_")[1])
-
             data = load_data()
-
-            # Передаём query в process_craft вместо удаления
-
             await process_craft(update, context, user_id, card_id, data, query)
-
+        
     except Exception as e:
-
         logger.error(f"Ошибка callback крафта: {e}")
-
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
 
 async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Бросок кубика для получения бесплатных попыток."""
