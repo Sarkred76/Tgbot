@@ -494,13 +494,11 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         
         user_card_ids = user_data["cards"]
         card_counts = Counter(user_card_ids)
-        
-        # ⭐ ОПРЕДЕЛЯЕМ unique_card_ids ПЕРЕД ИСПОЛЬЗОВАНИЕМ ⭐
         unique_card_ids = list(card_counts.keys())
         
         # Считаем карты по редкостям
         rarity_cards = {}
-        for card_id in unique_card_ids:  # ← Теперь unique_card_ids определён
+        for card_id in unique_card_ids:
             card = find_card_by_id(card_id, data["cards"])
             if card:
                 rarity = card.get("rarity", "T1")
@@ -553,7 +551,7 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
         
     except Exception as e:
-        logger.error(f"Ошибка при показе казармы: {e}")
+        logger.error(f"Ошибка при показе меню существ: {e}")
         if hasattr(update, 'callback_query') and update.callback_query:
             await update.callback_query.answer("Произошла ошибка", show_alert=True)
         else:
@@ -679,6 +677,69 @@ async def show_cards_by_faction(
             await update.callback_query.answer("Произошла ошибка", show_alert=True)
         else:
             await update.message.reply_text("Произошла ошибка")
+
+async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает меню выбора фракции."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data or not user_data.get("cards"):
+            await query.edit_message_text("У вас пока нет существ!")
+            return
+        
+        user_card_ids = user_data["cards"]
+        
+        # ⭐ СЧИТАЕМ КАРТЫ ПО ФРАКЦИЯМ ⭐
+        faction_cards = {}
+        for card_id in user_card_ids:
+            card = find_card_by_id(card_id, data["cards"])
+            if card and card.get("faction"):
+                faction = card["faction"]
+                if faction not in faction_cards:
+                    faction_cards[faction] = set()
+                faction_cards[faction].add(card_id)
+        
+        if not faction_cards:
+            await query.edit_message_text("❌ У вас нет существ с фракциями!")
+            return
+        
+        # Список всех фракций
+        all_factions = [
+            "Замок", "Оплот", "Башня", "Инферно",
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение"
+        ]
+        
+        # Создаём клавиатуру
+        keyboard = []
+        for faction in all_factions:
+            if faction in faction_cards:
+                count = len(faction_cards[faction])
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"⚔️ {faction} ({count} шт.)",
+                        callback_data=f"barracks_faction_select_{faction}"
+                    )
+                ])
+        
+        # Кнопка "Назад"
+        keyboard.append([
+            InlineKeyboardButton("🔙 Назад в казарму", callback_data="barracks_back")
+        ])
+        
+        await query.edit_message_text(
+            "⚔️ **Выберите фракцию:**\n\n"
+            "Просмотрите существ по принадлежности к фракции:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в show_faction_menu: {e}")
+        await query.answer("Произошла ошибка", show_alert=True)
 
 
 async def show_cards_by_rarity(
@@ -820,8 +881,8 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         
         # ⭐ НОВОЕ МЕНЮ КАЗАРМЫ ⭐
         if query.data == "barracks_rarity":
-            # Показываем выбор редкостей
-            await show_user_cards_by_rarity_menu(update, context)
+            # Показываем выбор редкостей (старая логика)
+            await show_user_cards(update, context)
             return
         
         elif query.data == "barracks_faction":
@@ -867,15 +928,21 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # ⭐ НАВИГАЦИЯ ПО ФРАКЦИЯМ ⭐
         elif query.data.startswith("barracks_faction_"):
             if query.data.startswith("barracks_faction_nav_"):
+                # Навигация внутри фракции
                 parts = query.data.replace("barracks_faction_nav_", "").split("_")
                 faction = parts[0]
                 index = int(parts[1]) if len(parts) > 1 else 0
                 await show_cards_by_faction(update, context, faction, start_index=index)
-            elif query.data == "barracks_faction_select":
-                faction = query.data.split("_")[-1]
+            elif query.data.startswith("barracks_faction_select_"):
+                # Выбор фракции
+                faction = query.data.replace("barracks_faction_select_", "")
                 await show_cards_by_faction(update, context, faction, start_index=0)
             elif query.data == "barracks_back_to_factions":
+                # Назад к списку фракций
                 await show_faction_menu(update, context)
+            elif query.data == "barracks_back":
+                # Назад в главное меню казармы
+                await show_user_cards(update, context)
             return
         
         # ⭐ СТАРАЯ ЛОГИКА ПО РЕДКОСТЯМ ⭐
