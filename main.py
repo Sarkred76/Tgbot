@@ -1400,7 +1400,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 card, user_data, count=count, show_bonus=False
             )
 
-            keyboard = create_cards_keyboard(new_index, total_cards)
+            nav_buttons = [
+                InlineKeyboardButton("<", callback_data=f"card_prev_{new_index}"),
+                InlineKeyboardButton(f"{new_index + 1}/{total_cards}", callback_data="card_info"),
+                InlineKeyboardButton(">", callback_data=f"card_next_{new_index}"),
+            ]
+            keyboard = InlineKeyboardMarkup([
+                nav_buttons,
+                [InlineKeyboardButton("🔙 Назад в казарму", callback_data="barracks_back")]
+            ])
 
             # ⭐ ДОБАВЬТЕ ЛОГИРОВАНИЕ ⭐
 
@@ -1439,6 +1447,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     reply_markup=keyboard,
                 )
 
+
+        elif query.data == "barracks_back":
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await show_user_cards(update, context)
+            
     except Exception as e:
 
         logger.error(f"Ошибка в callback: {e}")
