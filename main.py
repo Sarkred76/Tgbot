@@ -8,7 +8,6 @@ import threading
 
 import os
 
-
 import random
 
 
@@ -506,6 +505,16 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     rarity_cards[rarity] = []
                 rarity_cards[rarity].append((card_id, card_counts[card_id]))
         
+        # ⭐ СЧИТАЕМ КАРТЫ ПО ФРАКЦИЯМ ⭐
+        faction_cards = {}
+        for card_id in user_card_ids:
+            card = find_card_by_id(card_id, data["cards"])
+            if card and card.get("faction"):
+                faction = card["faction"]
+                if faction not in faction_cards:
+                    faction_cards[faction] = set()
+                faction_cards[faction].add(card_id)
+        
         if not rarity_cards:
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.edit_message_text("У вас пока нет существ!")
@@ -523,9 +532,14 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
             query = update.callback_query
-            # ⭐ ИСПРАВЛЕНИЕ: редактируем вместо удаления ⭐
-            await query.edit_message_text(
-                "🛡 **Казарма**\n\nВыберите способ просмотра:",
+            # ⭐ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ И ОТПРАВЛЯЕМ НОВОЕ ⭐
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="🛡 **Казарма**\n\nВыберите способ просмотра:",
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
@@ -566,7 +580,6 @@ async def show_cards_by_faction(
         user_card_ids = user_data["cards"]
         card_counts = Counter(user_card_ids)
         
-        # Фильтруем карты по фракции
         faction_cards = []
         for card_id, count in card_counts.items():
             card = find_card_by_id(card_id, data["cards"])
@@ -580,11 +593,9 @@ async def show_cards_by_faction(
                 await update.message.reply_text(f"У вас нет существ фракции {faction}!")
             return
         
-        # Сортируем карты по ID
         faction_cards.sort(key=lambda x: x[0])
         total_cards = len(faction_cards)
         
-        # Обработка навигации
         if start_index < 0:
             start_index = 0
         elif start_index >= total_cards:
@@ -600,48 +611,24 @@ async def show_cards_by_faction(
                 await update.message.reply_text("Ошибка: существо не найдено")
             return
         
-        # Создаём клавиатуру навигации
         nav_buttons = []
         if start_index > 0:
-            nav_buttons.append(
-                InlineKeyboardButton(
-                    "<",
-                    callback_data=f"barracks_faction_nav_{faction}_{start_index - 1}"
-                )
-            )
-        nav_buttons.append(
-            InlineKeyboardButton(
-                f"{start_index + 1}/{total_cards}",
-                callback_data="card_info"
-            )
-        )
+            nav_buttons.append(InlineKeyboardButton("<", callback_data=f"barracks_faction_nav_{faction}_{start_index - 1}"))
+        nav_buttons.append(InlineKeyboardButton(f"{start_index + 1}/{total_cards}", callback_data="card_info"))
         if start_index < total_cards - 1:
-            nav_buttons.append(
-                InlineKeyboardButton(
-                    ">",
-                    callback_data=f"barracks_faction_nav_{faction}_{start_index + 1}"
-                )
-            )
+            nav_buttons.append(InlineKeyboardButton(">", callback_data=f"barracks_faction_nav_{faction}_{start_index + 1}"))
         
-        # Кнопка "Назад к фракциям"
         keyboard = [nav_buttons]
         keyboard.append([
-            InlineKeyboardButton(
-                "⚔️ Назад к фракциям",
-                callback_data="barracks_back_to_factions"
-            )
+            InlineKeyboardButton("⚔️ Назад к фракциям", callback_data="barracks_back_to_factions")
         ])
         
-        # Генерируем описание
         caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
         
         if query:
             try:
                 media = InputMediaPhoto(media=card["image_url"], caption=caption)
-                await query.edit_message_media(
-                    media=media,
-                    reply_markup=InlineKeyboardMarkup(keyboard)
-                )
+                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
             except Exception as edit_error:
                 logger.error(f"Ошибка редактирования: {edit_error}")
                 try:
@@ -850,7 +837,7 @@ async def show_cards_by_rarity(
             await update.message.reply_text("Произошла ошибка")
             
 async def show_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает меню выбора редкости (для кнопки 'По редкости')."""
+    """Показывает меню выбора редкости."""
     try:
         query = update.callback_query
         await query.answer()
@@ -866,7 +853,6 @@ async def show_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         card_counts = Counter(user_card_ids)
         unique_card_ids = list(card_counts.keys())
         
-        # Считаем карты по редкостям
         rarity_cards = {}
         for card_id in unique_card_ids:
             card = find_card_by_id(card_id, data["cards"])
@@ -880,31 +866,21 @@ async def show_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await query.edit_message_text("У вас пока нет существ!")
             return
         
-        # Создаём клавиатуру с редкостями
         keyboard = []
-        # Обычные редкости T1-T8
         for rarity in ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"]:
             if rarity in rarity_cards:
                 keyboard.append([
-                    InlineKeyboardButton(
-                        rarity,
-                        callback_data=f"barracks_rarity_select_{rarity}"
-                    )
+                    InlineKeyboardButton(rarity, callback_data=f"barracks_rarity_select_{rarity}")
                 ])
         
-        # Upgrade редкости
         upgrade_rarities = [r for r in rarity_cards.keys() if r.startswith("Upgrade")]
         if upgrade_rarities:
             keyboard.append([])
             for rarity in sorted(upgrade_rarities):
                 keyboard.append([
-                    InlineKeyboardButton(
-                        rarity,
-                        callback_data=f"barracks_rarity_select_{rarity}"
-                    )
+                    InlineKeyboardButton(rarity, callback_data=f"barracks_rarity_select_{rarity}")
                 ])
         
-        # Кнопка "Назад"
         keyboard.append([
             InlineKeyboardButton("🔙 Назад в казарму", callback_data="barracks_back")
         ])
@@ -922,7 +898,7 @@ async def show_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик кнопок просмотра карт по редкостям."""
+    """Обработчик кнопок просмотра карт."""
     try:
         query = update.callback_query
         await query.answer()
@@ -930,8 +906,14 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         data = load_data()
         user_data = data["users"].get(user_id)
         
-        if query.data == "mycards_all":
-            # Показываем все карты
+        # ⭐ НОВЫЕ КНОПКИ КАЗАРМЫ (barracks_*) ⭐
+        if query.data == "barracks_rarity":
+            await show_rarity_menu(update, context)
+            return
+        elif query.data == "barracks_faction":
+            await show_faction_menu(update, context)
+            return
+        elif query.data == "barracks_all":
             if not user_data or not user_data.get("cards"):
                 await query.edit_message_text("У вас пока нет существ!")
                 return
@@ -948,7 +930,7 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             keyboard = create_cards_keyboard(0, len(unique_card_ids))
             # ⭐ ДОБАВЛЯЕМ КНОПКУ "НАЗАД" ⭐
             keyboard.inline_keyboard.append([
-                InlineKeyboardButton("🔙 Назад к редкостям", callback_data="mycards_back_to_rarities")
+                InlineKeyboardButton("🔙 Назад в казарму", callback_data="barracks_back")
             ])
             count = card_counts[card["id"]]
             caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
@@ -967,80 +949,60 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     caption=caption,
                     reply_markup=keyboard
                 )
-        
-        elif query.data == "mycards_back_to_rarities":
-            # ⭐ ВОЗВРАТ К МЕНЮ РЕДКОСТЕЙ - УДАЛЯЕМ ФОТО, ОТПРАВЛЯЕМ ТЕКСТ ⭐
-            try:
-                await query.message.delete()
-            except:
-                pass
-            # Создаём клавиатуру редкостей
-            user_card_ids = user_data["cards"]
-            card_counts = Counter(user_card_ids)
-            unique_card_ids = list(card_counts.keys())
-            rarity_cards = {}
-            for card_id in unique_card_ids:
-                card = find_card_by_id(card_id, data["cards"])
-                if card:
-                    rarity = card.get("rarity", "T1")
-                    if rarity not in rarity_cards:
-                        rarity_cards[rarity] = []
-                    rarity_cards[rarity].append((card_id, card_counts[card_id]))
-            
-            keyboard = []
-            for rarity in ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"]:
-                if rarity in rarity_cards:
-                    keyboard.append([
-                        InlineKeyboardButton(rarity, callback_data=f"mycards_rarity_{rarity}")
-                    ])
-            upgrade_rarities = [r for r in rarity_cards.keys() if r.startswith("Upgrade")]
-            if upgrade_rarities:
-                keyboard.append([])
-                for rarity in sorted(upgrade_rarities):
-                    keyboard.append([
-                        InlineKeyboardButton(rarity, callback_data=f"mycards_rarity_{rarity}")
-                    ])
-            keyboard.append([
-                InlineKeyboardButton("📋 Все существа", callback_data="mycards_all")
-            ])
-            keyboard.append([
-                InlineKeyboardButton("🔙 Назад в казарму", callback_data="barracks_back")
-            ])
-            
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="📂 **Выберите редкость для просмотра:**",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
-        
+            return
         elif query.data == "barracks_back":
-            # ⭐ ВОЗВРАТ В ГЛАВНОЕ МЕНЮ КАЗАРМЫ ⭐
+            # Возврат в главное меню казармы
             try:
                 await query.message.delete()
             except:
                 pass
-            keyboard = [
-                [InlineKeyboardButton("📊 По редкости", callback_data="barracks_rarity")],
-                [InlineKeyboardButton("⚔️ По фракции", callback_data="barracks_faction")],
-                [InlineKeyboardButton("📋 Все существа", callback_data="barracks_all")],
-            ]
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="🛡 **Казарма**\n\nВыберите способ просмотра:",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
+            await show_user_cards(update, context)
+            return
         
+        # ⭐ СТАРАЯ ЛОГИКА (mycards_*) ⭐
+        if query.data == "mycards_all":
+            # ... (старая логика) ...
+            pass
+        elif query.data == "mycards_back_to_rarities":
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await show_user_cards(update, context)
         elif query.data.startswith("mycards_rarity_"):
             rarity = query.data.replace("mycards_rarity_", "")
             await show_cards_by_rarity(update, context, rarity, start_index=0)
-        
         elif query.data.startswith("mycards_nav_"):
             parts = query.data.replace("mycards_nav_", "").split("_")
             rarity = parts[0]
             index = int(parts[1]) if len(parts) > 1 else 0
             await show_cards_by_rarity(update, context, rarity, start_index=index)
+        
+        # ⭐ НАВИГАЦИЯ ПО ФРАКЦИЯМ ⭐
+        elif query.data.startswith("barracks_faction_"):
+            if query.data.startswith("barracks_faction_nav_"):
+                parts = query.data.replace("barracks_faction_nav_", "").split("_")
+                faction = parts[0]
+                index = int(parts[1]) if len(parts) > 1 else 0
+                await show_cards_by_faction(update, context, faction, start_index=index)
+            elif query.data.startswith("barracks_faction_select_"):
+                faction = query.data.replace("barracks_faction_select_", "")
+                await show_cards_by_faction(update, context, faction, start_index=0)
+            elif query.data == "barracks_back_to_factions":
+                await show_faction_menu(update, context)
+            return
+        
+        # ⭐ НАВИГАЦИЯ ПО РЕДКОСТЯМ (barracks_*) ⭐
+        elif query.data.startswith("barracks_rarity_"):
+            if query.data.startswith("barracks_rarity_nav_"):
+                parts = query.data.replace("barracks_rarity_nav_", "").split("_")
+                rarity = parts[0]
+                index = int(parts[1]) if len(parts) > 1 else 0
+                await show_cards_by_rarity(update, context, rarity, start_index=index)
+            elif query.data.startswith("barracks_rarity_select_"):
+                rarity = query.data.replace("barracks_rarity_select_", "")
+                await show_cards_by_rarity(update, context, rarity, start_index=0)
+            return
         
     except Exception as e:
         logger.error(f"Ошибка в mycards_callback: {e}")
@@ -1061,7 +1023,6 @@ async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         
         user_card_ids = user_data["cards"]
         
-        # ⭐ СЧИТАЕМ КАРТЫ ПО ФРАКЦИЯМ ⭐
         faction_cards = {}
         for card_id in user_card_ids:
             card = find_card_by_id(card_id, data["cards"])
@@ -1075,13 +1036,11 @@ async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             await query.edit_message_text("❌ У вас нет существ с фракциями!")
             return
         
-        # Список всех фракций
         all_factions = [
             "Замок", "Оплот", "Башня", "Инферно",
             "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение"
         ]
         
-        # Создаём клавиатуру
         keyboard = []
         for faction in all_factions:
             if faction in faction_cards:
@@ -1093,7 +1052,6 @@ async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                     )
                 ])
         
-        # Кнопка "Назад"
         keyboard.append([
             InlineKeyboardButton("🔙 Назад в казарму", callback_data="barracks_back")
         ])
