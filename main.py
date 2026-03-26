@@ -495,9 +495,12 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         user_card_ids = user_data["cards"]
         card_counts = Counter(user_card_ids)
         
+        # ⭐ ОПРЕДЕЛЯЕМ unique_card_ids ПЕРЕД ИСПОЛЬЗОВАНИЕМ ⭐
+        unique_card_ids = list(card_counts.keys())
+        
         # Считаем карты по редкостям
         rarity_cards = {}
-        for card_id in unique_card_ids:
+        for card_id in unique_card_ids:  # ← Теперь unique_card_ids определён
             card = find_card_by_id(card_id, data["cards"])
             if card:
                 rarity = card.get("rarity", "T1")
