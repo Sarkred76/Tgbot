@@ -506,16 +506,6 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     rarity_cards[rarity] = []
                 rarity_cards[rarity].append((card_id, card_counts[card_id]))
         
-        # ⭐ СЧИТАЕМ КАРТЫ ПО ФРАКЦИЯМ ⭐
-        faction_cards = {}
-        for card_id in user_card_ids:
-            card = find_card_by_id(card_id, data["cards"])
-            if card and card.get("faction"):
-                faction = card["faction"]
-                if faction not in faction_cards:
-                    faction_cards[faction] = set()
-                faction_cards[faction].add(card_id)
-        
         if not rarity_cards:
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.edit_message_text("У вас пока нет существ!")
@@ -533,13 +523,9 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
             query = update.callback_query
-            try:
-                await query.message.delete()
-            except:
-                pass
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="🛡 **Казарма**\n\nВыберите способ просмотра:",
+            # ⭐ ИСПРАВЛЕНИЕ: редактируем вместо удаления ⭐
+            await query.edit_message_text(
+                "🛡 **Казарма**\n\nВыберите способ просмотра:",
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
@@ -556,7 +542,7 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await update.callback_query.answer("Произошла ошибка", show_alert=True)
         else:
             await update.message.reply_text("Произошла ошибка")
-
+            
 async def show_cards_by_faction(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -879,10 +865,10 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         data = load_data()
         user_data = data["users"].get(user_id)
         
-        # ⭐ НОВОЕ МЕНЮ КАЗАРМЫ ⭐
+        # ⭐ НОВЫЕ КНОПКИ КАЗАРМЫ ⭐
         if query.data == "barracks_rarity":
             # Показываем выбор редкостей (старая логика)
-            await show_user_cards(update, context)
+            await show_rarity_menu(update, context)
             return
         
         elif query.data == "barracks_faction":
@@ -925,6 +911,28 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 )
             return
         
+        # ⭐ СТАРАЯ ЛОГИКА ПО РЕДКОСТЯМ ⭐
+        elif query.data == "mycards_all":
+            # ... (старая логика) ...
+            pass
+        elif query.data == "mycards_back_to_rarities" or query.data == "barracks_back_to_rarities":
+            # Возврат к меню выбора способа просмотра
+            await show_user_cards(update, context)
+            return
+        elif query.data.startswith("mycards_rarity_") or query.data.startswith("barracks_rarity_select_"):
+            # Выбор редкости
+            rarity = query.data.replace("mycards_rarity_", "").replace("barracks_rarity_select_", "")
+            await show_cards_by_rarity(update, context, rarity, start_index=0)
+            return
+        elif query.data.startswith("mycards_nav_") or query.data.startswith("barracks_rarity_nav_"):
+            # Навигация по картам конкретной редкости
+            prefix = "mycards_nav_" if "mycards_nav_" in query.data else "barracks_rarity_nav_"
+            parts = query.data.replace(prefix, "").split("_")
+            rarity = parts[0]
+            index = int(parts[1]) if len(parts) > 1 else 0
+            await show_cards_by_rarity(update, context, rarity, start_index=index)
+            return
+        
         # ⭐ НАВИГАЦИЯ ПО ФРАКЦИЯМ ⭐
         elif query.data.startswith("barracks_faction_"):
             if query.data.startswith("barracks_faction_nav_"):
@@ -944,25 +952,6 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 # Назад в главное меню казармы
                 await show_user_cards(update, context)
             return
-        
-        # ⭐ СТАРАЯ ЛОГИКА ПО РЕДКОСТЯМ ⭐
-        elif query.data == "mycards_all":
-            # ... (старая логика) ...
-            pass
-        elif query.data == "mycards_back_to_rarities":
-            try:
-                await query.message.delete()
-            except:
-                pass
-            await show_user_cards(update, context)
-        elif query.data.startswith("mycards_rarity_"):
-            rarity = query.data.replace("mycards_rarity_", "")
-            await show_cards_by_rarity(update, context, rarity, start_index=0)
-        elif query.data.startswith("mycards_nav_"):
-            parts = query.data.replace("mycards_nav_", "").split("_")
-            rarity = parts[0]
-            index = int(parts[1]) if len(parts) > 1 else 0
-            await show_cards_by_rarity(update, context, rarity, start_index=index)
         
     except Exception as e:
         logger.error(f"Ошибка в mycards_callback: {e}")
