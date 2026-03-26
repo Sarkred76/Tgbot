@@ -3632,117 +3632,154 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
     try:
         user_id = str(update.effective_user.id)
         text = update.message.text.strip()
-        
+
         # Проверяем, есть ли активный трейд
         if user_id not in context.user_data:
-            return
-        
+            return # Если сессия закончилась, просто выходим
+
         trade_info = context.user_data[user_id]
         step = trade_info.get("step", "")
-        
-        # ⭐ ОТМЕНА ПОИСКА ⭐
+
+        # 1. Проверяем команду отмены (/cancel)
         if text.lower() == "/cancel":
             if step == "search_mode":
-                trade_info["step"] = "select_cards"
+                # Если была команда отмены в режиме поиска
+                trade_info["step"] = "select_cards" # Возвращаемся к выбору
                 await update.message.reply_text("❌ Поиск отменён\nВыберите существо кнопками:")
+                # Здесь можно повторно вызвать функцию показа текущей карты для выбора
+                # await show_current_card_for_trade(update, context) # Если реализуете
                 return
             elif step == "select_partner":
+                # Если была команда отмены на этапе выбора партнера
                 del context.user_data[user_id]
                 await update.message.reply_text("❌ Трейд отменён")
                 return
-        
-        # ⭐ ПОИСК СУЩЕСТВ (не @username) ⭐
+            else:
+                # Для других шагов можно игнорировать /cancel или обработать по-другому
+                return
+
+        # 2. Если пользователь в режиме поиска, вызываем функцию поиска
         if step == "search_mode":
+            # ВАЖНО: вызываем функцию поиска, передав update и context
             await search_creatures_for_trade(update, context)
+            # Завершаем выполнение этой функции, чтобы не выполнялась остальная логика
             return
-        
-        # ⭐ ВЫБОР ПАРТНЁРА ⭐
+
+        # 3. Если пользователь не в режиме поиска, но не в "select_partner", выходим
         if step != "select_partner":
+            # Это может быть лишним, если другие шаги обрабатываются в другом месте,
+            # но пусть будет для ясности.
             return
-        
-        # Определяем партнёра
+
+        # 4. Логика выбора партнера (если step == "select_partner")
+        partner_id = None
+        data = load_data()
         if text.startswith("@"):
-            # Поиск по username
-            partner_id = None
-            data = load_data()
+            # Поиск партнера по username
             for uid, udata in data["users"].items():
-                if udata.get("username") == text[1:]:
+                if udata.get("username") and udata["username"] == text[1:]:
                     partner_id = uid
                     break
-            
+
             if not partner_id:
                 if user_id in context.user_data:
-                    del context.user_data[user_id]
+                    del context.user_data[user_id] # Удаляем сессию, так как ошибка
                 await update.message.reply_text("⚠️ Герой с таким @никнеймом не найден!\nНачните трейд заново /trade")
-                return
+                return # Выходим после ошибки
         else:
-            await update.message.reply_text("⚠️ Введите @никнейм героя или название существа для поиска")
-            return
-        
-        # Проверяем существование партнёра
-        data = load_data()
-        if partner_id not in data["users"]:
-            await update.message.reply_text("⚠️ Герой не найден!")
-            return
-        
-        if partner_id == user_id:
-            await update.message.reply_text("⚠️ Нельзя трейдиться с самим собой!")
-            return
-        
-        # Сохраняем партнёра
-        trade_info["partner_id"] = partner_id
-        trade_info["step"] = "select_cards"
-        
-        # Получаем количество карт для трейда
-        trade_type = trade_info["trade_type"]
-        cards_count = int(trade_type.split("v")[0])
-        trade_info["cards_count"] = cards_count
-        trade_info["selected_cards"] = []
-        
-        await update.message.reply_text(
-            f"✅ Партнёр: {partner_id}\n"
-            f"🐦‍🔥 Выберите {cards_count} существ для обмена.\n\n"
-            f"Используйте кнопки для навигации:\n"
-            f"• [<] [>] - листать карты\n"
-            f"• [✅ Выбрать] - добавить карту\n"
-            f"• [🔍 Поиск] - найти по названию\n"
-            f"• [➡️ Далее] - завершить выбор",
-            parse_mode="Markdown"
-        )
-        
-        # Показываем первую карту
-        user_data = data["users"][user_id]
-        user_card_ids = user_data.get("cards", [])
-        if len(user_card_ids) < cards_count:
-            await update.message.reply_text("❌ Недостаточно существ для трейда!")
-            del context.user_data[user_id]
-            return
-        
-        trade_info["user_card_ids"] = user_card_ids
-        trade_info["current_index"] = 0
-        
-        card = find_card_by_id(user_card_ids[0], data["cards"])
-        if card:
-            caption = f"{card['title']}\nРедкость: {card['rarity']}\n0/{cards_count} выбрано"
-            keyboard = [
-                [
-                    InlineKeyboardButton("<", callback_data="trade_prev_0"),
-                    InlineKeyboardButton("✅ Выбрать", callback_data="trade_select_0"),
-                    InlineKeyboardButton(">", callback_data="trade_next_0"),
-                ],
-                [InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select")],
-                [InlineKeyboardButton("🔍 Поиск", callback_data="trade_search_button")],  # ⭐ КНОПКА ПОИСКА ⭐
-            ]
-            await update.message.reply_photo(
-                photo=card["image_url"],
-                caption=caption,
-                reply_markup=InlineKeyboardMarkup(keyboard)
+            # Если текст не начинается с @, и не была обработана команда /cancel,
+            # и не был вызван поиск, то это ошибка на этапе выбора партнера.
+            # Но теперь, если пользователь ввел название существа, мы не должны сюда попадать,
+            # потому что шаг "search_mode" обрабатывается выше.
+            # Однако, если он ввел что-то неожиданное на шаге "select_partner",
+            # сообщим ему об этом.
+            await update.message.reply_text("⚠️ Введите @никнейм героя для выбора партнера.")
+            return # Выходим, не продолжая логику выбора партнера
+
+        # 5. Если partner_id найден и прошли все проверки
+        if partner_id:
+            # Проверяем существование партнёра
+            if partner_id not in data["users"]:
+                await update.message.reply_text("⚠️ Герой не найден!")
+                # Удаляем сессию, если нужно
+                if user_id in context.user_data:
+                     del context.user_data[user_id]
+                return
+
+            if partner_id == user_id:
+                await update.message.reply_text("⚠️ Нельзя трейдиться с самим собой!")
+                return
+
+            # Сохраняем партнёра и переходим к следующему шагу
+            trade_info["partner_id"] = partner_id
+            trade_info["step"] = "select_cards"
+            # ... (остальная логика из оригинального кода для выбора карт)
+            # Пример продолжения (может отличаться в вашем коде):
+            trade_type = trade_info["trade_type"]
+            cards_count = int(trade_type.split("v")[0])
+            trade_info["cards_count"] = cards_count
+            trade_info["selected_cards"] = []
+
+            await update.message.reply_text(
+                f"✅ Партнёр: {partner_id}\n"
+                f"🐦‍🔥 Выберите {cards_count} существ для обмена.\n"
+                f"Используйте кнопки для навигации:\n"
+                f"• [<] [>] - листать карты\n"
+                f"• [✅ Выбрать] - добавить карту\n"
+                f"• [🔍 Поиск] - найти по названию\n"
+                f"• [➡️ Далее] - завершить выбор",
+                parse_mode="Markdown"
             )
-        
+            # Показываем первую карту для выбора
+            user_data = data["users"][user_id]
+            user_card_ids = user_data.get("cards", [])
+            if len(user_card_ids) < cards_count:
+                await update.message.reply_text("❌ Недостаточно существ для трейда!")
+                del context.user_data[user_id]
+                return
+
+            trade_info["user_card_ids"] = user_card_ids
+            trade_info["current_index"] = 0
+            if user_card_ids: # Проверяем, что список не пуст
+                 card = find_card_by_id(user_card_ids[0], data["cards"])
+                 if card:
+                     caption = f"{card['title']}\nРедкость: {card['rarity']}\n0/{cards_count} выбрано"
+                     keyboard = [
+                         [
+                             InlineKeyboardButton("<", callback_data=f"trade_prev_0"),
+                             InlineKeyboardButton("✅ Выбрать", callback_data=f"trade_select_0"),
+                             InlineKeyboardButton(">", callback_data=f"trade_next_0"),
+                         ],
+                         [
+                             InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select"),
+                         ],
+                         [
+                             InlineKeyboardButton("🔍 Поиск", callback_data="trade_search_button"), # Кнопка поиска
+                         ]
+                     ]
+                     await update.message.reply_photo(
+                         photo=card["image_url"],
+                         caption=caption,
+                         reply_markup=InlineKeyboardMarkup(keyboard)
+                     )
+            else:
+                 await update.message.reply_text("❌ У вас нет карт для трейда.")
+                 del context.user_data[user_id]
+
     except Exception as e:
         logger.error(f"Ошибка process_partner_selection: {e}")
-        await update.message.reply_text("❌ Ошибка при выборе партнёра")
-
+        # Попробуем уведомить пользователя, но аккуратно, чтобы не вызвать рекурсию
+        try:
+             await update.message.reply_text("❌ Ошибка при обработке вашего запроса.")
+        except:
+             pass # Игнорируем ошибку при отправке сообщения об ошибке
+        # Удаляем сессию, чтобы избежать зависания в некорректном состоянии
+        try:
+             user_id = str(update.effective_user.id)
+             if user_id in context.user_data:
+                  del context.user_data[user_id]
+        except:
+             pass
 
 async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопок трейда."""
