@@ -82,6 +82,7 @@ RARITY_BONUSES = {
     "UpgradeT5": {"cents": 4000, "points": 4000, "probability": 100},
     "UpgradeT6": {"cents": 10000, "points": 10000, "probability": 100},
     "UpgradeT7": {"cents": 20000, "points": 20000, "probability": 100},
+    "T3 special": {"cents": 0, "points": 0, "probability": 100},
 }
 
 
