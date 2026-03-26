@@ -5294,7 +5294,7 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
             if step != "search_mode":
                 if step not in ["select_cards", "select_return_cards", "search_mode"]:
                     await update.message.reply_text(f"❌ Невозможно выполнить поиск. Текущий шаг трейда: '{step}'.")
-                          return
+                    return
         
         # Проверяем, есть ли данные пользователя
         data = load_data()
