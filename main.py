@@ -1559,7 +1559,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 # ⭐ ПРОВЕРКА: если пользователь в шаге выбора партнёра для трейда ⭐
         if user_id in context.user_data:
             trade_info = context.user_data[user_id]
-            if trade_info.get("step") == "select_partner":
+            step = trade_info.get("step", "")
+            
+            if step in ["select_partner", "search_mode", "select_cards", "select_return_cards"]:
                 await process_partner_selection(update, context)
                 return
 
