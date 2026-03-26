@@ -3790,7 +3790,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         # ⭐ ОБРАБОТКА ВЫБОРА ТИПА ТРЕЙДА
         if query.data in ["trade_1v1", "trade_2v2", "trade_3v3"]:
-            trade_type = query.data.split("_")[1] 1", "2v2", "3v3"
+            trade_type = query.data.split("_")[1]
             await select_trade_partner(update, context, trade_type)
             return
 
