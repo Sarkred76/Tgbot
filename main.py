@@ -620,7 +620,7 @@ async def show_cards_by_faction(
         
         keyboard = [nav_buttons]
         keyboard.append([
-            InlineKeyboardButton("⚔️ Назад к фракциям", callback_data="barracks_back_to_factions")
+            InlineKeyboardButton("⚔️ Назад в казарму", callback_data="mycards_back_to_rarities")
         ])
         
         caption = generate_card_caption(card, user_data, count=count, show_bonus=False)
@@ -799,7 +799,7 @@ async def show_cards_by_rarity(
         keyboard = [nav_buttons]
         keyboard.append([
             InlineKeyboardButton(
-                "🔙 Назад к редкостям",
+                "🔙 Назад в казарму",
                 callback_data="mycards_back_to_rarities"
             )
         ])
