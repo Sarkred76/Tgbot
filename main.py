@@ -2989,7 +2989,7 @@ async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         tavern_image = "https://files.catbox.moe/7naama.png"
 
         keyboard = [
-            [InlineKeyboardButton("🎰 Казино", callback_data="casino_menu")]
+            [InlineKeyboardButton("🎰 Казино", callback_data="casino_menu")],
             [InlineKeyboardButton("🏆 Топ героев", callback_data="tavern_top")],
             [InlineKeyboardButton("🔄 Трейд", callback_data="tavern_trade")],
             [InlineKeyboardButton("🔙 Назад", callback_data="tavern_back")],
