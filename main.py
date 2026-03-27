@@ -3910,6 +3910,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             selected_cards = trade_info.get("selected_cards", [])
             cards_count = trade_info.get("cards_count", 1)
             user_card_ids = trade_info.get("user_card_ids", [])
+            partner_id = trade_info["partner_id"]
             
             if len(selected_cards) != cards_count:
                 await query.answer(f"❌ Выберите ровно {cards_count} существ!", show_alert=True)
@@ -3941,7 +3942,6 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # В конце функции trade_callback, где сохраняем трейд для партнёра:
 
             # Отправляем запрос партнёру
-            partner_id = trade_info["partner_id"]
 
             # ⭐ СОХРАНЯЕМ ТРЕЙД В ФАЙЛ (вместо context.user_data) ⭐
             data = load_data()
