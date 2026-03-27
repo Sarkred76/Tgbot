@@ -4675,7 +4675,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                     reply_markup=InlineKeyboardMarkup(keyboard),
                     parse_mode="HTML"
                 )
-                await query.edit_message_text("⏳ Ожидайте подтверждения от отправителя...")
+                await query.edit_message_caption(caption="⏳ Ожидайте подтверждения от отправителя...")
             except Exception as notify_error:
                 logger.error(f"Не удалось уведомить отправителя: {notify_error}")
                 await query.answer("❌ Ошибка при отправке подтверждения", show_alert=True)
