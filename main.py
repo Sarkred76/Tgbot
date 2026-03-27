@@ -55,7 +55,7 @@ INITIAL_ADMIN_ID = (
 
 
 DATA_FILE = "/data/bot_data.json"
-CRAFT_IMAGE_URL = "https://files.catbox.moe/yqgv06.png" 
+CRAFT_IMAGE_URL = "https://files.catbox.moe/yqgv06.png"
 
 ANIMATED_FORMATS = (".mp4", ".gif", ".webm")
 
@@ -2460,7 +2460,7 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
         await update.message.reply_text("❌ Ошибка при удалении администратора")
 
-        
+
 async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Крафт 2 одинаковых карт в новую карту редкости Upgrade."""
     try:
@@ -2484,39 +2484,31 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         }
         
         if not craftable_cards:
-            # ⭐ ОТПРАВЛЯЕМ С ИЗОБРАЖЕНИЕМ ⭐
-            caption = (
-                "❌ Нет существ для крафта!\n"
-                "📋 Для крафта нужно 2 одинаковых существа.\n"
-                "🔹 2x T1 → UpgradeT1\n"
-                "🔹 2x T2 → UpgradeT2\n"
-                "🔹 2x T3 → UpgradeT3\n"
-                "🔹 2x T4 → UpgradeT4\n"
-                "🔹 2x T5 → UpgradeT5\n"
-                "🔹 2x T6 → UpgradeT6\n"
-                "🔹 2x T7 → UpgradeT7\n"
-                "Собирайте дубликаты и попробуйте снова!"
-            )
-            
             if hasattr(update, 'callback_query') and update.callback_query:
-                query = update.callback_query
-                try:
-                    media = InputMediaPhoto(media=CRAFT_IMAGE_URL, caption=caption)
-                    await query.edit_message_media(media=media)
-                except:
-                    await query.message.delete()
-                    await context.bot.send_photo(
-                        chat_id=query.message.chat_id,
-                        photo=CRAFT_IMAGE_URL,
-                        caption=caption,
-                        parse_mode="Markdown"
-                    )
+                await update.callback_query.edit_message_text(
+                    "❌ Нет существ для крафта!\n"
+                    "📋 Для крафта нужно 2 одинаковых существа.\n"
+                    "🔹 2x T1 → UpgradeT1\n"
+                    "🔹 2x T2 → UpgradeT2\n"
+                    "🔹 2x T3 → UpgradeT3\n"
+                    "🔹 2x T4 → UpgradeT4\n"
+                    "🔹 2x T5 → UpgradeT5\n"
+                    "🔹 2x T6 → UpgradeT6\n"
+                    "🔹 2x T7 → UpgradeT7\n"
+                    "Собирайте дубликаты и попробуйте снова!"
+                )
             else:
-                await context.bot.send_photo(
-                    chat_id=update.effective_chat.id,
-                    photo=CRAFT_IMAGE_URL,
-                    caption=caption,
-                    parse_mode="Markdown"
+                await update.message.reply_text(
+                    "❌ Нет существ для крафта!\n"
+                    "📋 Для крафта нужно 2 одинаковых существа.\n"
+                    "🔹 2x T1 → UpgradeT1\n"
+                    "🔹 2x T2 → UpgradeT2\n"
+                    "🔹 2x T3 → UpgradeT3\n"
+                    "🔹 2x T4 → UpgradeT4\n"
+                    "🔹 2x T5 → UpgradeT5\n"
+                    "🔹 2x T6 → UpgradeT6\n"
+                    "🔹 2x T7 → UpgradeT7\n"
+                    "Собирайте дубликаты и попробуйте снова!"
                 )
             return
         
@@ -2543,11 +2535,11 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "step": "craft_select",
             "craftable_cards": craftable_by_rarity,
             "craft_page": 0,
-            "craft_cards_per_page": 5,
+            "craft_cards_per_page": 5,  # 5 карт на странице
         }
         
-        # ⭐ ПОКАЗЫВАЕМ ПЕРВУЮ СТРАНИЦУ С ИЗОБРАЖЕНИЕМ ⭐
-        await show_craft_page(update, context, 0, with_image=True)
+        # ⭐ ПОКАЗЫВАЕМ ПЕРВУЮ СТРАНИЦУ ⭐
+        await show_craft_page(update, context, 0)
         
     except Exception as e:
         logger.error(f"Ошибка крафта: {e}")
@@ -2556,14 +2548,12 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         else:
             await update.message.reply_text("❌ Произошла ошибка при крафте")
 
+
 async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int) -> None:
     """Показывает страницу списка карт для крафта."""
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
-        
-        # ⭐ ИНИЦИАЛИЗИРУЕМ keyboard В НАЧАЛЕ ⭐
-        keyboard = None
         
         if user_id not in context.user_data:
             if hasattr(update, 'callback_query') and update.callback_query:
@@ -2603,9 +2593,10 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         end_index = min(start_index + cards_per_page, total_cards)
         page_cards = cards_list[start_index:end_index]
         
-        # ⭐ СОЗДАЁМ КЛАВИАТУРУ ⭐
-        keyboard = []  # ← Теперь безопасно, так как инициализирована выше
-        for card_id, info in page_cards:            keyboard.append([
+        # Создаём клавиатуру
+        keyboard = []
+        for card_id, info in page_cards:
+            keyboard.append([
                 InlineKeyboardButton(
                     f"{info['title']} ({info['count']} шт.) → Upgrade{info['rarity']}",
                     callback_data=f"craft_{card_id}"
@@ -2614,48 +2605,62 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         
         # ⭐ КНОПКИ НАВИГАЦИИ ⭐
         nav_buttons = []
+        
         if page > 0:
             nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"craft_nav_{page - 1}"))
+        
         nav_buttons.append(InlineKeyboardButton(f"{page + 1}/{total_pages}", callback_data="craft_page_info"))
+        
         if page < total_pages - 1:
             nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"craft_nav_{page + 1}"))
         
-        if nav_buttons:
-            keyboard.append(nav_buttons)
-        
+        keyboard.append(nav_buttons)
         keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data="craft_cancel")])
         
         # ⭐ ОТПРАВЛЯЕМ СООБЩЕНИЕ ⭐
-        caption = (
-            "🔨 **Выберите существо для крафта:**\n"
-            "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n"
-            f"📄 Страница {page + 1}/{total_pages}\n"
-            f"🐦‍🔥 Доступно для крафта: {total_cards}"
-        )
-        
         if hasattr(update, 'callback_query') and update.callback_query:
             query = update.callback_query
             try:
-                await query.edit_message_text(
-                    caption,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode="Markdown"
+              
+                await query.edit_message_media(
+                  media=InputMediaPhoto(
+                    media="https://files.catbox.moe/yqgv06.png",
+                    caption=("🔨 **Выберите существо для крафта:**\n\n"
+                        "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n\n"
+                        f"📄 Страница {page + 1}/{total_pages}\n"
+                        f"🔥 Доступно для крафта: {total_cards}")
+                  ),
+                  reply_markup=InlineKeyboardMarkup(keyboard),
+                  parse_mode="Markdown"
                 )
             except Exception as edit_error:
                 logger.error(f"Ошибка редактирования: {edit_error}")
                 await query.message.delete()
                 await context.bot.send_message(
                     chat_id=query.message.chat_id,
-                    text=caption,
+                    text=(
+                        "🔨 **Выберите существо для крафта:**\n\n"
+                        "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n\n"
+                        f"📄 Страница {page + 1}/{total_pages}\n"
+                        f"🐦‍🔥 Доступно для крафта: {total_cards}"
+                    ),
                     reply_markup=InlineKeyboardMarkup(keyboard),
                     parse_mode="Markdown"
                 )
         else:
-            await update.message.reply_text(
-                caption,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"            )
-            
+            await update.message.reply_media(
+              media=InputMediaPhoto
+                media="https://files.catbox.moe/yqgv06.png", 
+                caption=(
+                "🔨 **Выберите существо для крафта:**\n\n"
+                "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n\n"
+                f"📄 Страница {page + 1}/{total_pages}\n"
+                f"🐦‍🔥 Доступно для крафта: {total_cards}") 
+             ), 
+             reply_markup=InlineKeyboardMarkup(keyboard),
+             parse_mode="Markdown"
+           )
+        
     except Exception as e:
         logger.error(f"Ошибка show_craft_page: {e}")
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -2671,8 +2676,7 @@ async def craft_nav_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         if query.data.startswith("craft_nav_"):
             page = int(query.data.split("_")[-1])
-            # ⭐ ПЕРЕДАЁМ with_image=False для навигации ⭐
-            await show_craft_page(update, context, page, with_image=False)
+            await show_craft_page(update, context, page)
         
         elif query.data == "craft_page_info":
             await query.answer("📄 Используйте ◀️ и ▶️ для навигации", show_alert=False)
@@ -2682,7 +2686,7 @@ async def craft_nav_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             if user_id in context.user_data:
                 del context.user_data[user_id]
             await query.edit_message_text("❌ Крафт отменён")
-            
+        
     except Exception as e:
         logger.error(f"Ошибка craft_nav_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
