@@ -2556,16 +2556,14 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         else:
             await update.message.reply_text("❌ Произошла ошибка при крафте")
 
-async def show_craft_page(
-    update: Update, 
-    context: ContextTypes.DEFAULT_TYPE, 
-    page: int,
-    with_image: bool = False  # ⭐ НОВЫЙ ПАРАМЕТР ⭐
-) -> None:
+async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int) -> None:
     """Показывает страницу списка карт для крафта."""
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
+        
+        # ⭐ ИНИЦИАЛИЗИРУЕМ keyboard В НАЧАЛЕ ⭐
+        keyboard = None
         
         if user_id not in context.user_data:
             if hasattr(update, 'callback_query') and update.callback_query:
@@ -2605,9 +2603,9 @@ async def show_craft_page(
         end_index = min(start_index + cards_per_page, total_cards)
         page_cards = cards_list[start_index:end_index]
         
-        # Создаём клавиатуру        keyboard = []
-        for card_id, info in page_cards:
-            keyboard.append([
+        # ⭐ СОЗДАЁМ КЛАВИАТУРУ ⭐
+        keyboard = []  # ← Теперь безопасно, так как инициализирована выше
+        for card_id, info in page_cards:            keyboard.append([
                 InlineKeyboardButton(
                     f"{info['title']} ({info['count']} шт.) → Upgrade{info['rarity']}",
                     callback_data=f"craft_{card_id}"
@@ -2627,7 +2625,7 @@ async def show_craft_page(
         
         keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data="craft_cancel")])
         
-        # ⭐ ТЕКСТ СООБЩЕНИЯ ⭐
+        # ⭐ ОТПРАВЛЯЕМ СООБЩЕНИЕ ⭐
         caption = (
             "🔨 **Выберите существо для крафта:**\n"
             "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n"
@@ -2635,60 +2633,29 @@ async def show_craft_page(
             f"🐦‍🔥 Доступно для крафта: {total_cards}"
         )
         
-        # ⭐ ОТПРАВКА С ИЗОБРАЖЕНИЕМ ИЛИ ТЕКСТОМ ⭐
-        if with_image and page == 0:
-            # Первая страница с изображением
-            if hasattr(update, 'callback_query') and update.callback_query:
-                query = update.callback_query
-                try:
-                    media = InputMediaPhoto(media=CRAFT_IMAGE_URL, caption=caption)
-                    await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
-                except Exception as edit_error:
-                    logger.error(f"Ошибка редактирования: {edit_error}")
-                    try:
-                        await query.message.delete()
-                    except:
-                        pass
-                    await context.bot.send_photo(
-                        chat_id=query.message.chat_id,
-                        photo=CRAFT_IMAGE_URL,
-                        caption=caption,
-                        reply_markup=InlineKeyboardMarkup(keyboard),
-                        parse_mode="Markdown"                    )
-            else:
-                await context.bot.send_photo(
-                    chat_id=update.effective_chat.id,
-                    photo=CRAFT_IMAGE_URL,
-                    caption=caption,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode="Markdown"
-                )
-        else:
-            # Последующие страницы или без изображения
-            if hasattr(update, 'callback_query') and update.callback_query:
-                query = update.callback_query
-                try:
-                    await query.edit_message_text(
-                        caption,
-                        reply_markup=InlineKeyboardMarkup(keyboard),
-                        parse_mode="Markdown"
-                    )
-                except Exception as edit_error:
-                    logger.error(f"Ошибка редактирования: {edit_error}")
-                    await query.message.delete()
-                    await context.bot.send_message(
-                        chat_id=query.message.chat_id,
-                        text=caption,
-                        reply_markup=InlineKeyboardMarkup(keyboard),
-                        parse_mode="Markdown"
-                    )
-            else:
-                await update.message.reply_text(
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                await query.edit_message_text(
                     caption,
                     reply_markup=InlineKeyboardMarkup(keyboard),
                     parse_mode="Markdown"
                 )
-                
+            except Exception as edit_error:
+                logger.error(f"Ошибка редактирования: {edit_error}")
+                await query.message.delete()
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=caption,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+        else:
+            await update.message.reply_text(
+                caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"            )
+            
     except Exception as e:
         logger.error(f"Ошибка show_craft_page: {e}")
         if hasattr(update, 'callback_query') and update.callback_query:
