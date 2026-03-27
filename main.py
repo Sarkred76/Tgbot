@@ -5361,16 +5361,6 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
             ]
             keyboard.append([InlineKeyboardButton("❌ Отмена поиска", callback_data="trade_search_cancel")])
             
-            await update.message.reply_text(
-                f"🔍 **Найдено существо:**\n\n"
-                f"🏷 {card['title']}\n"
-                f"🌟 Редкость: {card['rarity']}\n"
-                f"🛡 В казарме: {count} шт.\n"
-                f"📊 Выбрано: {len(selected_cards)}/{cards_count}\n\n"
-                f"Выберите это существо для трейда:",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
             trade_info["step"] = "search_results"
             trade_info["search_query"] = search_query
             await update.message.reply_photo(
