@@ -3927,7 +3927,8 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         InlineKeyboardButton(select_text, callback_data=f"trade_select_{current_index}"),
                         InlineKeyboardButton(">", callback_data=f"trade_next_{current_index}"),
                     ],
-                    [InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select")KeyboardButton("🔍 Поиск", callback_data="trade_search_button")], # Кнопка поиска для отправителя
+                    [InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select")],
+                    [KeyboardButton("🔍 Поиск", callback_data="trade_search_button")], # Кнопка поиска для отправителя
                 ]
 
                 media = InputMediaPhoto(media=card["image_url"], caption=caption)
@@ -5575,7 +5576,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
         # --- Обработка нажатия кнопки "Отмена поиска" ---
         elif query.data == "trade_search_cancel":
-            if user_id in context.user_
+            if user_id in context.user_data:
                 trade_info = context.user_data[user_id]
                 # Возвращаемся к предыдущему шагу выбора ("select_cards" или "select_return_cards")
                 # Используем сохранённое значение
