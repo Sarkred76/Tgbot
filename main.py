@@ -3900,12 +3900,31 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         InlineKeyboardButton(">", callback_data=f"trade_next_{current_index}"),
                     ],
                     [InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select")],
+                    [InlineKeyboardButton("🔍 Поиск", callback_data="trade_search_button")],
                 ]
                 
                 media = InputMediaPhoto(media=card["image_url"], caption=caption)
                 await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
         
         # Завершение выбора
+
+        elif query.data == "trade_search_button":
+            if user_id in context.user_data:
+                trade_info = context.user_data[user_id]
+                # Сохраняем текущий шаг перед переходом к поиску
+                trade_info["previous_step_before_search"] = trade_info["step"]
+                trade_info["step"] = "search_mode"
+                
+            await query.answer("🔍 Введите название существа для поиска", show_alert=False)
+            await query.message.reply_text(
+                "🔍 **Поиск существ**\n"
+                "Введите часть названия существа:\n"
+                "Например: \"дракон\", \"демон\", \"огр\"\n"
+                "❌ Для отмены: /cancel",
+                parse_mode="Markdown"
+            )
+            return
+        
         elif query.data == "trade_finish_select":
             selected_cards = trade_info.get("selected_cards", [])
             cards_count = trade_info.get("cards_count", 1)
