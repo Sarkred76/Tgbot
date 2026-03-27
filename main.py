@@ -4241,7 +4241,7 @@ async def trade_accept(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                         InlineKeyboardButton("➡️ Далее", callback_data="trade_return_finish"),
                     ],
                     [
-                        InlineKeyboardButton("🔍 Поиск", callback_data="trade_return_searchнопка поиска
+                        InlineKeyboardButton("🔍 Поиск", callback_data="trade_return_search"), #rнопка поиска
                     ]
                 ]
                 await update.message.reply_photo(
