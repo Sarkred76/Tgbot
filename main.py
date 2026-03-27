@@ -5493,58 +5493,9 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
                      # Удаляем предыдущий шаг, так как он использован
                      if "previous_step_before_search" in trade_info:
                          del trade_info["previous_step_before_search"]
-                     # --- ОБНОВЛЕНИЕ СООБЩЕНИЯ С ИНТЕРФЕЙСОМ ВЫБОРА ---
-                     # Теперь нужно показать интерфейс, соответствующий prev_step.
-                     # В данном случае, это "select_return_cards" или "select_cards".
-                     # Показываем текущую карту (например, последнюю выбранную или первую доступную)
-                     # с полным интерфейсом trade_return_callback или trade_callback.
-                     # Мы не можем вызвать trade_return_callback напрямую изнутри trade_search_callback,
-                     # но можем повторить логику обновления сообщения оттуда.
-
-                     # Получаем текущий индекс для отображения (например, индекс последней выбранной карты)
-                     # или оставляем старый current_index, если он был.
-                     # Для простоты, покажем ту, которую только что выбрали (card_index).
-                     display_index = card_index # Показываем только что выбранную карту
-
-                     card_to_display = find_card_by_id(user_card_ids[display_index], data["cards"])
-                     if card_to_display:
-                         card_counts_display = Counter(user_card_ids)
-                         card_in_collection = card_counts_display.get(card_to_display["id"], 1)
-                         selected_count_now = len(selected_cards)
-
-                         caption = (
-                             f"{card_to_display['title']}\n"
-                             f"Редкость: {card_to_display['rarity']}\n"
-                             f"📦 В казарме: {card_in_collection} шт.\n\n"
-                             f"📊 Выбрано: {selected_count_now}/{cards_count}"
-                         )
-
-                         is_selected_display = display_index in selected_cards
-                         select_text = "❌ Убрать" if is_selected_display else "✅ Выбрать"
-
-                         # Определяем, какую функцию обработки использовать для кнопок
-                         # Если prev_step был "select_return_cards", используем кнопки trade_return_...
-                         # Если был "select_cards", используем trade_...
-                         button_prefix = "trade_return_" if prev_step == "select_return_cards" else "trade_"
-
-                         keyboard = [
-                             [
-                                 InlineKeyboardButton("<", callback_data=f"{button_prefix}prev_{display_index}"),
-                                 InlineKeyboardButton(select_text, callback_data=f"{button_prefix}select_{display_index}"),
-                                 InlineKeyboardButton(">", callback_data=f"{button_prefix}next_{display_index}"),
-                             ],
-                             [
-                                 InlineKeyboardButton("➡️ Далее", callback_data=f"{button_prefix}finish"), # Используем правильный finish
-                             ],
-                             [
-                                 InlineKeyboardButton("🔍 Поиск", callback_data=f"{button_prefix}search_button"), # Используем правильную кнопку поиска
-                             ]
-                         ]
-
-                         media = InputMediaPhoto(media=card_to_display["image_url"], caption=caption)
-                         # Редактируем ТЕКУЩЕЕ сообщение (с результатами поиска) на сообщение с интерфейсом
-                         await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
-                     # ----------------------------------------------
+                     # Сообщение с результатом поиска уже отображает итог.
+                     # Пользователь должен нажать "➡️ Далее" в основном интерфейсе.
+                     # Главное - шаг изменен.
                 else:
                      await query.answer(f"✅ Добавлено: {card['title']}. Осталось выбрать {cards_count - len(selected_cards)}", show_alert=False)
 
@@ -5552,14 +5503,15 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
         # --- Обработка нажатия кнопки "Отмена поиска" ---
         elif query.data == "trade_search_cancel":
-            if user_id in context.user_data:
+            if user_id in context.data:
                 trade_info = context.user_data[user_id]
                 # Возвращаемся к предыдущему шагу выбора ("select_cards" или "select_return_cards")
                 # Используем сохранённое значение
                 prev_step = trade_info.get("previous_step_before_search", "select_cards")
                 if prev_step not in ["select_cards", "select_return_cards"]:
                      # Fallback, если предыдущий шаг не сохранён или неверный
-                    prev_step = "select_cards" if "cards_offered_by_sender" not in trade_info else "select_return_cards"
+                     prev_step = "select_cards" if "cards_offered_by_sender" not in trade_info else "select_return_cards"
+
                 trade_info["step"] = prev_step
                 # Удаляем сообщение с результатами поиска
                 try:
@@ -5584,7 +5536,6 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
              await query.answer("❌ Ошибка при обработке поиска", show_alert=True)
         except:
              pass # Игнорируем ошибку при отправке сообщения об ошибке
-
 
 
 
