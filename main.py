@@ -5377,10 +5377,6 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
         # Сохраняем информацию о поиске
         trade_info["step"] = "search_results"
         trade_info["search_query"] = search_query
-        await update.message.reply_text(
-                "Выберите существо для трейда:",
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
         
     except Exception as e:
         logger.error(f"Ошибка search_creatures_for_trade: {e}")
