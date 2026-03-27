@@ -3638,6 +3638,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
             return # Если сессия закончилась, просто выходим
 
         trade_info = context.user_data[user_id]
+        logger.debug(f"process_partner_selection: trade_info для {user_id}: {trade_info}, текст: {text}")
         step = trade_info.get("step", "")
 
         # 1. Проверяем команду отмены (/cancel)
@@ -4650,6 +4651,8 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
              # Обновляем сессию получателя
              # (Можно оставить или очистить, в зависимости от логики)
              # context.user_data[user_id] = {"step": "waiting_for_sender_response"}
+            if from_user in context.user_data:
+                del context.user_data[from_user]
 
              # Отправляем запрос отправителю
              keyboard = [
