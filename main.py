@@ -4633,6 +4633,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
              data["active_trades"][from_user] = {
                  "from_user": from_user,
                  "receiver_id": user_id,
+                 "partner_id": user_id,
                  "cards_offered_by_sender": trade_info["cards_offered_by_sender"], # Карты отправителя
                  "cards_offered_by_receiver": selected_card_ids, # Карты получателя
                  "trade_type": trade_info.get("trade_type", "1v1"),
