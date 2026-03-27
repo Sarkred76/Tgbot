@@ -4598,55 +4598,55 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
              selected_cards_indices = trade_info.get("selected_cards", [])
              cards_count = trade_info.get("cards_count", 1)
 
-             if len(selected_cards_indices) != cards_count:
-                 await query.answer(f"❌ Выберите ровно {cards_count} существ!", show_alert=True)
-                 return
+            if len(selected_cards_indices) != cards_count:
+                await query.answer(f"❌ Выберите ровно {cards_count} существ!", show_alert=True)
+                return
 
-             # Получаем ID выбранных карт получателя
-             user_card_ids = trade_info.get("user_card_ids", [])
-             selected_card_ids = [user_card_ids[i] for i in selected_cards_indices]
+            # Получаем ID выбранных карт получателя
+            user_card_ids = trade_info.get("user_card_ids", [])
+            selected_card_ids = [user_card_ids[i] for i in selected_cards_indices]
 
-             # Проверяем, всё ли ещё у получателя есть эти карты
-             user_data = data["users"].get(user_id)
-             if not user_data:
-                  await query.answer("❌ Ошибка данных пользователя.", show_alert=True)
-                  return
-             user_cards_set = set(user_data.get("cards", []))
-             missing_cards = [cid for cid in selected_card_ids if cid not in user_cards_set]
-             if missing_cards:
-                  await query.answer("❌ Некоторые выбранные существа больше не в вашей казарме.", show_alert=True)
-                  return
+            # Проверяем, всё ли ещё у получателя есть эти карты
+            user_data = data["users"].get(user_id)
+            if not user_data:
+                await query.answer("❌ Ошибка данных пользователя.", show_alert=True)
+                return
+            user_cards_set = set(user_data.get("cards", []))
+            missing_cards = [cid for cid in selected_card_ids if cid not in user_cards_set]
+            if missing_cards:
+                await query.answer("❌ Некоторые выбранные существа больше не в вашей казарме.", show_alert=True)
+                return
 
-             # Сохраняем выбранные ID получателя в сессии
-             trade_info["selected_cards_ids"] = selected_card_ids
+            # Сохраняем выбранные ID получателя в сессии
+            trade_info["selected_cards_ids"] = selected_card_ids
 
-             # Переход к финальному подтверждению
-             trade_info["step"] = "waiting_receiver_confirm"
-             # Уведомляем отправителя
-             from_user = trade_info["from_user"]
-             receiver_name = user_data.get("first_name", "Герой") + " @" + user_data.get("username", "no_username")
+            # Переход к финальному подтверждению
+            trade_info["step"] = "waiting_receiver_confirm"
+            # Уведомляем отправителя
+            from_user = trade_info["from_user"]
+            receiver_name = user_data.get("first_name", "Герой") + " @" + user_data.get("username", "no_username")
 
-             # Формируем текст карт получателя
-             cards_info = []
-             for card_id in selected_card_ids:
-                 card = find_card_by_id(card_id, data["cards"])
-                 if card:
-                     cards_info.append(f"• {card['title']} ({card['rarity']})")
-             cards_text = "\n".join(cards_info) if cards_info else "Нет карт"
+            # Формируем текст карт получателя
+            cards_info = []
+            for card_id in selected_card_ids:
+                card = find_card_by_id(card_id, data["cards"])
+                if card:
+                    cards_info.append(f"• {card['title']} ({card['rarity']})")
+            cards_text = "\n".join(cards_info) if cards_info else "Нет карт"
 
-             # ⭐ СОХРАНЯЕМ ТРЕЙД В ФАЙЛ (для отправителя) ⭐
-             data["active_trades"][from_user] = {
-                 "from_user": from_user,
-                 "receiver_id": user_id,
-                 "partner_id": user_id,
-                 "cards_offered_by_sender": trade_info["cards_offered_by_sender"], # Карты отправителя
-                 "cards_offered_by_receiver": selected_card_ids, # Карты получателя
-                 "trade_type": trade_info.get("trade_type", "1v1"),
-                 "step": "waiting_sender_confirm", # Изменим шаг для отправителя
-                 "timestamp": int(time.time())
-             }
-             save_data(data)
-             logger.info(f"Трейд обновлён для отправителя (ожидание подтверждения): {from_user}")
+            # ⭐ СОХРАНЯЕМ ТРЕЙД В ФАЙЛ (для отправителя) ⭐
+            data["active_trades"][from_user] = {
+                "from_user": from_user,
+                "receiver_id": user_id,
+                "partner_id": user_id,
+                "cards_offered_by_sender": trade_info["cards_offered_by_sender"], # Карты отправителя
+                "cards_offered_by_receiver": selected_card_ids, # Карты получателя
+                "trade_type": trade_info.get("trade_type", "1v1"),
+                "step": "waiting_sender_confirm", # Изменим шаг для отправителя
+                "timestamp": int(time.time())
+            }
+            save_data(data)
+            logger.info(f"Трейд обновлён для отправителя (ожидание подтверждения): {from_user}")
 
              # Обновляем сессию получателя
              # (Можно оставить или очистить, в зависимости от логики)
