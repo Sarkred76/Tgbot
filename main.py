@@ -4593,10 +4593,10 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
         # --- ЗАВЕРШЕНИЕ ВЫБОРА ---
         elif query.data == "trade_return_finish":
-             # Логика завершения выбора для получателя
-             # (Остальная часть функции)
-             selected_cards_indices = trade_info.get("selected_cards", [])
-             cards_count = trade_info.get("cards_count", 1)
+            # Логика завершения выбора для получателя
+            # (Остальная часть функции)
+            selected_cards_indices = trade_info.get("selected_cards", [])
+            cards_count = trade_info.get("cards_count", 1)
 
             if len(selected_cards_indices) != cards_count:
                 await query.answer(f"❌ Выберите ровно {cards_count} существ!", show_alert=True)
@@ -4655,30 +4655,30 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 del context.user_data[from_user]
 
              # Отправляем запрос отправителю
-             keyboard = [
-                 [
-                     InlineKeyboardButton("✅ Подтвердить", callback_data=f"trade_final_accept_{user_id}"),
-                     InlineKeyboardButton("❌ Отклонить", callback_data=f"trade_final_decline_{user_id}"),
-                 ]
+            keyboard = [
+                [
+                    InlineKeyboardButton("✅ Подтвердить", callback_data=f"trade_final_accept_{user_id}"),
+                    InlineKeyboardButton("❌ Отклонить", callback_data=f"trade_final_decline_{user_id}"),
+                ]
              ]
-             try:
-                 await context.bot.send_message(
-                     chat_id=from_user,
-                     text=(
-                         f"🔄 **Ответный обмен предложен!**\n"
-                         f"👤 От: {receiver_name}\n"
-                         f"🐦‍🔥 Ваши существа: {len(trade_info['cards_offered_by_sender'])}\n"
-                         f"🐦‍🔥 Его существа: {len(selected_card_ids)}\n"
-                         f"📋 **Карты получателя:**\n{cards_text}\n"
-                         f"Нажмите кнопку для действия:"
-                     ),
-                     reply_markup=InlineKeyboardMarkup(keyboard),
-                     parse_mode="HTML"
-                 )
-                 await query.edit_message_text("⏳ Ожидайте подтверждения от отправителя...")
-             except Exception as notify_error:
-                 logger.error(f"Не удалось уведомить отправителя: {notify_error}")
-                 await query.answer("❌ Ошибка при отправке подтверждения", show_alert=True)
+            try:
+                await context.bot.send_message(
+                    chat_id=from_user,
+                    text=(
+                        f"🔄 **Ответный обмен предложен!**\n"
+                        f"👤 От: {receiver_name}\n"
+                        f"🐦‍🔥 Ваши существа: {len(trade_info['cards_offered_by_sender'])}\n"
+                        f"🐦‍🔥 Его существа: {len(selected_card_ids)}\n"
+                        f"📋 **Карты получателя:**\n{cards_text}\n"
+                        f"Нажмите кнопку для действия:"
+                    ),
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="HTML"
+                )
+                await query.edit_message_text("⏳ Ожидайте подтверждения от отправителя...")
+            except Exception as notify_error:
+                logger.error(f"Не удалось уведомить отправителя: {notify_error}")
+                await query.answer("❌ Ошибка при отправке подтверждения", show_alert=True)
 
 
     except Exception as e:
