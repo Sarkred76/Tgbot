@@ -4444,6 +4444,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
         
         trade_info = context.user_data[user_id]
         if trade_info.get("step") != "select_return_cards":
+            await query.edit_message_text("❌ Сессия выбора карт истекла!")
             return
         
         data = load_data()
@@ -4489,7 +4490,9 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                         InlineKeyboardButton(select_text, callback_data=f"trade_return_select_{current_index}"),
                         InlineKeyboardButton(">", callback_data=f"trade_return_next_{current_index}"),
                     ],
-                    [InlineKeyboardButton("➡️ Завершить обмен", callback_data="trade_return_finish")],
+                    [InlineKeyboardButton("➡️ Далее", callback_data="trade_return_finish")],
+                    [InlineKeyboardButton("🔍 Поиск", callback_data="trade_return_search_button")],
+                    
                 ]
                 
                 media = InputMediaPhoto(media=card["image_url"], caption=caption)
@@ -4510,8 +4513,8 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 selected_cards.append(card_index)
             
             trade_info["selected_cards"] = selected_cards
-            
             current_index = trade_info.get("current_index", 0)
+            
             card = find_card_by_id(user_card_ids[current_index], data["cards"])
             if card:
                 card_counts = Counter(user_card_ids)
@@ -4533,11 +4536,32 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                         InlineKeyboardButton(select_text, callback_data=f"trade_return_select_{current_index}"),
                         InlineKeyboardButton(">", callback_data=f"trade_return_next_{current_index}"),
                     ],
-                    [InlineKeyboardButton("➡️ Завершить обмен", callback_data="trade_return_finish")],
+                    [InlineKeyboardButton("➡️ Далее", callback_data="trade_return_finish")],
+                    [InlineKeyboardButton("🔍 Поиск", callback_data="trade_return_search_button")],
                 ]
                 
                 media = InputMediaPhoto(media=card["image_url"], caption=caption)
                 await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+        
+        elif query.data == "trade_return_search_button":
+            # КНОПКА ПОИСКА В ИНТЕРФЕЙСЕ ВЫБОРА КАРТ ПОЛУЧАТЕЛЯ
+            if user_id in context.user_data:
+                trade_info = context.user_data[user_id]
+                # СОХРАНЯЕМ ТЕКУЩИЙ ШАГ ПЕРЕД ПЕРЕХОДОМ К ПОИСКУ
+                # Для получателя это "select_return_cards"
+                trade_info["previous_step_before_search"] = trade_info["step"] # "select_return_cards"
+                trade_info["step"] = "search_mode"
+                await query.answer("🔍 Введите название существа для поиска", show_alert=False)
+                await query.message.reply_text(
+                    "🔍 **Поиск существ**\n"
+                    "Введите часть названия существа:\n"
+                    "Например: \"дракон\", \"демон\", \"огр\"\n"
+                    "❌ Для отмены: /cancel",
+                    parse_mode="Markdown"
+                )
+            # ВАЖНО: return здесь, чтобы не выполнялись другие проверки
+            return # <-- Добавлено
+
         
         # ⭐ ЗАВЕРШЕНИЕ ВЫБОРА КАРТ ⭐
         elif query.data == "trade_return_finish":
