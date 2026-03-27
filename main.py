@@ -390,8 +390,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 KeyboardButton("👑 Мой герой"),
             ],  # ← Добавлена кнопка
             [KeyboardButton("🔨 Крафт"), KeyboardButton("🍺 Таверна")],
-            [KeyboardButton("🏆 Топ героев")],
-            [KeyboardButton("🔄 Трейд")],  # ← ДОБАВЬТЕ
         ]
 
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -1741,14 +1739,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
             await show_user_cards(update, context)
 
-        elif text == "🏆 Топ героев":  # ← ДОБАВЬТЕ ЭТОТ БЛОК
-            
-            await top_players(update, context)
-
-        elif text == "🔄 Трейд":  # ← ДОБАВЬТЕ
-            
-            await trade_menu(update, context)
-
     except (NetworkError, TimedOut) as e:
 
         logger.warning(f"Сетевая ошибка: {e}")
@@ -2996,20 +2986,42 @@ async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     """Показывает меню мини-игр."""
 
     try:
+        tavern_image = "https://files.catbox.moe/7naama.png"
 
-        keyboard = [[InlineKeyboardButton("🎰 Казино", callback_data="casino_menu")]]
+        keyboard = [
+            [InlineKeyboardButton("🎰 Казино", callback_data="casino_menu")]
+            [InlineKeyboardButton("🏆 Топ героев", callback_data="tavern_top")],
+            [InlineKeyboardButton("🔄 Трейд", callback_data="tavern_trade")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="tavern_back")],
+        ]
 
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        await update.message.reply_text(
-            "🍺 **Таверна**\n\n" "Выберите игру:",
-            reply_markup=reply_markup,
-            parse_mode="Markdown",
-        )
-
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                media = InputMediaPhoto(media=tavern_image)
+                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+            except Exception as edit_error:
+                logger.error(f"Ошибка редактирования: {edit_error}")
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                await context.bot.send_photo(
+                    chat_id=query.message.chat_id,
+                    photo=tavern_image,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+        else:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=tavern_image,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
     except Exception as e:
-
         logger.error(f"Ошибка в mini_games: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии Таверны")
 
 
 async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -5722,7 +5734,66 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
         except:
              pass # Игнорируем ошибку при отправке сообщения об ошибке
 
-
+async def tavern_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок Таверны."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        if query.data == "tavern_top":
+            # Показываем Топ Героев
+            await top_players(update, context)
+            # Возвращаем меню Таверны
+            tavern_image = "https://files.catbox.moe/7naama.png"  # ← Замените на свой URL
+            keyboard = [
+                [InlineKeyboardButton("🏆 Топ героев", callback_data="tavern_top")],
+                [InlineKeyboardButton("🔄 Трейд", callback_data="tavern_trade")],
+                [InlineKeyboardButton("🔙 Назад", callback_data="tavern_back")],
+            ]
+            try:
+                media = InputMediaPhoto(media=tavern_image)
+                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+            except:
+                pass
+        
+        elif query.data == "tavern_trade":
+            # Показываем меню Трейда
+            await trade_menu(update, context)
+            # Возвращаем меню Таверны
+            tavern_image = "https://files.catbox.moe/7naama.png"  # ← Замените на свой URL
+            keyboard = [
+                [InlineKeyboardButton("🏆 Топ героев", callback_data="tavern_top")],
+                [InlineKeyboardButton("🔄 Трейд", callback_data="tavern_trade")],
+                [InlineKeyboardButton("🔙 Назад", callback_data="tavern_back")],
+            ]
+            try:
+                media = InputMediaPhoto(media=tavern_image)
+                await query.edit_message_media(media=media, reply_markup=InlineKeyboardMarkup(keyboard))
+            except:
+                pass
+        
+        elif query.data == "tavern_back":
+            # Возврат в главное меню
+            try:
+                await query.message.delete()
+            except:
+                pass
+            keyboard = [
+                [KeyboardButton("⚔️ Нанять существо")],
+                [KeyboardButton("🎲 Бросить кубик")],
+                [KeyboardButton("🛡 Казарма"), KeyboardButton("👑 Мой герой")],
+                [KeyboardButton("🔨 Крафт"), KeyboardButton("🍺 Таверна")],
+            ]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="Добро пожаловать! Используйте кнопки ниже:",
+                reply_markup=reply_markup
+            )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в tavern_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
 
 
 
@@ -5788,6 +5859,7 @@ def main() -> None:
             CallbackQueryHandler(dice_callback, pattern=r"^dice_.*"),
             CallbackQueryHandler(casino_callback, pattern=r"^casino_.*"),
             CallbackQueryHandler(top_callback, pattern=r"^top_.*"),
+            CallbackQueryHandler(tavern_callback, pattern=r"^tavern_.*"),
             CallbackQueryHandler(trade_button_callback, pattern=r"^trade_(accept|decline)_btn_.*"),
             CallbackQueryHandler(trade_search_callback, pattern=r"^trade_search_.*"),
             CallbackQueryHandler(trade_offer_callback, pattern=r"^trade_offer_.*"),
