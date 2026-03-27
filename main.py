@@ -55,7 +55,7 @@ INITIAL_ADMIN_ID = (
 
 
 DATA_FILE = "/data/bot_data.json"
-CRAFT_IMAGE_URL = "https://files.catbox.moe/yqgv06.png"
+
 
 ANIMATED_FORMATS = (".mp4", ".gif", ".webm")
 
@@ -2621,17 +2621,13 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         if hasattr(update, 'callback_query') and update.callback_query:
             query = update.callback_query
             try:
-              
-                await query.edit_message_media(
-                  media=InputMediaPhoto(
-                    media="https://files.catbox.moe/yqgv06.png",
-                    caption=("🔨 **Выберите существо для крафта:**\n\n"
-                        "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n\n"
-                        f"📄 Страница {page + 1}/{total_pages}\n"
-                        f"🔥 Доступно для крафта: {total_cards}")
-                  ),
-                  reply_markup=InlineKeyboardMarkup(keyboard),
-                  parse_mode="Markdown"
+                await query.edit_message_text(
+                    "🔨 **Выберите существо для крафта:**\n\n"
+                    "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n\n"
+                    f"📄 Страница {page + 1}/{total_pages}\n"
+                    f"🐦‍🔥 Доступно для крафта: {total_cards}",
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
                 )
             except Exception as edit_error:
                 logger.error(f"Ошибка редактирования: {edit_error}")
@@ -2648,18 +2644,14 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
                     parse_mode="Markdown"
                 )
         else:
-            await update.message.reply_media(
-              media=InputMediaPhoto(
-                media="https://files.catbox.moe/yqgv06.png", 
-                caption=(
+            await update.message.reply_text(
                 "🔨 **Выберите существо для крафта:**\n\n"
                 "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n\n"
                 f"📄 Страница {page + 1}/{total_pages}\n"
-                f"🐦‍🔥 Доступно для крафта: {total_cards}") 
-             ), 
-             reply_markup=InlineKeyboardMarkup(keyboard),
-             parse_mode="Markdown"
-           )
+                f"🐦‍🔥 Доступно для крафта: {total_cards}",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
         
     except Exception as e:
         logger.error(f"Ошибка show_craft_page: {e}")
