@@ -5559,8 +5559,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 prev_step = trade_info.get("previous_step_before_search", "select_cards")
                 if prev_step not in ["select_cards", "select_return_cards"]:
                      # Fallback, если предыдущий шаг не сохранён или неверный
-                     prev_step = "select_cards" if "cards_offered_by_sender" not "select_return_cards"
-
+                    prev_step = "select_cards" if "cards_offered_by_sender" not in trade_info else "select_return_cards"
                 trade_info["step"] = prev_step
                 # Удаляем сообщение с результатами поиска
                 try:
