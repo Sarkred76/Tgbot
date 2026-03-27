@@ -5503,7 +5503,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
         # --- Обработка нажатия кнопки "Отмена поиска" ---
         elif query.data == "trade_search_cancel":
-            if user_id in context.user_
+            if user_id in context.data:
                 trade_info = context.user_data[user_id]
                 # Возвращаемся к предыдущему шагу выбора ("select_cards" или "select_return_cards")
                 # Используем сохранённое значение
