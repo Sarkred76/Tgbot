@@ -5667,7 +5667,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
                               # Отправляем новое сообщение с фото и интерфейсом
                               await context.bot.send_photo(
                                   chat_id=query.message.chat_id,
-_to_display["image_url"],
+                                  photo=card_to_display["image_url"],
                                   caption=caption,
                                   reply_markup=InlineKeyboardMarkup(keyboard)
                               )
