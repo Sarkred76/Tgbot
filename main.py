@@ -2649,7 +2649,7 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
                 )
         else:
             await update.message.reply_media(
-              media=InputMediaPhoto
+              media=InputMediaPhoto(
                 media="https://files.catbox.moe/yqgv06.png", 
                 caption=(
                 "🔨 **Выберите существо для крафта:**\n\n"
