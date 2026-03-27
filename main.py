@@ -3907,6 +3907,10 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         # Завершение выбора
         elif query.data == "trade_finish_select":
+            if trade_info.get("step") != "select_cards":
+                 await query.answer("❌ Сессия выбора истекла.", show_alert=True)
+                 return
+            partner_id = trade_info["partner_id"]
             selected_cards = trade_info.get("selected_cards", [])
             cards_count = trade_info.get("cards_count", 1)
             user_card_ids = trade_info.get("user_card_ids", [])
@@ -3941,7 +3945,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # В конце функции trade_callback, где сохраняем трейд для партнёра:
 
             # Отправляем запрос партнёру
-            partner_id = trade_info["partner_id"]
+            
 
             # ⭐ СОХРАНЯЕМ ТРЕЙД В ФАЙЛ (вместо context.user_data) ⭐
             data = load_data()
