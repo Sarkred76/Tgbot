@@ -61,7 +61,7 @@ ANIMATED_FORMATS = (".mp4", ".gif", ".webm")
 
 
 AUTO_ANIMATED_RARITIES = ["Animated!"]
-
+FOREST_IMAGE_URL = "https://files.catbox.moe/1p3gd9.jpg"
 
 # Бонусы по редкостям
 
@@ -5806,6 +5806,10 @@ async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+        caption = (
+            "Вы входите в Лес!"
+        )
         
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -5814,18 +5818,25 @@ async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 await query.message.delete()
             except:
                 pass
-            await context.bot.send_message(
+            await context.bot.send_photo(
                 chat_id=query.message.chat_id,
-                text=(
-                    "🌲 **Лес**\n\n"
-                    "Добро пожаловать в Лес!\n\n"
-                    "Здесь вы можете:\n"
-                    "• 🔨 Скрафтить новое существо из 2 дубликатов\n\n"
-                    "Выберите действие:"
-                ),
+                photo=FOREST_IMAGE_URL, 
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
+        else:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=FOREST_IMAGE_URL,  # ← Ссылка на изображение
+                caption=caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        logger.error(f"Ошибка в forest_menu: {e}")
+        # ⭐ ЗАПАСНОЙ ВАРИАНТ: если изображение не загрузилось ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Ошибка при загрузке изображения", show_alert=True)
         else:
             await update.message.reply_text(
                 "🌲 **Лес**\n\n"
@@ -5836,8 +5847,6 @@ async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
-    except Exception as e:
-        logger.error(f"Ошибка в forest_menu: {e}")
 
 async def forest_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопок меню Леса."""
