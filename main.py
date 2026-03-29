@@ -2614,7 +2614,7 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
             nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"craft_nav_{page + 1}"))
         
         keyboard.append(nav_buttons)
-        keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data="craft_cancel")])
+        keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="forest_back")])
         
         # ⭐ ОТПРАВЛЯЕМ СООБЩЕНИЕ ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
