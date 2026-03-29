@@ -2895,10 +2895,21 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await craft_nav_callback(update, context)
             return
         
+        if query.data in ["craft_back", "craft_cancel"] or not query.data.split("_")[1].isdigit():
+            await craft_nav_callback(update, context)
+            return
+        
         # ⭐ ВЫБОР КАРТЫ ДЛЯ КРАФТА ⭐
         if query.data.startswith("craft_"):
             user_id = str(query.from_user.id)
-            card_id = int(query.data.split("_")[1])
+            # ⭐ ИСПРАВЛЕНИЕ: проверяем что это число ⭐
+            try:
+                card_id = int(query.data.split("_")[1])
+            except ValueError:
+                logger.error(f"Неверный ID карты в callback: {query.data}")
+                await query.answer("❌ Ошибка при выборе карты", show_alert=True)
+                return
+            
             data = load_data()
             await process_craft(update, context, user_id, card_id, data, query)
         
