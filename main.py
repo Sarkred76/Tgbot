@@ -2698,6 +2698,11 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
                 parse_mode="Markdown"
             )
 
+
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id if hasattr(update, 'effective_chat') else update.callback_query.message.chat_id,
+            reply_markup=forest_reply_markup
+        )
     except Exception as e:
         logger.error(f"Ошибка show_craft_page: {e}")
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -2962,6 +2967,10 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 [KeyboardButton("🔙 Назад в Лес")],
             ]
             forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                reply_markup=forest_reply_markup
+            )
             
     except Exception as e:
         logger.error(f"Ошибка callback крафта: {e}")
