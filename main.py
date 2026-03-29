@@ -8,7 +8,7 @@ import threading
 
 import os
 
-import randomА
+import random
 
 
 import time
