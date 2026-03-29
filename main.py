@@ -2589,14 +2589,18 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int) -> None:
     """Показывает страницу списка карт для крафта."""
     try:
+        
+        keyboard = []
+        inline_keyboard = []
+        
+        user_id = str(update.effective_user.id)
+        data = load_data()
+
         # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД В ЛЕС ⭐
         forest_keyboard = [
             [KeyboardButton("🔙 Назад в Лес")],
         ]
         forest_reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        
-        user_id = str(update.effective_user.id)
-        data = load_data()
         
         if user_id not in context.user_data:
             if hasattr(update, 'callback_query') and update.callback_query:
