@@ -61,7 +61,9 @@ ANIMATED_FORMATS = (".mp4", ".gif", ".webm")
 
 
 AUTO_ANIMATED_RARITIES = ["Animated!"]
+
 FOREST_IMAGE_URL = "https://files.catbox.moe/1p3gd9.jpg"
+FORT_IMAGE_URL = "https://files.catbox.moe/jfvt8d.jpg"
 
 # Бонусы по редкостям
 
@@ -1592,7 +1594,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await forest_menu(update, context)
             return
 
-        elif text == "🔨 Крафт":
+        elif text == "🏰 Форт на холме":
             await craft(update, context)
             return
 
@@ -2501,12 +2503,15 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
         
         if not user_data or not user_data.get("cards"):
+            # ⭐ ОТПРАВЛЯЕМ С ИЗОБРАЖЕНИЕМ ⭐
             if hasattr(update, 'callback_query') and update.callback_query:
-                await update.callback_query.edit_message_text("❌ У вас нет существ для крафта!")
+                await update.callback_query.edit_message_text("❌ У вас нет существ для улучшения!")
             else:
-                await update.message.reply_text(
-                    "❌ У вас нет существ для крафта!",
-                    reply_markup=forest_reply_markup
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=FORT_IMAGE_URL,  # ← Изображение Форта
+                    caption="❌ У вас нет существ для улучшения!",
+                    reply_markup=reply_markup
                 )
             return
         
@@ -2521,22 +2526,26 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not craftable_cards:
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.edit_message_text(
-                    "❌ Нет существ для крафта!\n"
-                    "📋 Для крафта нужно 2 одинаковых существа."
+                    "❌ Нет существ для улучшения!\n"
+                    "📋 Для улучшения нужно 2 одинаковых существа."
                 )
             else:
-                await update.message.reply_text(
-                    "❌ Нет существ для крафта!\n"
-                    "📋 Для крафта нужно 2 одинаковых существа.\n"
-                    "🔹 2x T1 → UpgradeT1\n"
-                    "🔹 2x T2 → UpgradeT2\n"
-                    "🔹 2x T3 → UpgradeT3\n"
-                    "🔹 2x T4 → UpgradeT4\n"
-                    "🔹 2x T5 → UpgradeT5\n"
-                    "🔹 2x T6 → UpgradeT6\n"
-                    "🔹 2x T7 → UpgradeT7\n"
-                    "Собирайте дубликаты и попробуйте снова!",
-                    reply_markup=forest_reply_markup
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=FORT_IMAGE_URL,  # ← Изображение Форта
+                    caption=(
+                        "❌ Нет существ для улучшения!\n"
+                        "📋 Для улучшения нужно 2 одинаковых существа.\n"
+                        "🔹 2x T1 → UpgradeT1\n"
+                        "🔹 2x T2 → UpgradeT2\n"
+                        "🔹 2x T3 → UpgradeT3\n"
+                        "🔹 2x T4 → UpgradeT4\n"
+                        "🔹 2x T5 → UpgradeT5\n"
+                        "🔹 2x T6 → UpgradeT6\n"
+                        "🔹 2x T7 → UpgradeT7\n"
+                        "Собирайте дубликаты и попробуйте снова!"
+                    ),
+                    reply_markup=reply_markup
                 )
             return
         
@@ -2553,11 +2562,13 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         if not craftable_by_rarity:
             if hasattr(update, 'callback_query') and update.callback_query:
-                await update.callback_query.edit_message_text("❌ Для крафта подходят только существа редкости T1-T7!")
+                await update.callback_query.edit_message_text("❌ Для улучшения подходят только существа редкости T1-T7!")
             else:
-                await update.message.reply_text(
-                    "❌ Для крафта подходят только существа редкости T1-T7!",
-                    reply_markup=forest_reply_markup
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=FORT_IMAGE_URL,  # ← Изображение Форта
+                    caption="❌ Для улучшения подходят только существа редкости T1-T7!",
+                    reply_markup=reply_markup
                 )
             return
         
@@ -2571,8 +2582,6 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # ⭐ ОТПРАВЛЯЕМ КЛАВИАТУРУ С КНОПКОЙ "НАЗАД В ЛЕС" ⭐
         await update.message.reply_text(
-            "🌲 **Добро пожаловать в Лес!**\n"
-            "Выберите существо для крафта:",
             reply_markup=forest_reply_markup,
             parse_mode="Markdown"
         )
@@ -2585,7 +2594,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if hasattr(update, 'callback_query') and update.callback_query:
             await update.callback_query.answer("❌ Произошла ошибка", show_alert=True)
         else:
-            await update.message.reply_text("❌ Произошла ошибка при крафте")
+            await update.message.reply_text("❌ Произошла ошибка при улучшении")
 
 
 async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int) -> None:
@@ -2602,10 +2611,10 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         
         if user_id not in context.user_data:
             if hasattr(update, 'callback_query') and update.callback_query:
-                await update.callback_query.edit_message_text("❌ Сессия крафта истекла!")
+                await update.callback_query.edit_message_text("❌ Сессия улучшения истекла!")
             else:
                 await update.message.reply_text(
-                    "❌ Сессия крафта истекла!",
+                    "❌ Сессия улучшения истекла!",
                     reply_markup=forest_reply_markup
                 )
             return
@@ -2616,10 +2625,10 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         
         if not craftable_cards:
             if hasattr(update, 'callback_query') and update.callback_query:
-                await update.callback_query.edit_message_text("❌ Нет существ для крафта!")
+                await update.callback_query.edit_message_text("❌ Нет существ для улучшения!")
             else:
                 await update.message.reply_text(
-                    "❌ Нет существ для крафта!",
+                    "❌ Нет существ для улучшения!",
                     reply_markup=forest_reply_markup
                 )
             return
@@ -2666,10 +2675,10 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
             inline_keyboard.append(nav_buttons)
         
         caption = (
-            "🔨 **Выберите существо для крафта:**\n"
+            "🔨 **Выберите существо для улучшения:**\n"
             "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n"
             f"📄 Страница {page + 1}/{total_pages}\n"
-            f"🐦‍🔥 Доступно для крафта: {total_cards}"
+            f"🐦‍🔥 Доступно для улучшения: {total_cards}"
         )
         
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -2739,7 +2748,7 @@ async def craft_nav_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
             
             await query.edit_message_text(
-                "❌ Крафт отменён",
+                "❌ Улучшение отменено",
                 reply_markup=forest_reply_markup
             )
             
@@ -2769,11 +2778,11 @@ async def process_craft(
 
             if query:
 
-                await query.edit_message_text("❌ Недостаточно существ для крафта!")
+                await query.edit_message_text("❌ Недостаточно существ для улучшения!")
 
             else:
 
-                await update.message.reply_text("❌ Недостаточно существ для крафта!")
+                await update.message.reply_text("❌ Недостаточно существ для улучшения!")
 
             return
 
@@ -2812,13 +2821,13 @@ async def process_craft(
             if query:
 
                 await query.edit_message_text(
-                    f"❌ Существ редкости {source_rarity} нельзя скрафтить!"
+                    f"❌ Существ редкости {source_rarity} нельзя улучшить!"
                 )
 
             else:
 
                 await update.message.reply_text(
-                    f"❌ Существ редкости {source_rarity} нельзя скрафтить!"
+                    f"❌ Существ редкости {source_rarity} нельзя улучшить!"
                 )
 
             return
@@ -2892,7 +2901,7 @@ async def process_craft(
         # Отправляем результат
 
         result_text = (
-            f"✅ Крафт успешен!\n\n"
+            f"✅ Улучшение прошло успешно!\n\n"
             f"🔨 Использовано: 2x {card['title']} ({card['rarity']})\n"
             f"🎁 Получено: {new_card['title']}\n"
             f"💰 +{bonus['cents']} золота\n"
@@ -2935,7 +2944,7 @@ async def process_craft(
 
         else:
 
-            await update.message.reply_text("❌ Произошла ошибка при крафте")
+            await update.message.reply_text("❌ Произошла ошибка при улучшении")
 
 
 async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -5802,7 +5811,7 @@ async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         # ⭐ КЛАВИАТУРА С КНОПКАМИ МЕНЮ ⭐
         keyboard = [
-            [KeyboardButton("🔨 Крафт")],
+            [KeyboardButton("🏰 Форт на холме")],
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -5842,7 +5851,7 @@ async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 "🌲 **Лес**\n\n"
                 "Добро пожаловать в Лес!\n\n"
                 "Здесь вы можете:\n"
-                "• 🔨 Скрафтить новое существо из 2 дубликатов\n\n"
+                "• 🔨 Получить случайное улучшенное существо из 2 дубликатов\n\n"
                 "Выберите действие:",
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
