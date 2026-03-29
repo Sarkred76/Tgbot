@@ -62,8 +62,8 @@ ANIMATED_FORMATS = (".mp4", ".gif", ".webm")
 
 AUTO_ANIMATED_RARITIES = ["Animated!"]
 
-FOREST_IMAGE_URL = "https://files.catbox.moe/1p3gd9.jpg"
 FORT_IMAGE_URL = "https://files.catbox.moe/jfvt8d.jpg"
+FOREST_IMAGE_URL = "https://files.catbox.moe/1p3gd9.jpg"
 
 # Бонусы по редкостям
 
@@ -2503,14 +2503,11 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
         
         if not user_data or not user_data.get("cards"):
-            # ⭐ ОТПРАВЛЯЕМ С ИЗОБРАЖЕНИЕМ ⭐
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.edit_message_text("❌ У вас нет существ для улучшения!")
             else:
-                await context.bot.send_photo(
-                    chat_id=update.effective_chat.id,
-                    photo=FORT_IMAGE_URL,  # ← Изображение Форта
-                    caption="❌ У вас нет существ для улучшения!",
+                await update.message.reply_text(
+                    "❌ У вас нет существ для улучшения!",
                     reply_markup=forest_reply_markup
                 )
             return
@@ -2530,21 +2527,17 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     "📋 Для улучшения нужно 2 одинаковых существа."
                 )
             else:
-                await context.bot.send_photo(
-                    chat_id=update.effective_chat.id,
-                    photo=FORT_IMAGE_URL,  # ← Изображение Форта
-                    caption=(
-                        "❌ Нет существ для улучшения!\n"
-                        "📋 Для улучшения нужно 2 одинаковых существа.\n"
-                        "🔹 2x T1 → UpgradeT1\n"
-                        "🔹 2x T2 → UpgradeT2\n"
-                        "🔹 2x T3 → UpgradeT3\n"
-                        "🔹 2x T4 → UpgradeT4\n"
-                        "🔹 2x T5 → UpgradeT5\n"
-                        "🔹 2x T6 → UpgradeT6\n"
-                        "🔹 2x T7 → UpgradeT7\n"
-                        "Собирайте дубликаты и попробуйте снова!"
-                    ),
+                await update.message.reply_text(
+                    "❌ Нет существ для улучшения!\n"
+                    "📋 Для улучшения нужно 2 одинаковых существа.\n"
+                    "🔹 2x T1 → UpgradeT1\n"
+                    "🔹 2x T2 → UpgradeT2\n"
+                    "🔹 2x T3 → UpgradeT3\n"
+                    "🔹 2x T4 → UpgradeT4\n"
+                    "🔹 2x T5 → UpgradeT5\n"
+                    "🔹 2x T6 → UpgradeT6\n"
+                    "🔹 2x T7 → UpgradeT7\n"
+                    "Собирайте дубликаты и попробуйте снова!",
                     reply_markup=forest_reply_markup
                 )
             return
@@ -2564,10 +2557,8 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.edit_message_text("❌ Для улучшения подходят только существа редкости T1-T7!")
             else:
-                await context.bot.send_photo(
-                    chat_id=update.effective_chat.id,
-                    photo=FORT_IMAGE_URL,  # ← Изображение Форта
-                    caption="❌ Для улучшения подходят только существа редкости T1-T7!",
+                await update.message.reply_text(
+                    "❌ Для улучшения подходят только существа редкости T1-T7!",
                     reply_markup=forest_reply_markup
                 )
             return
@@ -2579,6 +2570,14 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "craft_page": 0,
             "craft_cards_per_page": 5,
         }
+        
+        # ⭐ ОТПРАВЛЯЕМ КЛАВИАТУРУ С КНОПКОЙ "НАЗАД В ЛЕС" ⭐
+        await update.message.reply_text(
+            "🌲 **Добро пожаловать в Лес!**\n"
+            "Выберите существо для улучшения:",
+            reply_markup=forest_reply_markup,
+            parse_mode="Markdown"
+        )
         
         # ⭐ ПОКАЗЫВАЕМ ПЕРВУЮ СТРАНИЦУ ⭐
         await show_craft_page(update, context, 0)
@@ -5845,7 +5844,7 @@ async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 "🌲 **Лес**\n\n"
                 "Добро пожаловать в Лес!\n\n"
                 "Здесь вы можете:\n"
-                "• 🔨 Получить случайное улучшенное существо из 2 дубликатов\n\n"
+                "• 🔨 Получить улучшенное существо из 2 дубликатов\n\n"
                 "Выберите действие:",
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
