@@ -1552,6 +1552,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         user_id = str(update.effective_user.id)
         data = load_data()
         text = update.message.text
+
+        # ⭐ КНОПКА "🔙 НАЗАД В ЛЕС" ⭐
+        if text == "🔙 Назад в Лес":
+            await forest_menu(update, context)
+            return
         
         # ⭐ ПРОВЕРКА: если пользователь в шаге выбора партнёра для трейда ⭐
         if user_id in context.user_data:
@@ -1581,11 +1586,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
-            return
-        
-        # ⭐ КНОПКА "🔙 НАЗАД В ЛЕС" ⭐
-        elif text == "🔙 Назад в Лес":
-            await forest_menu(update, context)
             return
         
         # ⭐ КНОПКА "🌲 ЛЕС" ⭐
@@ -2497,10 +2497,10 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         if not user_data or not user_data.get("cards"):
             # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД В ЛЕС ⭐
-            keyboard = [
+            forest_keyboard = [
                 [KeyboardButton("🔙 Назад в Лес")],
             ]
-            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
             
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.edit_message_text("❌ У вас нет существ для крафта!")
@@ -2519,13 +2519,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             card_id: count for card_id, count in card_counts.items() if count >= 2
         }
         
-        if not craftable_cards:
-            # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД В ЛЕС ⭐
-            keyboard = [
-                [KeyboardButton("🔙 Назад в Лес")],
-            ]
-            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-            
+        if not craftable_cards:   
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.edit_message_text(
                     "❌ Нет существ для крафта!\n"
@@ -2596,10 +2590,10 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
     """Показывает страницу списка карт для крафта."""
     try:
         # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД В ЛЕС ⭐
-        keyboard = [
+        forest_keyboard = [
             [KeyboardButton("🔙 Назад в Лес")],
         ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        forest_reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
         user_id = str(update.effective_user.id)
         data = load_data()
@@ -2665,8 +2659,9 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         nav_buttons.append(InlineKeyboardButton(f"{page + 1}/{total_pages}", callback_data="craft_page_info"))
         if page < total_pages - 1:
             nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"craft_nav_{page + 1}"))
-        
-        inline_keyboard.append(nav_buttons)
+
+        if nav_buttons:
+            inline_keyboard.append(nav_buttons)
         
         caption = (
             "🔨 **Выберите существо для крафта:**\n\n"
@@ -2698,7 +2693,13 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
                 reply_markup=InlineKeyboardMarkup(inline_keyboard),
                 parse_mode="Markdown"
             )
-            
+
+
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id if hasattr(update, 'effective_chat') else update.callback_query.message.chat_id,
+            text="Выберите существо для крафта или вернитесь в Лес:",
+            reply_markup=forest_reply_markup
+        )
     except Exception as e:
         logger.error(f"Ошибка show_craft_page: {e}")
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -2734,7 +2735,15 @@ async def craft_nav_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             user_id = str(query.from_user.id)
             if user_id in context.user_data:
                 del context.user_data[user_id]
-            await query.edit_message_text("❌ Крафт отменён")
+            # ⭐ ВОЗВРАЩАЕМ КЛАВИАТУРУ ЛЕСА ⭐
+            forest_keyboard = [
+                [KeyboardButton("🔙 Назад в Лес")],
+            ]
+            forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
+            await query.edit_message_text(
+                "❌ Крафт отменён",
+                reply_markup=forest_reply_markup
+            )
             
     except Exception as e:
         logger.error(f"Ошибка craft_nav_callback: {e}")
@@ -2932,7 +2941,7 @@ async def process_craft(
             await update.message.reply_text("❌ Произошла ошибка при крафте")
 
 
-async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+aasync def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопок крафта."""
     try:
         query = update.callback_query
@@ -2950,15 +2959,15 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             data = load_data()
             await process_craft(update, context, user_id, card_id, data, query)
             
-            # ⭐ ПОСЛЕ КРАФТА ВОЗВРАЩАЕМ КНОПКУ "НАЗАД" ⭐
-            keyboard = [
+            # ⭐ ПОСЛЕ КРАФТА ВОЗВРАЩАЕМ КНОПКУ "НАЗАД В ЛЕС" ⭐
+            forest_keyboard = [
                 [KeyboardButton("🔙 Назад в Лес")],
             ]
-            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text="Выберите действие:",
-                reply_markup=reply_markup
+                reply_markup=forest_reply_markup
             )
             
     except Exception as e:
