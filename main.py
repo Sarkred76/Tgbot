@@ -2494,7 +2494,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         data = load_data()
         user_data = data["users"].get(user_id)
         
-        # ⭐ СОЗДАЁМ КЛАВИАТУРУ СРАЗУ ⭐
+        # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД В ЛЕС ⭐
         forest_keyboard = [
             [KeyboardButton("🔙 Назад в Лес")],
         ]
@@ -2506,7 +2506,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             else:
                 await update.message.reply_text(
                     "❌ У вас нет существ для крафта!",
-                    reply_markup=forest_reply_markup  # ← Используем forest_reply_markup
+                    reply_markup=forest_reply_markup
                 )
             return
         
@@ -2536,7 +2536,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     "🔹 2x T6 → UpgradeT6\n"
                     "🔹 2x T7 → UpgradeT7\n"
                     "Собирайте дубликаты и попробуйте снова!",
-                    reply_markup=forest_reply_markup  # ← Используем forest_reply_markup
+                    reply_markup=forest_reply_markup
                 )
             return
         
@@ -2557,7 +2557,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             else:
                 await update.message.reply_text(
                     "❌ Для крафта подходят только существа редкости T1-T7!",
-                    reply_markup=forest_reply_markup  # ← Используем forest_reply_markup
+                    reply_markup=forest_reply_markup
                 )
             return
         
@@ -2568,6 +2568,14 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "craft_page": 0,
             "craft_cards_per_page": 5,
         }
+        
+        # ⭐ ОТПРАВЛЯЕМ КЛАВИАТУРУ С КНОПКОЙ "НАЗАД В ЛЕС" ⭐
+        await update.message.reply_text(
+            "🌲 **Добро пожаловать в Лес!**\n"
+            "Выберите существо для крафта:",
+            reply_markup=forest_reply_markup,
+            parse_mode="Markdown"
+        )
         
         # ⭐ ПОКАЗЫВАЕМ ПЕРВУЮ СТРАНИЦУ ⭐
         await show_craft_page(update, context, 0)
@@ -2583,14 +2591,14 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int) -> None:
     """Показывает страницу списка карт для крафта."""
     try:
-        # ⭐ СОЗДАЁМ КЛАВИАТУРУ СРАЗУ ⭐
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД В ЛЕС ⭐
         forest_keyboard = [
             [KeyboardButton("🔙 Назад в Лес")],
         ]
         forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
-        
-        user_id = str(update.effective_user.id)
-        data = load_data()
         
         if user_id not in context.user_data:
             if hasattr(update, 'callback_query') and update.callback_query:
@@ -2598,7 +2606,7 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
             else:
                 await update.message.reply_text(
                     "❌ Сессия крафта истекла!",
-                    reply_markup=forest_reply_markup  # ← Используем forest_reply_markup
+                    reply_markup=forest_reply_markup
                 )
             return
         
@@ -2612,7 +2620,7 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
             else:
                 await update.message.reply_text(
                     "❌ Нет существ для крафта!",
-                    reply_markup=forest_reply_markup  # ← Используем forest_reply_markup
+                    reply_markup=forest_reply_markup
                 )
             return
         
@@ -2723,11 +2731,13 @@ async def craft_nav_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             user_id = str(query.from_user.id)
             if user_id in context.user_data:
                 del context.user_data[user_id]
+            
             # ⭐ ВОЗВРАЩАЕМ КЛАВИАТУРУ ЛЕСА ⭐
             forest_keyboard = [
                 [KeyboardButton("🔙 Назад в Лес")],
             ]
             forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
+            
             await query.edit_message_text(
                 "❌ Крафт отменён",
                 reply_markup=forest_reply_markup
@@ -2736,7 +2746,6 @@ async def craft_nav_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except Exception as e:
         logger.error(f"Ошибка craft_nav_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
 
 async def process_craft(
     update: Update,
@@ -2955,13 +2964,13 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text="Выберите действие:",
-                reply_markup=forest_reply_markup  # ← Используем forest_reply_markup
+                reply_markup=forest_reply_markup
             )
             
     except Exception as e:
         logger.error(f"Ошибка callback крафта: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
+        
 async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Бросок кубика для получения бесплатных попыток."""
 
