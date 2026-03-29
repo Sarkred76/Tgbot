@@ -389,7 +389,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 KeyboardButton("🛡 Казарма"),
                 KeyboardButton("👑 Мой герой"),
             ],  # ← Добавлена кнопка
-            [KeyboardButton("🔨 Крафт"), KeyboardButton("🍺 Таверна")],
+            [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
             [KeyboardButton("🏆 Топ героев")],
             [KeyboardButton("🔄 Трейд")],  # ← ДОБАВЬТЕ
         ]
@@ -1733,9 +1733,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
             await my_profile(update, context)
 
-        elif text == "🔨 Крафт":
-
-            await craft(update, context)
+        elif text == "🌲 Лес":
+            await forest_menu(update, context)
 
         elif text == "🛡 Казарма":
 
@@ -5723,9 +5722,68 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
              pass # Игнорируем ошибку при отправке сообщения об ошибке
 
 
+async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает меню Леса."""
+    try:
+        keyboard = [
+            [InlineKeyboardButton("🔨 Крафт", callback_data="forest_craft")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="forest_back")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # ⭐ ПРОВЕРКА: callback или сообщение ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            await query.edit_message_text(
+                "🌲 **Лес**\n\n"
+                "Выберите действие:",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        else:
+            await update.message.reply_text(
+                "🌲 **Лес**\n\n"
+                "Выберите действие:",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        logger.error(f"Ошибка в forest_menu: {e}")
 
-
-
+async def forest_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок меню Леса."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        if query.data == "forest_craft":
+            # Переход в крафт
+            await craft(update, context)
+        elif query.data == "forest_back":
+            # Возврат в главное меню
+            try:
+                await query.message.delete()
+            except:
+                pass
+            keyboard = [
+                [KeyboardButton("⚔️ Нанять существо")],
+                [KeyboardButton("🎲 Бросить кубик")],
+                [
+                    KeyboardButton("🛡 Казарма"),
+                    KeyboardButton("👑 Мой герой"),
+                ],
+                [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
+                [KeyboardButton("🏆 Топ героев")],
+                [KeyboardButton("🔄 Трейд")],
+            ]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="Добро пожаловать! Используйте кнопки ниже:",
+                reply_markup=reply_markup
+            )
+    except Exception as e:
+        logger.error(f"Ошибка в forest_callback: {e}")
 
 
 # ===== ЗАПУСК БОТА =====
@@ -5795,6 +5853,7 @@ def main() -> None:
             CallbackQueryHandler(trade_final_callback, pattern=r"^trade_final_(confirm|decline)_.*"),
             CallbackQueryHandler(trade_callback, pattern=r"^trade_.*"),
             CallbackQueryHandler(profile_callback, pattern=r"^(achievements_menu|profile_back|achievement_.*)"),
+            CallbackQueryHandler(forest_callback, pattern=r"^forest_.*"),
      
         ]
 
