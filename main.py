@@ -2670,13 +2670,9 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         if page < total_pages - 1:
             nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"craft_nav_{page + 1}"))
         
-        inline_keyboard.append(nav_buttons)
-        
-        # ⭐ ОТПРАВЛЯЕМ СООБЩЕНИЕ С REPLY KEYBOARD ДЛЯ НАЗАД ⭐
-        reply_keyboard = [
-            [KeyboardButton("🔙 Назад в Лес")],
-        ]
-        reply_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
+        keyboard.append(nav_buttons)
+        # ⭐ ИЗМЕНИЛИ: "Назад в Лес" вместо "Отмена" ⭐
+        keyboard.append([InlineKeyboardButton("🔙 Назад в Лес", callback_data="craft_back_to_forest")])
         
         caption = (
             "🔨 **Выберите существо для крафта:**\n\n"
@@ -2721,30 +2717,31 @@ async def craft_nav_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         query = update.callback_query
         await query.answer()
-
-        if query.data == "craft_back":
-            # Очищаем данные крафта
+        
+        # ⭐ НОВАЯ КНОПКА: НАЗАД В ЛЕС ⭐
+        if query.data == "craft_back_to_forest":
             user_id = str(query.from_user.id)
             if user_id in context.user_data:
                 del context.user_data[user_id]
-            
-            # Показываем меню Леса
+            try:
+                await query.message.delete()
+            except:
+                pass
+            # Возвращаем в меню Леса
             await forest_menu(update, context)
             return
         
         if query.data.startswith("craft_nav_"):
             page = int(query.data.split("_")[-1])
             await show_craft_page(update, context, page)
-        
         elif query.data == "craft_page_info":
             await query.answer("📄 Используйте ◀️ и ▶️ для навигации", show_alert=False)
-        
         elif query.data == "craft_cancel":
             user_id = str(query.from_user.id)
             if user_id in context.user_data:
                 del context.user_data[user_id]
             await query.edit_message_text("❌ Крафт отменён")
-        
+            
     except Exception as e:
         logger.error(f"Ошибка craft_nav_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
@@ -5801,21 +5798,21 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает меню Леса с кнопками."""
+    """Показывает меню Леса."""
     try:
-        # ⭐ КЛАВИАТУРА ЛЕСА ⭐
-        keyboard = [
-            [KeyboardButton("🔨 Крафт")],
-            [KeyboardButton("🔙 Назад в меню")],
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        
+        # ⭐ ПРОВЕРКА: callback или сообщение ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
             query = update.callback_query
             try:
                 await query.message.delete()
             except:
                 pass
+            
+            keyboard = [
+                [InlineKeyboardButton("🔨 Крафт", callback_data="forest_craft")],
+                [InlineKeyboardButton("🔙 Назад в меню", callback_data="forest_back")],
+            ]
+            
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=(
@@ -5825,17 +5822,22 @@ async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                     "• 🔨 Скрафтить новое существо из 2 дубликатов\n\n"
                     "Выберите действие:"
                 ),
-                reply_markup=reply_markup,
+                reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
         else:
+            keyboard = [
+                [InlineKeyboardButton("🔨 Крафт", callback_data="forest_craft")],
+                [InlineKeyboardButton("🔙 Назад в меню", callback_data="forest_back")],
+            ]
+            
             await update.message.reply_text(
                 "🌲 **Лес**\n\n"
                 "Добро пожаловать в Лес!\n\n"
                 "Здесь вы можете:\n"
                 "• 🔨 Скрафтить новое существо из 2 дубликатов\n\n"
                 "Выберите действие:",
-                reply_markup=reply_markup,
+                reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
     except Exception as e:
@@ -5863,7 +5865,8 @@ async def forest_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     KeyboardButton("🛡 Казарма"),
                     KeyboardButton("👑 Мой герой"),
                 ],
-                [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
+                [KeyboardButton("🌲 Лес")],
+                [KeyboardButton("🍺 Таверна")],
                 [KeyboardButton("🏆 Топ героев")],
                 [KeyboardButton("🔄 Трейд")],
             ]
@@ -5873,8 +5876,10 @@ async def forest_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 text="Добро пожаловать! Используйте кнопки ниже:",
                 reply_markup=reply_markup
             )
+        
     except Exception as e:
         logger.error(f"Ошибка в forest_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
 
 
 # ===== ЗАПУСК БОТА =====
