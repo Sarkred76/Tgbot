@@ -2941,7 +2941,7 @@ async def process_craft(
             await update.message.reply_text("❌ Произошла ошибка при крафте")
 
 
-aasync def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопок крафта."""
     try:
         query = update.callback_query
