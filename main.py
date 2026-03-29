@@ -2595,6 +2595,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int) -> None:
     """Показывает страницу списка карт для крафта."""
     try:
+        keyboard = []
         user_id = str(update.effective_user.id)
         data = load_data()
         
@@ -2653,9 +2654,9 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         page_cards = cards_list[start_index:end_index]
         
         # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ ДЛЯ ВЫБОРА КАРТ ⭐
-        inline_keyboard = []
+        keyboard = []  # ← Теперь безопасно, так как уже инициализирована выше
         for card_id, info in page_cards:
-            inline_keyboard.append([
+            keyboard.append([
                 InlineKeyboardButton(
                     f"{info['title']} ({info['count']} шт.) → Upgrade{info['rarity']}",
                     callback_data=f"craft_{card_id}"
