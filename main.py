@@ -1552,11 +1552,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         user_id = str(update.effective_user.id)
         data = load_data()
         text = update.message.text
-
-        # ⭐ КНОПКА "🔙 НАЗАД В ЛЕС" ⭐
-        if text == "🔙 Назад в Лес":
-            await forest_menu(update, context)
-            return
         
         # ⭐ ПРОВЕРКА: если пользователь в шаге выбора партнёра для трейда ⭐
         if user_id in context.user_data:
@@ -1590,6 +1585,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         # ⭐ КНОПКА "🌲 ЛЕС" ⭐
         elif text == "🌲 Лес":
+            await forest_menu(update, context)
+            return
+
+        elif text == "🔙 Назад в Лес":
             await forest_menu(update, context)
             return
 
@@ -2494,14 +2493,20 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         user_id = str(update.effective_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
+
+        forest_keyboard = [
+            [KeyboardButton("🔙 Назад в Лес")],
+        ]
+        forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
+
+        await update.message.reply_text(
+            "Добро пожаловать в 🌲 Лес!\n\n"
+            "Выберите действие:",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
         
         if not user_data or not user_data.get("cards"):
-            # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД В ЛЕС ⭐
-            forest_keyboard = [
-                [KeyboardButton("🔙 Назад в Лес")],
-            ]
-            forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
-            
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.edit_message_text("❌ У вас нет существ для крафта!")
             else:
