@@ -2496,7 +2496,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         user_data = data["users"].get(user_id)
         
         if not user_data or not user_data.get("cards"):
-            # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД ⭐
+            # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД В ЛЕС ⭐
             keyboard = [
                 [KeyboardButton("🔙 Назад в Лес")],
             ]
@@ -2520,7 +2520,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         }
         
         if not craftable_cards:
-            # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД ⭐
+            # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД В ЛЕС ⭐
             keyboard = [
                 [KeyboardButton("🔙 Назад в Лес")],
             ]
@@ -2595,16 +2595,16 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int) -> None:
     """Показывает страницу списка карт для крафта."""
     try:
-        keyboard = []
+        # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД В ЛЕС ⭐
+        keyboard = [
+            [KeyboardButton("🔙 Назад в Лес")],
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
         user_id = str(update.effective_user.id)
         data = load_data()
         
         if user_id not in context.user_data:
-            keyboard = [
-                [KeyboardButton("🔙 Назад в Лес")],
-            ]
-            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-            
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.edit_message_text("❌ Сессия крафта истекла!")
             else:
@@ -2619,11 +2619,6 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         cards_per_page = craft_info.get("craft_cards_per_page", 5)
         
         if not craftable_cards:
-            keyboard = [
-                [KeyboardButton("🔙 Назад в Лес")],
-            ]
-            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-            
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.edit_message_text("❌ Нет существ для крафта!")
             else:
@@ -2671,9 +2666,7 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         if page < total_pages - 1:
             nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"craft_nav_{page + 1}"))
         
-        keyboard.append(nav_buttons)
-        # ⭐ ИЗМЕНИЛИ: "Назад в Лес" вместо "Отмена" ⭐
-        keyboard.append([InlineKeyboardButton("🔙 Назад в Лес", callback_data="craft_back_to_forest")])
+        inline_keyboard.append(nav_buttons)
         
         caption = (
             "🔨 **Выберите существо для крафта:**\n\n"
@@ -2705,7 +2698,7 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
                 reply_markup=InlineKeyboardMarkup(inline_keyboard),
                 parse_mode="Markdown"
             )
-        
+            
     except Exception as e:
         logger.error(f"Ошибка show_craft_page: {e}")
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -5799,8 +5792,15 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает меню Леса."""
+    """Показывает меню Леса с обычными кнопками."""
     try:
+        # ⭐ КЛАВИАТУРА С КНОПКАМИ МЕНЮ ⭐
+        keyboard = [
+            [KeyboardButton("🔨 Крафт")],
+            [KeyboardButton("🔙 Назад в меню")],
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
             query = update.callback_query
@@ -5808,12 +5808,6 @@ async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 await query.message.delete()
             except:
                 pass
-            
-            keyboard = [
-                [InlineKeyboardButton("🔨 Крафт", callback_data="forest_craft")],
-                [InlineKeyboardButton("🔙 Назад в меню", callback_data="forest_back")],
-            ]
-            
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=(
@@ -5823,22 +5817,17 @@ async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                     "• 🔨 Скрафтить новое существо из 2 дубликатов\n\n"
                     "Выберите действие:"
                 ),
-                reply_markup=InlineKeyboardMarkup(keyboard),
+                reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
         else:
-            keyboard = [
-                [InlineKeyboardButton("🔨 Крафт", callback_data="forest_craft")],
-                [InlineKeyboardButton("🔙 Назад в меню", callback_data="forest_back")],
-            ]
-            
             await update.message.reply_text(
                 "🌲 **Лес**\n\n"
                 "Добро пожаловать в Лес!\n\n"
                 "Здесь вы можете:\n"
                 "• 🔨 Скрафтить новое существо из 2 дубликатов\n\n"
                 "Выберите действие:",
-                reply_markup=InlineKeyboardMarkup(keyboard),
+                reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
     except Exception as e:
@@ -5950,7 +5939,6 @@ def main() -> None:
             CallbackQueryHandler(trade_final_callback, pattern=r"^trade_final_(confirm|decline)_.*"),
             CallbackQueryHandler(trade_callback, pattern=r"^trade_.*"),
             CallbackQueryHandler(profile_callback, pattern=r"^(achievements_menu|profile_back|achievement_.*)"),
-            CallbackQueryHandler(forest_callback, pattern=r"^forest_.*"),
      
         ]
 
