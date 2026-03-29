@@ -2580,12 +2580,6 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "craft_cards_per_page": 5,
         }
         
-        # ⭐ ОТПРАВЛЯЕМ КЛАВИАТУРУ С КНОПКОЙ "НАЗАД В ЛЕС" ⭐
-        await update.message.reply_text(
-            reply_markup=forest_reply_markup,
-            parse_mode="Markdown"
-        )
-        
         # ⭐ ПОКАЗЫВАЕМ ПЕРВУЮ СТРАНИЦУ ⭐
         await show_craft_page(update, context, 0)
         
