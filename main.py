@@ -2654,9 +2654,9 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         page_cards = cards_list[start_index:end_index]
         
         # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ ДЛЯ ВЫБОРА КАРТ ⭐
-        keyboard = []  # ← Теперь безопасно, так как уже инициализирована выше
+        inline_keyboard = []
         for card_id, info in page_cards:
-            keyboard.append([
+            inline_keyboard.append([
                 InlineKeyboardButton(
                     f"{info['title']} ({info['count']} шт.) → Upgrade{info['rarity']}",
                     callback_data=f"craft_{card_id}"
