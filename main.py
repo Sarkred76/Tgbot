@@ -2614,7 +2614,7 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
             nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"craft_nav_{page + 1}"))
         
         keyboard.append(nav_buttons)
-        keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="forest_back")])
+        keyboard.append([InlineKeyboardButton("🔙 Назад в Лес", callback_data="craft_back")])
         
         # ⭐ ОТПРАВЛЯЕМ СООБЩЕНИЕ ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -2664,6 +2664,16 @@ async def craft_nav_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         query = update.callback_query
         await query.answer()
+
+        if query.data == "craft_back":
+            # Очищаем данные крафта
+            user_id = str(query.from_user.id)
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            
+            # Показываем меню Леса
+            await forest_menu(update, context)
+            return
         
         if query.data.startswith("craft_nav_"):
             page = int(query.data.split("_")[-1])
