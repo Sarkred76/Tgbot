@@ -2606,6 +2606,13 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
             [KeyboardButton("🔙 Назад в Лес")],
         ]
         forest_reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+        await update.message.reply_text(
+            "Добро пожаловать в Лес!\n\n"
+            "Выберите действие:",
+            reply_markup=forest_reply_markup,
+            parse_mode="Markdown"
+        )
         
         if user_id not in context.user_data:
             if hasattr(update, 'callback_query') and update.callback_query:
