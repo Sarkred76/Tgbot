@@ -8,7 +8,7 @@ import threading
 
 import os
 
-import random
+import randomА
 
 
 import time
@@ -2511,7 +2511,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     chat_id=update.effective_chat.id,
                     photo=FORT_IMAGE_URL,  # ← Изображение Форта
                     caption="❌ У вас нет существ для улучшения!",
-                    reply_markup=reply_markup
+                    reply_markup=forest_reply_markup
                 )
             return
         
@@ -2545,7 +2545,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                         "🔹 2x T7 → UpgradeT7\n"
                         "Собирайте дубликаты и попробуйте снова!"
                     ),
-                    reply_markup=reply_markup
+                    reply_markup=forest_reply_markup
                 )
             return
         
@@ -2568,7 +2568,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     chat_id=update.effective_chat.id,
                     photo=FORT_IMAGE_URL,  # ← Изображение Форта
                     caption="❌ Для улучшения подходят только существа редкости T1-T7!",
-                    reply_markup=reply_markup
+                    reply_markup=forest_reply_markup
                 )
             return
         
