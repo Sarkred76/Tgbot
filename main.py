@@ -2572,9 +2572,10 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         }
         
         # ⭐ ОТПРАВЛЯЕМ КЛАВИАТУРУ С КНОПКОЙ "НАЗАД В ЛЕС" ⭐
-        await update.message.reply_text(
-            "🌲 **Добро пожаловать в Лес!**\n"
-            "Выберите существо для улучшения:",
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=FORT_IMAGE_URL,
+            caption="Добро пожаловать в Форт на холме!",
             reply_markup=forest_reply_markup,
             parse_mode="Markdown"
         )
