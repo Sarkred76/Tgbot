@@ -64,7 +64,7 @@ AUTO_ANIMATED_RARITIES = ["Animated!"]
 
 FORT_IMAGE_URL = "https://files.catbox.moe/jfvt8d.jpg"
 FOREST_IMAGE_URL = "https://files.catbox.moe/1p3gd9.jpg"
-TAVERN_IMAGE_URL = "https://files.catbox.moe/re3lhd.jpg"
+TAVERN_IMAGE_URL = "https://files.catbox.moe/jes2nn.jpg"
 
 # Бонусы по редкостям
 
@@ -1754,6 +1754,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         elif text == "🎲 Бросить кубик":
 
             await dice(update, context)
+
+        elif text == "🎰 Казино":
+
+            await casino_menu(update, context)
 
         elif text == "👑 Мой герой":
 
