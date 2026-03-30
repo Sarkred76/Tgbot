@@ -381,29 +381,20 @@ async def edit_card_message(
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start."""
-
     try:
-
         keyboard = [
             [KeyboardButton("⚔️ Нанять существо")],
-            [KeyboardButton("🎲 Бросить кубик")],
             [
                 KeyboardButton("🛡 Казарма"),
                 KeyboardButton("👑 Мой герой"),
-            ],  # ← Добавлена кнопка
+            ],
             [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
-            [KeyboardButton("🏆 Топ героев")],
-            [KeyboardButton("🔄 Трейд")],  # ← ДОБАВЬТЕ
         ]
-
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
         await update.message.reply_text(
             "Добро пожаловать! Используйте кнопки ниже:", reply_markup=reply_markup
         )
-
     except Exception as e:
-
         logger.error(f"Ошибка в start: {e}")
 
 
@@ -1588,6 +1579,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # ⭐ КНОПКА "🌲 ЛЕС" ⭐
         elif text == "🌲 Лес":
             await forest_menu(update, context)
+            return
+
+        # ⭐ КНОПКА "🔙 НАЗАД В ТАВЕРНУ" ⭐
+        elif text == "🔙 Назад в Таверну":
+            await mini_games(update, context)
             return
 
         elif text == "🔙 Назад в Лес":
@@ -3070,24 +3066,26 @@ async def dice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает меню мини-игр."""
-
+    """Показывает меню Таверны."""
     try:
-
-        keyboard = [[InlineKeyboardButton("🎰 Казино", callback_data="casino_menu")]]
-
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
+        keyboard = [
+            [KeyboardButton("🎲 Бросить кубик")],
+            [KeyboardButton("🏆 Топ героев")],
+            [KeyboardButton("🔄 Трейд")],
+            [KeyboardButton("🔙 Назад в меню")],
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
-            "🍺 **Таверна**\n\n" "Выберите игру:",
+            "🍺 **Таверна**\n"
+            "Выберите развлечение:\n"
+            "🎲 - Испытай удачу\n"
+            "🏆 - Посмотри рейтинг\n"
+            "🔄 - Обменяйся существами",
             reply_markup=reply_markup,
             parse_mode="Markdown",
         )
-
     except Exception as e:
-
         logger.error(f"Ошибка в mini_games: {e}")
-
 
 async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню казино."""
