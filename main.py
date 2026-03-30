@@ -5923,8 +5923,7 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
             f"• При победе: 10 бесплатных наймов существ\n"
             f"• Попыток сегодня: {attempts}/10\n"
             f"• Сброс в 00:00 МСК\n"
-            f"💰 Ваш баланс: {cents} золота\n"
-            f"🎲 Осталось попыток: {attempts}",
+            f"💰 Ваш баланс: {cents} золота\n",
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
