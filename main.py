@@ -1757,7 +1757,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         elif text == "🎰 Казино":
 
-            await casino_menu(update, context)
+            await open_casino_from_button(update, context)
 
         elif text == "👑 Мой герой":
 
@@ -5895,6 +5895,43 @@ async def forest_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     except Exception as e:
         logger.error(f"Ошибка в forest_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
+
+async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Открывает казино при нажатии на кнопку в главном меню."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        # Проверяем сброс попыток
+        check_casino_reset(user_data)
+        save_data(data)
+        
+        attempts = user_data.get("casino_attempts", 10) if user_data else 10
+        cents = user_data.get("cents", 0) if user_data else 0
+        
+        keyboard = [
+            [InlineKeyboardButton("🎰 Играть (2000 золота)", callback_data="casino_play")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            f"🎰 **Казино**\n\n"
+            f"📜 **Правила:**\n"
+            f"• Стоимость игры: 2000 золота\n"
+            f"• Крутите слот и получите 3 одинаковых значения\n"
+            f"• При победе: 10 бесплатных наймов существ\n"
+            f"• Попыток сегодня: {attempts}/10\n"
+            f"• Сброс в 00:00 МСК\n"
+            f"💰 Ваш баланс: {cents} золота\n"
+            f"🎲 Осталось попыток: {attempts}",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в open_casino_from_button: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии казино")
+
 
 
 # ===== ЗАПУСК БОТА =====
