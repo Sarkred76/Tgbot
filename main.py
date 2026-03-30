@@ -3081,7 +3081,7 @@ async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         )
 
         await context.bot.send_photo(
-                chat_id=query.message.chat_id,
+                chat_id=update.effective_chat.id, 
                 photo=TAVERN_IMAGE_URL,  # ← Изображение Таверны
                 caption=caption,
                 reply_markup=reply_markup,
