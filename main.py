@@ -64,6 +64,7 @@ AUTO_ANIMATED_RARITIES = ["Animated!"]
 
 FORT_IMAGE_URL = "https://files.catbox.moe/jfvt8d.jpg"
 FOREST_IMAGE_URL = "https://files.catbox.moe/1p3gd9.jpg"
+TAVERN_IMAGE_URL = "https://files.catbox.moe/re3lhd.jpg"
 
 # Бонусы по редкостям
 
@@ -3063,26 +3064,33 @@ async def dice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает меню Таверны."""
+    """Показывает меню Таверны с изображением."""
     try:
+        # ⭐ КЛАВИАТУРА С КНОПКАМИ ⭐
         keyboard = [
             [KeyboardButton("🎲 Бросить кубик")],
+            [KeyboardButton("🎰 Казино")],
             [KeyboardButton("🏆 Топ героев")],
             [KeyboardButton("🔄 Трейд")],
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        await update.message.reply_text(
-            "🍺 **Таверна**\n"
-            "Выберите развлечение:\n"
-            "🎲 - Испытай удачу\n"
-            "🏆 - Посмотри рейтинг\n"
-            "🔄 - Обменяйся существами",
-            reply_markup=reply_markup,
-            parse_mode="Markdown",
+        
+        caption = (
+            "🍺 Добро пожаловать в Таверну!"
         )
+
+        await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=TAVERN_IMAGE_URL,  # ← Изображение Таверны
+                caption=caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
     except Exception as e:
         logger.error(f"Ошибка в mini_games: {e}")
+        
+           
 
 async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню казино."""
