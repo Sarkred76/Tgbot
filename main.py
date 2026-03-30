@@ -1559,14 +1559,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # Возврат в главное меню
             keyboard = [
                 [KeyboardButton("⚔️ Нанять существо")],
-                [KeyboardButton("🎲 Бросить кубик")],
                 [
                     KeyboardButton("🛡 Казарма"),
                     KeyboardButton("👑 Мой герой"),
                 ],
                 [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
-                [KeyboardButton("🏆 Топ героев")],
-                [KeyboardButton("🔄 Трейд")],
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
