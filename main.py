@@ -1,25 +1,12 @@
 import logging
-
-
 import json
-
 import asyncio
 import threading
-
 import os
-
 import random
-
-
 import time
-
-
 from typing import Optional, Dict, Any, List
-
-
 from collections import Counter
-
-
 from telegram import (
     Update,
     KeyboardButton,
@@ -29,8 +16,6 @@ from telegram import (
     InputMediaPhoto,
     InputMediaAnimation,
 )
-
-
 from telegram.ext import (
     Application, 
     CommandHandler,
@@ -39,32 +24,22 @@ from telegram.ext import (
     ContextTypes,
     CallbackQueryHandler,
 )
-
-
 from telegram.error import NetworkError, TimedOut
 
 # ===== КОНФИГУРАЦИЯ =====
 
-
 BOT_TOKEN = "8501838456:AAH2vwub2OgwerfCqUs-mRcczr4P5l6Rwcs"
-
-
 INITIAL_ADMIN_ID = (
     "881692999"  # Первый администратор (будет добавлен в список при создании файла)
 )
-
-
 DATA_FILE = "/data/bot_data.json"
-
-
 ANIMATED_FORMATS = (".mp4", ".gif", ".webm")
-
-
 AUTO_ANIMATED_RARITIES = ["Animated!"]
 
 FORT_IMAGE_URL = "https://files.catbox.moe/jfvt8d.jpg"
 FOREST_IMAGE_URL = "https://files.catbox.moe/1p3gd9.jpg"
 TAVERN_IMAGE_URL = "https://files.catbox.moe/jes2nn.jpg"
+BARRACKS_IMAGE_URL = "https://i.ibb.co/5X4j9v3J/photo-2026-03-31-11-07-53.jpg"
 
 # Бонусы по редкостям
 
@@ -533,15 +508,30 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await query.message.delete()
             except:
                 pass
-            await context.bot.send_message(
+            await context.bot.send_photo(
                 chat_id=query.message.chat_id,
-                text="🛡 **Казарма**\n\nВыберите способ просмотра:",
+                photo=BARRACKS_IMAGE_URL,  # ← Изображение Казармы
+                caption=(
+                    "🛡 **Казарма**\n\n"
+                    "Выберите способ просмотра:\n"
+                    "• 📊 По редкости\n"
+                    "• ⚔️ По фракции\n"
+                    "• 📋 Все существа"
+                ),
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
         else:
-            await update.message.reply_text(
-                "🛡 **Казарма**\n\nВыберите способ просмотра:",
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=BARRACKS_IMAGE_URL,  # ← Изображение Казармы
+                caption=(
+                    "🛡 **Казарма**\n\n"
+                    "Выберите способ просмотра:\n"
+                    "• 📊 По редкости\n"
+                    "• ⚔️ По фракции\n"
+                    "• 📋 Все существа"
+                ),
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
