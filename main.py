@@ -360,10 +360,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         keyboard = [
             [KeyboardButton("⚔️ Нанять существо")],
-            [
-                KeyboardButton("🛡 Казарма"),
-                KeyboardButton("👑 Мой герой"),
-            ],
+            [KeyboardButton("🏰 Город")],
             [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -1550,10 +1547,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # Возврат в главное меню
             keyboard = [
                 [KeyboardButton("⚔️ Нанять существо")],
-                [
-                    KeyboardButton("🛡 Казарма"),
-                    KeyboardButton("👑 Мой герой"),
-                ],
+                [KeyboardButton("🏰 Город")],
                 [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -1567,6 +1561,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # ⭐ КНОПКА "🌲 ЛЕС" ⭐
         elif text == "🌲 Лес":
             await forest_menu(update, context)
+            return
+
+        elif text == "🏰 Город":
+            await city_menu(update, context)
             return
 
         # ⭐ КНОПКА "🔙 НАЗАД В ТАВЕРНУ" ⭐
@@ -5920,6 +5918,51 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
     except Exception as e:
         logger.error(f"Ошибка в open_casino_from_button: {e}")
         await update.message.reply_text("❌ Ошибка при открытии казино")
+
+async def city_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает меню Города."""
+    try:
+        # ⭐ КЛАВИАТУРА С КНОПКАМИ ГОРОДА ⭐
+        keyboard = [
+            [KeyboardButton("🛡 Казарма")],
+            [KeyboardButton("👑 Мой герой")],
+            [KeyboardButton("🔙 Назад в меню")],
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
+        # ⭐ ПРОВЕРКА: callback или сообщение ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=(
+                    "🏰 **Город**\n\n"
+                    "Добро пожаловать в Город!\n\n"
+                    "Здесь вы можете:\n"
+                    "• 🛡 Посмотреть своих существ в Казарме\n"
+                    "• 👑 Проверить статистику героя\n\n"
+                    "Выберите действие:"
+                ),
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        else:
+            await update.message.reply_text(
+                "🏰 **Город**\n\n"
+                "Добро пожаловать в Город!\n\n"
+                "Здесь вы можете:\n"
+                "• 🛡 Посмотреть своих существ в Казарме\n"
+                "• 👑 Проверить статистику героя\n\n"
+                "Выберите действие:",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        logger.error(f"Ошибка в city_menu: {e}")
 
 
 
