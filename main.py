@@ -686,9 +686,14 @@ async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             InlineKeyboardButton("🔙 Назад в казарму", callback_data="barracks_back")
         ])
         
-        await query.edit_message_text(
-            "⚔️ **Выберите фракцию:**\n\n"
-            "Просмотрите существ по принадлежности к фракции:",
+        try:
+            await query.message.delete()
+        except:
+            pass
+        
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="⚔️ **Выберите фракцию:**\nПросмотрите существ по принадлежности к фракции:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
@@ -868,8 +873,14 @@ async def show_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             InlineKeyboardButton("🔙 Назад в казарму", callback_data="barracks_back")
         ])
         
-        await query.edit_message_text(
-            "📊 **Выберите редкость:**",
+        try:
+            await query.message.delete()
+        except:
+            pass
+        
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="📊 **Выберите редкость:**",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
