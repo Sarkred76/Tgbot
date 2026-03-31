@@ -641,12 +641,7 @@ async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await query.answer()
         user_id = str(query.from_user.id)
         data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if not user_data or not user_data.get("cards"):
-            await query.edit_message_text("У вас пока нет существ!")
-            return
-        
+        user_data = data["users"].get(user_id)        
         user_card_ids = user_data["cards"]
         
         # ⭐ СЧИТАЕМ КАРТЫ ПО ФРАКЦИЯМ ⭐
@@ -658,10 +653,6 @@ async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 if faction not in faction_cards:
                     faction_cards[faction] = set()
                 faction_cards[faction].add(card_id)
-        
-        if not faction_cards:
-            await query.edit_message_text("❌ У вас нет существ с фракциями!")
-            return
         
         # Список всех фракций
         all_factions = [
