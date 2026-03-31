@@ -39,7 +39,7 @@ AUTO_ANIMATED_RARITIES = ["Animated!"]
 FORT_IMAGE_URL = "https://files.catbox.moe/jfvt8d.jpg"
 FOREST_IMAGE_URL = "https://files.catbox.moe/1p3gd9.jpg"
 TAVERN_IMAGE_URL = "https://files.catbox.moe/jes2nn.jpg"
-BARRACKS_IMAGE_URL = "https://i.ibb.co/5X4j9v3J/photo-2026-03-31-11-07-53.jpg"
+BARRACKS_IMAGE_URL = "https://files.catbox.moe/a5kew7.jpg"
 
 # Бонусы по редкостям
 
