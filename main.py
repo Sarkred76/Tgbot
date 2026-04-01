@@ -658,6 +658,10 @@ async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 if faction not in faction_cards:
                     faction_cards[faction] = set()
                 faction_cards[faction].add(card_id)
+
+        if not faction_cards:
+            await query.edit_message_text("❌ У вас нет существ с фракциями!")
+            return
         
         # Список всех фракций
         all_factions = [
@@ -676,10 +680,6 @@ async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                         callback_data=f"barracks_faction_select_{faction}"
                     )
                 ])
-
-        if not keyboard:
-            await query.edit_message_text("❌ У вас нет существ с фракциями!")
-            return
         
         # Кнопка "Назад"
         keyboard.append([
