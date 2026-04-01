@@ -2475,7 +2475,7 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         
         if user_id not in context.user_data:
             if hasattr(update, 'callback_query') and update.callback_query:
-                await update.callback_query.edit_message_text("❌ Сессия улучшения истекла!")
+                await update.callback_query.answer("❌ Сессия улучшения истекла!", show_alert=True)
             else:
                 await update.message.reply_text(
                     "❌ Сессия улучшения истекла!",
@@ -2489,7 +2489,7 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         
         if not craftable_cards:
             if hasattr(update, 'callback_query') and update.callback_query:
-                await update.callback_query.edit_message_text("❌ Нет существ для улучшения!")
+                await update.callback_query.answer("❌ Нет существ для улучшения!", show_alert=True)
             else:
                 await update.message.reply_text(
                     "❌ Нет существ для улучшения!",
@@ -2539,29 +2539,22 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
             inline_keyboard.append(nav_buttons)
         
         caption = (
-            "🔨 **Выберите существо для улучшения:**\n"
-            "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n"
+            "🔨 **Выберите существо для улучшения:**\n\n"
+            "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n\n"
             f"📄 Страница {page + 1}/{total_pages}\n"
             f"🐦‍🔥 Доступно для улучшения: {total_cards}"
         )
         
+        # ⭐ ОТПРАВЛЯЕМ КАК НОВОЕ СООБЩЕНИЕ ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
             query = update.callback_query
-            try:
-                await query.edit_message_text(
-                    caption,
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                    parse_mode="Markdown"
-                )
-            except Exception as edit_error:
-                logger.error(f"Ошибка редактирования: {edit_error}")
-                await query.message.delete()
-                await context.bot.send_message(
-                    chat_id=query.message.chat_id,
-                    text=caption,
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                    parse_mode="Markdown"
-                )
+            # ⭐ ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ ВМЕСТО РЕДАКТИРОВАНИЯ ⭐
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=caption,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                parse_mode="Markdown"
+            )
         else:
             await update.message.reply_text(
                 caption,
@@ -2629,47 +2622,28 @@ async def process_craft(
     query=None,
 ) -> None:
     """Обрабатывает крафт конкретной карты."""
-
     try:
-
         user_data = data["users"].get(user_id)
-
         # Проверяем, что у пользователя ещё есть 2+ карт
-
         card_counts = Counter(user_data["cards"])
-
         if card_counts.get(card_id, 0) < 2:
-
             if query:
-
-                await query.edit_message_text("❌ Недостаточно существ для улучшения!")
-
+                await query.answer("❌ Недостаточно существ для улучшения!", show_alert=True)
             else:
-
                 await update.message.reply_text("❌ Недостаточно существ для улучшения!")
-
             return
-
+        
         # Находим информацию о карте
-
         card = find_card_by_id(card_id, data["cards"])
-
         if not card:
-
             if query:
-
-                await query.edit_message_text("❌ Существо не найдена!")
-
+                await query.answer("❌ Существо не найдена!", show_alert=True)
             else:
-
                 await update.message.reply_text("❌ Существо не найдена!")
-
             return
-
+        
         # Определяем целевую редкость (T1-T7)
-
         source_rarity = card.get("rarity", "")
-
         rarity_map = {
             "T1": "UpgradeT1",
             "T2": "UpgradeT2",
@@ -2679,135 +2653,80 @@ async def process_craft(
             "T6": "UpgradeT6",
             "T7": "UpgradeT7",
         }
-
         if source_rarity not in rarity_map:
-
             if query:
-
-                await query.edit_message_text(
-                    f"❌ Существ редкости {source_rarity} нельзя улучшить!"
-                )
-
+                await query.answer(f"❌ Существ редкости {source_rarity} нельзя улучшить!", show_alert=True)
             else:
-
-                await update.message.reply_text(
-                    f"❌ Существ редкости {source_rarity} нельзя улучшить!"
-                )
-
+                await update.message.reply_text(f"❌ Существ редкости {source_rarity} нельзя улучшить!")
             return
-
+        
         target_rarity = rarity_map[source_rarity]
-
+        
         # Находим все карты целевой редкости
-
         upgrade_cards = [
             c
             for c in data["cards"]
             if c.get("rarity") == target_rarity and c.get("available", True)
         ]
-
         if not upgrade_cards:
-
             if query:
-
-                await query.edit_message_text(
-                    f"❌ В системе нет существ редкости {target_rarity}!\n"
-                    "Попросите администратора добавить таких существ."
-                )
-
+                await query.answer(f"❌ В системе нет существ редкости {target_rarity}!", show_alert=True)
             else:
-
-                await update.message.reply_text(
-                    f"❌ В системе нет существ редкости {target_rarity}!\n"
-                    "Попросите администратора добавить таких существ."
-                )
-
+                await update.message.reply_text(f"❌ В системе нет существ редкости {target_rarity}!")
             return
-
+        
         # Удаляем 2 существа из казармы
-
         removed = 0
-
         new_cards_list = []
-
         for cid in user_data["cards"]:
-
             if cid == card_id and removed < 2:
-
                 removed += 1
-
             else:
-
                 new_cards_list.append(cid)
-
         user_data["cards"] = new_cards_list
-
+        
         # Выбираем случайную карту улучшенной редкости
-
         new_card = random.choice(upgrade_cards)
-
         user_data["cards"].append(new_card["id"])
-
+        
         # ⭐ НАЧИСЛЯЕМ НАГРАДЫ ЗА КАРТУ ⭐
-
         bonus = RARITY_BONUSES.get(new_card["rarity"], {"cents": 0, "points": 0})
-
         user_data["total_points"] += bonus["points"]
-
         user_data["season_points"] += bonus["points"]
-
         user_data["cents"] += bonus["cents"]
-
+        
         # ========================================
-
         save_data(data)
-
-        # Отправляем результат
-
+        
+        # ⭐ ОТПРАВЛЯЕМ РЕЗУЛЬТАТ КАК НОВОЕ СООБЩЕНИЕ ⭐
         result_text = (
-            f"✅ Улучшение прошло успешно!\n\n"
-            f"🔨 Использовано: 2x {card['title']} ({card['rarity']})\n"
-            f"🎁 Получено: {new_card['title']}\n"
-            f"💰 +{bonus['cents']} золота\n"
-            f"💥 +{bonus['points']} опыта\n\n"
+            f"✅ **Улучшение прошло успешно!**\n\n"
+            f"🔨 **Использовано:** 2x {card['title']} ({card['rarity']})\n"
+            f"🎁 **Получено:** {new_card['title']}\n"
+            f"💰 **+{bonus['cents']} золота**\n"
+            f"💥 **+{bonus['points']} опыта**"
         )
-
+        
         if query:
-
-            await query.edit_message_text(result_text)
-
-            caption = generate_card_caption(
-                new_card, user_data, count=1, show_bonus=False
-            )
-
-            await send_card(
-                update,
-                new_card,
-                context,
-                caption=caption,
+            # ⭐ ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ С РЕЗУЛЬТАТОМ ⭐
+            await context.bot.send_message(
                 chat_id=query.message.chat_id,
+                text=result_text,
+                parse_mode="Markdown"
             )
-
+            # ⭐ ОТПРАВЛЯЕМ КАРТУ ⭐
+            caption = generate_card_caption(new_card, user_data, count=1, show_bonus=False)
+            await send_card(update, new_card, context, caption=caption, chat_id=query.message.chat_id)
         else:
-
-            await update.message.reply_text(result_text)
-
-            caption = generate_card_caption(
-                new_card, user_data, count=1, show_bonus=False
-            )
-
+            await update.message.reply_text(result_text, parse_mode="Markdown")
+            caption = generate_card_caption(new_card, user_data, count=1, show_bonus=False)
             await send_card(update, new_card, context, caption=caption)
-
+            
     except Exception as e:
-
         logger.error(f"Ошибка обработки крафта: {e}")
-
         if query:
-
             await query.answer("❌ Произошла ошибка", show_alert=True)
-
         else:
-
             await update.message.reply_text("❌ Произошла ошибка при улучшении")
 
 
@@ -2827,10 +2746,14 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_id = str(query.from_user.id)
             card_id = int(query.data.split("_")[1])
             data = load_data()
+            
+            # ⭐ ВЫПОЛНЯЕМ КРАФТ ⭐
             await process_craft(update, context, user_id, card_id, data, query)
             
-            # ⭐ ПЕРЕЗАГРУЖАЕМ МЕНЮ КРАФТА ПОСЛЕ УСПЕШНОГО КРАФТА ⭐
-            # Проверяем, есть ли ещё существа для крафта
+            # ⭐ ПАУЗА ЧТОБЫ ПОЛЬЗОВАТЕЛЬ УВИДЕЛ РЕЗУЛЬТАТ ⭐
+            await asyncio.sleep(1)
+            
+            # ⭐ ПРОВЕРЯЕМ, ЕСТЬ ЛИ ЕЩЁ КАРТЫ ДЛЯ КРАФТА ⭐
             user_data = data["users"].get(user_id)
             if user_data and user_data.get("cards"):
                 card_counts = Counter(user_data["cards"])
@@ -2857,7 +2780,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         "craft_page": 0,
                         "craft_cards_per_page": 5,
                     }
-                    # ⭐ ПОКАЗЫВАЕМ МЕНЮ КРАФТА СНОВА ⭐
+                    # ⭐ ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ С МЕНЮ КРАФТА ⭐
                     await show_craft_page(update, context, 0)
                     return
             
