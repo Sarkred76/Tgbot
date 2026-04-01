@@ -641,7 +641,12 @@ async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await query.answer()
         user_id = str(query.from_user.id)
         data = load_data()
-        user_data = data["users"].get(user_id)        
+        user_data = data["users"].get(user_id)
+
+        if not user_data or not user_data.get("cards"):
+            await query.edit_message_text("❌ У вас пока нет существ!")
+            return
+        
         user_card_ids = user_data["cards"]
         
         # ⭐ СЧИТАЕМ КАРТЫ ПО ФРАКЦИЯМ ⭐
@@ -657,7 +662,7 @@ async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         # Список всех фракций
         all_factions = [
             "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Причал", "Нейтральный"
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Причал", "Фабрика", "Нейтральный"
         ]
         
         # Создаём клавиатуру
@@ -671,6 +676,10 @@ async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                         callback_data=f"barracks_faction_select_{faction}"
                     )
                 ])
+
+        if not keyboard:
+            await query.edit_message_text("❌ У вас нет существ с фракциями!")
+            return
         
         # Кнопка "Назад"
         keyboard.append([
