@@ -5908,15 +5908,7 @@ async def dungeon_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 [InlineKeyboardButton("🔙 Назад в Подземелье", callback_data="dungeon_back")],
             ]
             await query.edit_message_text(
-                "🩸 **Жертвенный алтарь**\n\n"
-                "Пожертвуйте существо редкости UpgradeT1-UpgradeT7\n"
-                "и получите награду!\n\n"
-                "💰 **Награды:**\n"
-                "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
-                "• UpgradeT5: 2 бесплатных найма\n"
-                "• UpgradeT6: 5 бесплатных наймов\n"
-                "• UpgradeT7: 10 бесплатных наймов\n\n"
-                "Выберите способ просмотра:",
+                "🩸 **Жертвенный алтарь**\n\n",
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
@@ -5979,13 +5971,6 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         caption = (
             "🩸 **Жертвенный алтарь**\n\n"
-            "Пожертвуйте существо редкости UpgradeT1-UpgradeT7\n"
-            "и получите награду!\n\n"
-            "💰 **Награды:**\n"
-            "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
-            "• UpgradeT5: 2 бесплатных найма\n"
-            "• UpgradeT6: 5 бесплатных наймов\n"
-            "• UpgradeT7: 10 бесплатных наймов"
         )
         
         # ⭐ ОТПРАВЛЯЕМ INLINE КЛАВИАТУРУ ДЛЯ СОРТИРОВКИ ⭐
@@ -6020,7 +6005,13 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
-            "",
+            "Пожертвуйте существо редкости UpgradeT1-UpgradeT7\n"
+            "и получите награду!\n\n"
+            "💰 **Награды:**\n"
+            "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
+            "• UpgradeT5: 2 бесплатных найма\n"
+            "• UpgradeT6: 5 бесплатных наймов\n"
+            "• UpgradeT7: 10 бесплатных наймов",
             reply_markup=reply_markup
         )
         
@@ -6169,15 +6160,7 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 [InlineKeyboardButton("🔙 Назад в Подземелье", callback_data="dungeon_back")],
             ]
             await query.edit_message_text(
-                "🩸 **Жертвенный алтарь**\n\n"
-                "Пожертвуйте существо редкости UpgradeT1-UpgradeT7\n"
-                "и получите награду!\n\n"
-                "💰 **Награды:**\n"
-                "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
-                "• UpgradeT5: 2 бесплатных найма\n"
-                "• UpgradeT6: 5 бесплатных наймов\n"
-                "• UpgradeT7: 10 бесплатных наймов\n\n"
-                "Выберите способ просмотра:",
+                "🩸 **Жертвенный алтарь**\n\n",
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
