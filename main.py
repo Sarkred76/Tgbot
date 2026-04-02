@@ -4996,25 +4996,20 @@ async def create_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if not context.args or len(context.args) < 3:
             await update.message.reply_text(
                 "ℹ️ **Формат команды:**\n"
-                "/create_promo [КОД] [ID_карты] [кол-во_использований]\n\n"
+                "/create_promo [КОД] [ID_карты] [кол-во_использований]\n"
                 "**Примеры:**\n"
                 "/create_promo NEWCARD2024 45 100\n"
-                "/create_promo BONUS 12 50",
+                "/create_promo BONUS 12 50\n"
+                "/create_promo RANDOMCARD random 100 ← **НОВАЯ ФУНКЦИЯ!**",
                 parse_mode="Markdown"
             )
             return
         
         promo_code = context.args[0].upper()  # Приводим к верхнему регистру
-        card_id = int(context.args[1])
+        card_arg = context.args[1]
         max_uses = int(context.args[2])
         
-        # Проверяем существование карты
-        card = find_card_by_id(card_id, data["cards"])
-        if not card:
-            await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена!")
-            return
-        
-        # Проверяем, не существует ли уже такой промокод
+        # Проверяем, существует ли уже такой промокод
         if promo_code in data["promo_codes"]:
             await update.message.reply_text(
                 f"⚠️ Промокод **{promo_code}** уже существует!\n"
@@ -5023,32 +5018,68 @@ async def create_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             )
             return
         
-        # Создаём промокод
-        data["promo_codes"][promo_code] = {
-            "card_id": card_id,
-            "card_title": card["title"],
-            "card_rarity": card["rarity"],
-            "max_uses": max_uses,
-            "current_uses": 0,
-            "created_by": str(update.effective_user.id),
-            "created_at": int(time.time())
-        }
+        # ⭐ ПРОВЕРЯЕМ ТИП КАРТЫ (КОНКРЕТНАЯ ИЛИ СЛУЧАЙНАЯ) ⭐
+        is_random = card_arg.lower() == "random"
+        
+        if is_random:
+            # ⭐ СОЗДАЁМ ПРОМОКОД НА СЛУЧАЙНУЮ КАРТУ ⭐
+            data["promo_codes"][promo_code] = {
+                "card_id": "random",  # Специальное значение для случайной карты
+                "card_title": "Случайная карта",
+                "card_rarity": "Random",
+                "max_uses": max_uses,
+                "current_uses": 0,
+                "created_by": str(update.effective_user.id),
+                "created_at": int(time.time()),
+                "is_random": True  # Флаг для случайной карты
+            }
+            
+            await update.message.reply_text(
+                f"✅ **Промокод создан!**\n"
+                f"🎁 Код: **{promo_code}**\n"
+                f"🃏 Карта: **Случайная из доступных**\n"
+                f"📊 Лимит использований: {max_uses}\n"
+                f"⏰ Создан: {time.strftime('%d.%m.%Y %H:%M', time.localtime())}\n"
+                f"Игроки могут активировать командой:\n"
+                f"`/promo {promo_code}`",
+                parse_mode="Markdown"
+            )
+        else:
+            # ⭐ СОЗДАЁМ ПРОМОКОД НА КОНКРЕТНУЮ КАРТУ (СТАРАЯ ЛОГИКА) ⭐
+            card_id = int(card_arg)
+            
+            # Проверяем существование карты
+            card = find_card_by_id(card_id, data["cards"])
+            if not card:
+                await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена!")
+                return
+            
+            # Создаём промокод
+            data["promo_codes"][promo_code] = {
+                "card_id": card_id,
+                "card_title": card["title"],
+                "card_rarity": card["rarity"],
+                "max_uses": max_uses,
+                "current_uses": 0,
+                "created_by": str(update.effective_user.id),
+                "created_at": int(time.time()),
+                "is_random": False
+            }
+            
+            await update.message.reply_text(
+                f"✅ **Промокод создан!**\n"
+                f"🎁 Код: **{promo_code}**\n"
+                f"🃏 Карта: {card['title']} (#{card_id})\n"
+                f"🌟 Редкость: {card['rarity']}\n"
+                f"📊 Лимит использований: {max_uses}\n"
+                f"⏰ Создан: {time.strftime('%d.%m.%Y %H:%M', time.localtime())}\n"
+                f"Игроки могут активировать командой:\n"
+                f"`/promo {promo_code}`",
+                parse_mode="Markdown"
+            )
         
         save_data(data)
-        
-        await update.message.reply_text(
-            f"✅ **Промокод создан!**\n\n"
-            f"🎁 Код: **{promo_code}**\n"
-            f"🃏 Карта: {card['title']} (#{card_id})\n"
-            f"🌟 Редкость: {card['rarity']}\n"
-            f"📊 Лимит использований: {max_uses}\n"
-            f"⏰ Создан: {time.strftime('%d.%m.%Y %H:%M', time.localtime())}\n\n"
-            f"Игроки могут активировать командой:\n"
-            f"`/promo {promo_code}`",
-            parse_mode="Markdown"
-        )
-        
-        logger.info(f"Админ создал промокод {promo_code} на карту #{card_id}")
+        logger.info(f"Админ создал промокод {promo_code} {'на случайную карту' if is_random else f'на карту #{card_arg}'}")
         
     except ValueError:
         await update.message.reply_text("⚠️ ID карты и количество должны быть числами!")
@@ -5066,7 +5097,7 @@ async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE
         if not context.args:
             await update.message.reply_text(
                 "ℹ️ **Формат команды:**\n"
-                "/promo [КОД]\n\n"
+                "/promo [КОД]\n"
                 "**Пример:**\n"
                 "/promo NEWCARD2024",
                 parse_mode="Markdown"
@@ -5078,7 +5109,7 @@ async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE
         # Проверяем существование промокода
         if promo_code not in data["promo_codes"]:
             await update.message.reply_text(
-                "❌ **Промокод не найден!**\n\n"
+                "❌ **Промокод не найден!**\n"
                 "Проверьте правильность ввода кода."
             )
             return
@@ -5088,10 +5119,9 @@ async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE
         # Проверяем, не использовал ли игрок этот промокод раньше
         user_data = data["users"].get(user_id, {})
         used_promo_codes = user_data.get("used_promo_codes", [])
-        
         if promo_code in used_promo_codes:
             await update.message.reply_text(
-                "❌ **Вы уже использовали этот промокод!**\n\n"
+                "❌ **Вы уже использовали этот промокод!**\n"
                 "Один промокод можно активировать только один раз."
             )
             return
@@ -5099,20 +5129,41 @@ async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE
         # Проверяем лимит использований
         if promo_info["current_uses"] >= promo_info["max_uses"]:
             await update.message.reply_text(
-                "❌ **Лимит активаций исчерпан!**\n\n"
+                "❌ **Лимит активаций исчерпан!**\n"
                 "Этот промокод больше не действителен."
             )
             return
         
-        # Проверяем существование карты
-        card_id = promo_info["card_id"]
-        card = find_card_by_id(card_id, data["cards"])
-        if not card:
-            await update.message.reply_text(
-                "❌ **Ошибка!**\n\n"
-                "Карта для этого промокода больше не существует."
-            )
-            return
+        # ⭐ ПРОВЕРЯЕМ ТИП КАРТЫ (СЛУЧАЙНАЯ ИЛИ КОНКРЕТНАЯ) ⭐
+        is_random = promo_info.get("is_random", False)
+        
+        if is_random:
+            # ⭐ ВЫБИРАЕМ СЛУЧАЙНУЮ КАРТУ ИЗ ДОСТУПНЫХ ⭐
+            available_cards = [
+                card for card in data["cards"]
+                if card.get("available", True)
+            ]
+            
+            if not available_cards:
+                await update.message.reply_text(
+                    "❌ **Ошибка!**\n"
+                    "В системе нет доступных карт для выдачи."
+                )
+                return
+            
+            # Выбираем случайную карту
+            card = random.choice(available_cards)
+            card_id = card["id"]
+        else:
+            # ⭐ СТАРАЯ ЛОГИКА: КОНКРЕТНАЯ КАРТА ⭐
+            card_id = promo_info["card_id"]
+            card = find_card_by_id(card_id, data["cards"])
+            if not card:
+                await update.message.reply_text(
+                    "❌ **Ошибка!**\n"
+                    "Карта для этого промокода больше не существует."
+                )
+                return
         
         # Проверяем, существует ли пользователь в базе
         if user_id not in data["users"]:
@@ -5144,16 +5195,15 @@ async def activate_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         # Отправляем карту игроку
         caption = (
-            f"🎉 **Промокод активирован!**\n\n"
+            f"🎉 **Промокод активирован!**\n"
             f"🎁 Код: {promo_code}\n"
             f"🃏 Вы получили: {card['title']}\n"
-            f"🌟 Редкость: {card['rarity']}\n\n"
+            f"🌟 Редкость: {card['rarity']}\n"
             f"Приятной игры!"
         )
-        
         await send_card(update, card, context, caption=caption)
         
-        logger.info(f"Игрок {user_id} активировал промокод {promo_code}")
+        logger.info(f"Игрок {user_id} активировал промокод {promo_code} {'(случайная карта)' if is_random else ''}")
         
     except Exception as e:
         logger.error(f"Ошибка activate_promo_code: {e}")
@@ -5209,21 +5259,21 @@ async def list_promo_codes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return
         
         promo_codes = data.get("promo_codes", {})
-        
         if not promo_codes:
             await update.message.reply_text("📭 Нет активных промокодов!")
             return
         
-        message_text = "🎁 **Активные промокоды:**\n\n"
-        
+        message_text = "🎁 **Активные промокоды:**\n"
         for code, info in promo_codes.items():
             status = "✅ Активен" if info["current_uses"] < info["max_uses"] else "❌ Исчерпан"
+            # ⭐ ДОБАВЛЯЕМ ТИП КАРТЫ ⭐
+            card_type = "🎲 Случайная" if info.get("is_random", False) else f"🃏 {info['card_title']}"
             message_text += (
                 f"🔖 **{code}**\n"
-                f"🃏 Карта: {info['card_title']} (#{info['card_id']})\n"
-                f"🌟 Редкость: {info['card_rarity']}\n"
+                f"{card_type}\n"
                 f"📊 Использовано: {info['current_uses']}/{info['max_uses']}\n"
-                f"📈 Статус: {status}\n\n"
+                f"📈 Статус: {status}\n"
+                "\n"
             )
         
         # Разбиваем на сообщения по 4000 символов
@@ -5234,7 +5284,7 @@ async def list_promo_codes(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 await update.message.reply_text(part, parse_mode="Markdown")
         else:
             await update.message.reply_text(message_text, parse_mode="Markdown")
-        
+            
     except Exception as e:
         logger.error(f"Ошибка list_promo_codes: {e}")
         await update.message.reply_text("❌ Ошибка при получении списка промокодов")
