@@ -5876,90 +5876,25 @@ async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         logger.error(f"Ошибка в dungeon_menu: {e}")
 
 async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает Жертвенный алтарь."""
+    """Показывает Жертвенный алтарь для пожертвования существ."""
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
         
-        # ⭐ КЛАВИАТУРА С КНОПКОЙ "НАЗАД В ПОДЗЕМЕЛЬЕ" ⭐
-        keyboard = [
-            [KeyboardButton("🔙 Назад в Подземелье")],
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        
-        # ⭐ ПРОВЕРКА: callback или сообщение ⭐
-        if hasattr(update, 'callback_query') and update.callback_query:
-            query = update.callback_query
-            try:
-                await query.message.delete()
-            except:
-                pass
-            # ⭐ ОТПРАВЛЯЕМ ФОТО АЛТАРЯ ⭐
-            await context.bot.send_photo(
-                chat_id=query.message.chat_id,
-                photo=ALTAR_IMAGE_URL,
-                caption=(
-                    "🩸 **Жертвенный алтарь**\n\n"
-                    "Пожертвуйте существо редкости UpgradeT1-UpgradeT7\n"
-                    "и получите награду!\n\n"
-                    "💰 **Награды:**\n"
-                    "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
-                    "• UpgradeT5: 2 бесплатных найма\n"
-                    "• UpgradeT6: 5 бесплатных наймов\n"
-                    "• UpgradeT7: 10 бесплатных наймов"
-                ),
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
-            )
-        else:
-            # ⭐ ОТПРАВЛЯЕМ ФОТО АЛТАРЯ ⭐
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id,
-                photo=ALTAR_IMAGE_URL,
-                caption=(
-                    "🩸 **Жертвенный алтарь**\n\n"
-                    "Пожертвуйте существо редкости UpgradeT1-UpgradeT7\n"
-                    "и получите награду!\n\n"
-                    "💰 **Награды:**\n"
-                    "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
-                    "• UpgradeT5: 2 бесплатных найма\n"
-                    "• UpgradeT6: 5 бесплатных наймов\n"
-                    "• UpgradeT7: 10 бесплатных наймов"
-                ),
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
-            )
-    except Exception as e:
-        logger.error(f"Ошибка в sacrifice_altar: {e}")
-        # ⭐ ЗАПАСНОЙ ВАРИАНТ ⭐
-        if hasattr(update, 'callback_query') and update.callback_query:
-            await update.callback_query.answer("❌ Ошибка при загрузке алтаря", show_alert=True)
-        else:
-            await update.message.reply_text(
-                "🩸 **Жертвенный алтарь**\n\n"
-                "Пожертвуйте существо и получите награду!",
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
-            )
-
-
-async def show_sacrifice_creatures(update: Update, context: ContextTypes.DEFAULT_TYPE, 
-                                    sort_type: str, page: int = 0) -> None:
-    """Показывает существ для пожертвования."""
-    try:
-        user_id = str(update.effective_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
+        # ⭐ ПРОВЕРКА: есть ли существа для жертвоприношения ⭐
         if not user_data or not user_data.get("cards"):
-            await update.message.reply_text("❌ У вас нет существ!")
+            keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            await update.message.reply_text(
+                "❌ У вас нет существ для жертвоприношения!",
+                reply_markup=reply_markup
+            )
             return
         
         # ⭐ ФИЛЬТРУЕМ ТОЛЬКО UpgradeT1-UpgradeT7 ⭐
         upgrade_cards = []
-        user_card_ids = user_data["cards"]
-        card_counts = Counter(user_card_ids)
+        card_counts = Counter(user_data["cards"])
         
         for card_id, count in card_counts.items():
             card = find_card_by_id(card_id, data["cards"])
@@ -5968,56 +5903,103 @@ async def show_sacrifice_creatures(update: Update, context: ContextTypes.DEFAULT
                 upgrade_cards.append((card_id, count, card))
         
         if not upgrade_cards:
-            await update.message.reply_text("❌ Нет существ для пожертвования!")
+            keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            await update.message.reply_text(
+                "❌ У вас нет существ редкости UpgradeT1-UpgradeT7 для жертвоприношения!",
+                reply_markup=reply_markup
+            )
+            return
+        
+        # ⭐ СОХРАНЯЕМ СПИСОК КАРТ В context.user_data ⭐
+        context.user_data[user_id] = {
+            "step": "sacrifice_select",
+            "sacrifice_cards": upgrade_cards,
+        }
+        
+        # ⭐ ОТПРАВЛЯЕМ INLINE КЛАВИАТУРУ ДЛЯ СОРТИРОВКИ ⭐
+        inline_keyboard = [
+            [InlineKeyboardButton("📊 По редкости", callback_data="sacrifice_rarity")],
+            [InlineKeyboardButton("📋 Все существа", callback_data="sacrifice_all")],
+        ]
+        
+        await update.message.reply_text(
+            "🩸 **Жертвенный алтарь**\n\n"
+            "Пожертвуйте существо и получите награду!\n\n"
+            "💰 **Награды:**\n"
+            "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
+            "• UpgradeT5: 2 бесплатных найма\n"
+            "• UpgradeT6: 5 бесплатных наймов\n"
+            "• UpgradeT7: 10 бесплатных наймов\n\n"
+            "Выберите способ просмотра:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard),
+            parse_mode="Markdown"
+        )
+        
+        # ⭐ ОТПРАВЛЯЕМ REPLY KEYBOARD ДЛЯ НАВИГАЦИИ ⭐
+        keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text(
+            "Выберите действие:",
+            reply_markup=reply_markup
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в sacrifice_altar: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии алтаря")
+
+
+async def show_sacrifice_creatures(update: Update, context: ContextTypes.DEFAULT_TYPE, 
+                                    sort_type: str = "all") -> None:
+    """Показывает существ для жертвоприношения."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if user_id not in context.user_data:
+            await update.message.reply_text("❌ Сессия алтаря истекла!")
+            return
+        
+        sacrifice_cards = context.user_data[user_id].get("sacrifice_cards", [])
+        
+        if not sacrifice_cards:
+            await update.message.reply_text("❌ Нет существ для жертвоприношения!")
             return
         
         # ⭐ СОРТИРОВКА ⭐
         if sort_type == "rarity":
             rarity_order = ["UpgradeT7", "UpgradeT6", "UpgradeT5", "UpgradeT4", 
                            "UpgradeT3", "UpgradeT2", "UpgradeT1"]
-            upgrade_cards.sort(key=lambda x: rarity_order.index(x[2]["rarity"]) 
-                              if x[2]["rarity"] in rarity_order else 99)
+            sacrifice_cards.sort(key=lambda x: rarity_order.index(x[2]["rarity"]) 
+                                if x[2]["rarity"] in rarity_order else 99)
         
-        # ⭐ СТРАНИЦЫ ⭐
-        cards_per_page = 5
-        total_pages = (len(upgrade_cards) + cards_per_page - 1) // cards_per_page
-        
-        if page < 0:
-            page = 0
-        elif page >= total_pages:
-            page = total_pages - 1
-        
-        start_index = page * cards_per_page
-        end_index = min(start_index + cards_per_page, len(upgrade_cards))
-        page_cards = upgrade_cards[start_index:end_index]
-        
-        # ⭐ СОЗДАЁМ КЛАВИАТУРУ ⭐
+        # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ ⭐
         inline_keyboard = []
-        for card_id, count, card in page_cards:
+        for card_id, count, card in sacrifice_cards:
+            reward = SACRIFICE_REWARDS.get(card["rarity"], {})
+            reward_text = ""
+            if reward.get("cents", 0) > 0:
+                reward_text = f"💰 {reward['cents']} золота"
+            if reward.get("free_rolls", 0) > 0:
+                reward_text += f" 🎲 {reward['free_rolls']} наймов"
+            
             inline_keyboard.append([
                 InlineKeyboardButton(
-                    f"{card['title']} ({card['rarity']}) - {count} шт.",
-                    callback_data=f"sacrifice_select_{card_id}"
+                    f"{card['title']} ({card['rarity']}) - {reward_text}",
+                    callback_data=f"sacrifice_confirm_{card_id}"
                 )
             ])
         
-        # ⭐ НАВИГАЦИЯ ⭐
-        nav_buttons = []
-        if page > 0:
-            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"sacrifice_page_{sort_type}_{page - 1}"))
-        nav_buttons.append(InlineKeyboardButton(f"{page + 1}/{total_pages}", callback_data="sacrifice_info"))
-        if page < total_pages - 1:
-            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"sacrifice_page_{sort_type}_{page + 1}"))
-        
-        inline_keyboard.append(nav_buttons)
         inline_keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="sacrifice_back")])
         
         await update.message.reply_text(
-            f"🩸 **Выберите существо для пожертвования:**\n"
-            f"📄 Страница {page + 1}/{total_pages}",
+            f"🩸 **Выберите существо для жертвоприношения:**\n"
+            f"📊 Сортировка: {'По редкости' if sort_type == 'rarity' else 'Все существа'}",
             reply_markup=InlineKeyboardMarkup(inline_keyboard),
             parse_mode="Markdown"
         )
+        
     except Exception as e:
         logger.error(f"Ошибка в show_sacrifice_creatures: {e}")
         await update.message.reply_text("❌ Ошибка")
@@ -6028,64 +6010,63 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         query = update.callback_query
         await query.answer()
+        user_id = str(query.from_user.id)
+        data = load_data()
         
         # ⭐ ВЫБОР СПОСОБА СОРТИРОВКИ ⭐
         if query.data == "sacrifice_rarity":
-            await show_sacrifice_creatures(update, context, sort_type="rarity", page=0)
+            await show_sacrifice_creatures(update, context, sort_type="rarity")
             return
         
         elif query.data == "sacrifice_all":
-            await show_sacrifice_creatures(update, context, sort_type="all", page=0)
+            await show_sacrifice_creatures(update, context, sort_type="all")
             return
         
-        # ⭐ НАВИГАЦИЯ ПО СТРАНИЦАМ ⭐
-        elif query.data.startswith("sacrifice_page_"):
-            parts = query.data.replace("sacrifice_page_", "").split("_")
-            sort_type = parts[0]
-            page = int(parts[1])
-            await show_sacrifice_creatures(update, context, sort_type=sort_type, page=page)
-            return
-        
-        # ⭐ ВЫБОР СУЩЕСТВА ⭐
-        elif query.data.startswith("sacrifice_select_"):
-            card_id = int(query.data.replace("sacrifice_select_", ""))
-            data = load_data()
-            card = find_card_by_id(card_id, data["cards"])
+        # ⭐ ПОДТВЕРЖДЕНИЕ ЖЕРТВОПРИНОШЕНИЯ ⭐
+        elif query.data.startswith("sacrifice_confirm_"):
+            card_id = int(query.data.replace("sacrifice_confirm_", ""))
+            user_data = data["users"].get(user_id)
             
+            # Находим карту
+            card = find_card_by_id(card_id, data["cards"])
             if not card:
-                await query.answer("❌ Существо не найдено!", show_alert=True)
+                await query.edit_message_text("❌ Существо не найдено!")
                 return
             
             # ⭐ ПОДТВЕРЖДЕНИЕ ⭐
-            keyboard = [
+            reward = SACRIFICE_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
+            reward_text = ""
+            if reward.get("cents", 0) > 0:
+                reward_text += f"💰 +{reward['cents']} золота\n"
+            if reward.get("free_rolls", 0) > 0:
+                reward_text += f"🎲 +{reward['free_rolls']} бесплатных наймов\n"
+            
+            inline_keyboard = [
                 [
-                    InlineKeyboardButton("✅ Подтвердить", callback_data=f"sacrifice_confirm_{card_id}"),
-                    InlineKeyboardButton("❌ Отклонить", callback_data="sacrifice_decline"),
+                    InlineKeyboardButton("✅ Подтвердить", callback_data=f"sacrifice_execute_{card_id}"),
+                    InlineKeyboardButton("❌ Отмена", callback_data="sacrifice_back")
                 ]
             ]
             
             await query.edit_message_text(
                 f"❓ **Вы уверены, что хотите пожертвовать {card['title']}?**\n\n"
                 f"🌟 Редкость: {card['rarity']}\n"
-                f"🎁 **Награда:** "
-                f"{SACRIFICE_REWARDS.get(card['rarity'], {}).get('cents', 0)} золота "
-                f"{SACRIFICE_REWARDS.get(card['rarity'], {}).get('free_rolls', 0)} бесплатных наймов\n\n"
-                f"⚠️ Существо будет удалено из казармы!",
-                reply_markup=InlineKeyboardMarkup(keyboard),
+                f"🎁 **Награда:**\n{reward_text}\n"
+                f"⚠️ Существо будет удалено из коллекции!",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard),
                 parse_mode="Markdown"
             )
             return
         
-        # ⭐ ПОДТВЕРЖДЕНИЕ ПОЖЕРТВОВАНИЯ ⭐
-        elif query.data.startswith("sacrifice_confirm_"):
-            card_id = int(query.data.replace("sacrifice_confirm_", ""))
-            user_id = str(query.from_user.id)
-            data = load_data()
+        # ⭐ ВЫПОЛНЕНИЕ ЖЕРТВОПРИНОШЕНИЯ ⭐
+        elif query.data.startswith("sacrifice_execute_"):
+            card_id = int(query.data.replace("sacrifice_execute_", ""))
             user_data = data["users"].get(user_id)
-            card = find_card_by_id(card_id, data["cards"])
             
-            if not user_data or not card:
-                await query.answer("❌ Ошибка!", show_alert=True)
+            # Находим карту
+            card = find_card_by_id(card_id, data["cards"])
+            if not card:
+                await query.edit_message_text("❌ Существо не найдено!")
                 return
             
             # ⭐ УДАЛЯЕМ КАРТУ ⭐
@@ -6094,32 +6075,36 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
             # ⭐ ВЫДАЁМ НАГРАДУ ⭐
             reward = SACRIFICE_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
-            user_data["cents"] = user_data.get("cents", 0) + reward["cents"]
-            user_data["free_rolls"] = user_data.get("free_rolls", 0) + reward["free_rolls"]
+            user_data["cents"] = user_data.get("cents", 0) + reward.get("cents", 0)
+            user_data["free_rolls"] = user_data.get("free_rolls", 0) + reward.get("free_rolls", 0)
             
             save_data(data)
             
             # ⭐ СООБЩЕНИЕ О НАГРАДЕ ⭐
             reward_text = ""
-            if reward["cents"] > 0:
+            if reward.get("cents", 0) > 0:
                 reward_text += f"💰 +{reward['cents']} золота\n"
-            if reward["free_rolls"] > 0:
+            if reward.get("free_rolls", 0) > 0:
                 reward_text += f"🎲 +{reward['free_rolls']} бесплатных наймов\n"
             
-            keyboard = [[InlineKeyboardButton("🔙 Назад в алтарь", callback_data="sacrifice_back")]]
-            
             await query.edit_message_text(
-                f"✅ **Пожертвование успешно!**\n\n"
+                f"✅ **Жертвоприношение успешно!**\n\n"
                 f"🩸 Вы пожертвовали: {card['title']}\n"
                 f"🎁 **Награда:**\n{reward_text}",
-                reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
-            return
-        
-        # ⭐ ОТКЛОНЕНИЕ ⭐
-        elif query.data == "sacrifice_decline":
-            await query.edit_message_text("❌ Пожертвование отменено")
+            
+            # ⭐ ОБНОВЛЯЕМ СПИСОК КАРТ ⭐
+            card_counts = Counter(user_data["cards"])
+            upgrade_cards = []
+            for cid, count in card_counts.items():
+                c = find_card_by_id(cid, data["cards"])
+                if c and c.get("rarity") in ["UpgradeT1", "UpgradeT2", "UpgradeT3", 
+                                             "UpgradeT4", "UpgradeT5", "UpgradeT6", "UpgradeT7"]:
+                    upgrade_cards.append((cid, count, c))
+            
+            context.user_data[user_id]["sacrifice_cards"] = upgrade_cards
+            
             return
         
         # ⭐ НАЗАД ⭐
@@ -6130,7 +6115,6 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except Exception as e:
         logger.error(f"Ошибка в sacrifice_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
 
 # ===== ЗАПУСК БОТА =====
 
