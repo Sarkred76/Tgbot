@@ -139,8 +139,8 @@ def load_data() -> Dict[str, Any]:
                     user_data["notification_sent"] = False
                 if "used_promo_codes" not in user_data:
                     user_data["used_promo_codes"] = []
-                if "refugee_camp_last_visit" not in user_data:
-                    user_data["refugee_camp_last_visit"] = 0
+                if "refugee_camp_last_reset" not in user_data:
+                    user_data["refugee_camp_last_reset"] = 0  # ← Время последнего сброса
                 if "refugee_camp_offered_card" not in user_data:
                     user_data["refugee_camp_offered_card"] = None
                 if "refugee_camp_purchased" not in user_data:
@@ -6357,18 +6357,20 @@ def check_refugee_camp_reset(user_data: Dict) -> None:
     msk_tz = datetime.timezone(datetime.timedelta(hours=3))
     now_msk = datetime.datetime.now(msk_tz)
     
-    # Получаем дату последнего посещения
-    last_visit = user_data.get("refugee_camp_last_visit", 0)
+    # Получаем дату последнего сброса
+    last_reset = user_data.get("refugee_camp_last_reset", 0)
     
-    # Если сегодня ещё не посещали
+    # ⭐ ЕСЛИ НАСТУПИЛ НОВЫЙ ДЕНЬ ⭐
     if (
-        last_visit == 0
-        or now_msk.day != datetime.datetime.fromtimestamp(last_visit, msk_tz).day
+        last_reset == 0
+        or now_msk.day != datetime.datetime.fromtimestamp(last_reset, msk_tz).day
     ):
         # Сбрасываем покупку
         user_data["refugee_camp_purchased"] = False
         # Генерируем новое существо для предложения
         user_data["refugee_camp_offered_card"] = None
+        # ⭐ ОБНОВЛЯЕМ ВРЕМЯ СБРОСА ⭐
+        user_data["refugee_camp_last_reset"] = int(now_msk.timestamp())
         logger.info(f"Сброс Лагеря Беженцев для пользователя {user_data.get('username', 'unknown')}")
         
 
@@ -6387,7 +6389,7 @@ async def refugee_camp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 "total_points": 0,
                 "season_points": 0,
                 "cents": 0,
-                "refugee_camp_last_visit": 0,
+                "refugee_camp_last_reset": 0,
                 "refugee_camp_offered_card": None,
                 "refugee_camp_purchased": False,
             }
@@ -6395,6 +6397,7 @@ async def refugee_camp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         
         # ⭐ ПРОВЕРЯЕМ СБРОС ⭐
         check_refugee_camp_reset(user_data)
+        save_data(data)  # ← Сохраняем после проверки сброса
         
         # ⭐ ГЕНЕРИРУЕМ ПРЕДЛОЖЕНИЕ ЕСЛИ НЕТ ⭐
         if user_data.get("refugee_camp_offered_card") is None:
@@ -6528,7 +6531,8 @@ async def buy_refugee_creature(update: Update, context: ContextTypes.DEFAULT_TYP
         
         # ⭐ ОТМЕЧАЕМ КАК КУПЛЕННОЕ ⭐
         user_data["refugee_camp_purchased"] = True
-        user_data["refugee_camp_last_visit"] = int(time.time())
+        # ⭐ ИСПРАВЛЕНИЕ: НЕ обновляем last_reset здесь! ⭐
+        # last_reset обновляется ТОЛЬКО в check_refugee_camp_reset() в 00:00 МСК
         
         save_data(data)
         
