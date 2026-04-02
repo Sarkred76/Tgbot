@@ -2539,23 +2539,33 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
             inline_keyboard.append(nav_buttons)
         
         caption = (
-            "🔨 **Выберите существо для улучшения:**\n\n"
-            "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n\n"
+            "🔨 **Выберите существо для улучшения:**\n"
+            "2 существа будут уничтожены, вы получите 1 случайное существо улучшенной редкости\n"
             f"📄 Страница {page + 1}/{total_pages}\n"
             f"🐦‍🔥 Доступно для улучшения: {total_cards}"
         )
         
-        # ⭐ ОТПРАВЛЯЕМ КАК НОВОЕ СООБЩЕНИЕ ⭐
+        # ⭐ ПРОВЕРЯЕМ ЕСТЬ ЛИ CALLBACK QUERY ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
             query = update.callback_query
-            # ⭐ ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ ВМЕСТО РЕДАКТИРОВАНИЯ ⭐
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text=caption,
-                reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                parse_mode="Markdown"
-            )
+            # ⭐ ПЫТАЕМСЯ ОТРЕДАКТИРОВАТЬ СУЩЕСТВУЮЩЕЕ СООБЩЕНИЕ ⭐
+            try:
+                await query.edit_message_text(
+                    caption,
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                    parse_mode="Markdown"
+                )
+            except Exception as edit_error:
+                logger.error(f"Ошибка редактирования: {edit_error}")
+                # ⭐ ЕСЛИ НЕ МОЖНО ОТРЕДАКТИРОВАТЬ - ОТПРАВЛЯЕМ НОВОЕ ⭐
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=caption,
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                    parse_mode="Markdown"
+                )
         else:
+            # ⭐ ПЕРВЫЙ ЗАПУСК - ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ ⭐
             await update.message.reply_text(
                 caption,
                 reply_markup=InlineKeyboardMarkup(inline_keyboard),
@@ -2568,7 +2578,7 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
             await update.callback_query.answer("❌ Произошла ошибка", show_alert=True)
         else:
             await update.message.reply_text("❌ Произошла ошибка")
-
+            
 async def craft_nav_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик навигации по страницам крафта."""
     try:
@@ -2588,22 +2598,25 @@ async def craft_nav_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await forest_menu(update, context)
             return
         
+        # ⭐ НАВИГАЦИЯ ПО СТРАНИЦАМ ⭐
         if query.data.startswith("craft_nav_"):
             page = int(query.data.split("_")[-1])
+            # ⭐ ВАЖНО: ВЫЗЫВАЕМ show_craft_page С UPDATE, ЧТОБЫ ОН МОГ ОТРЕДАКТИРОВАТЬ ⭐
             await show_craft_page(update, context, page)
+            return
+        
         elif query.data == "craft_page_info":
             await query.answer("📄 Используйте ◀️ и ▶️ для навигации", show_alert=False)
+        
         elif query.data == "craft_cancel":
             user_id = str(query.from_user.id)
             if user_id in context.user_data:
                 del context.user_data[user_id]
-            
             # ⭐ ВОЗВРАЩАЕМ КЛАВИАТУРУ ЛЕСА ⭐
             forest_keyboard = [
                 [KeyboardButton("🔙 Назад в Лес")],
             ]
             forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
-            
             await query.edit_message_text(
                 "❌ Улучшение отменено",
                 reply_markup=forest_reply_markup
@@ -2751,7 +2764,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await process_craft(update, context, user_id, card_id, data, query)
             
             # ⭐ ПАУЗА ЧТОБЫ ПОЛЬЗОВАТЕЛЬ УВИДЕЛ РЕЗУЛЬТАТ ⭐
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
             
             # ⭐ ПРОВЕРЯЕМ, ЕСТЬ ЛИ ЕЩЁ КАРТЫ ДЛЯ КРАФТА ⭐
             user_data = data["users"].get(user_id)
@@ -2780,7 +2793,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         "craft_page": 0,
                         "craft_cards_per_page": 5,
                     }
-                    # ⭐ ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ С МЕНЮ КРАФТА ⭐
+                    # ⭐ ВАЖНО: ПЕРЕДАЁМ UPDATE ЧТОБЫ МОЖНО БЫЛО РЕДАКТИРОВАТЬ ⭐
                     await show_craft_page(update, context, 0)
                     return
             
