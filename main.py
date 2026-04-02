@@ -40,6 +40,7 @@ FORT_IMAGE_URL = "https://files.catbox.moe/jfvt8d.jpg"
 FOREST_IMAGE_URL = "https://files.catbox.moe/1p3gd9.jpg"
 TAVERN_IMAGE_URL = "https://files.catbox.moe/jes2nn.jpg"
 BARRACKS_IMAGE_URL = "https://files.catbox.moe/a5kew7.jpg"
+DUNGEON_IMAGE_URL = "https://files.catbox.moe/6kx269.png" 
 
 # Бонусы по редкостям
 
@@ -362,6 +363,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("⚔️ Нанять существо")],
             [KeyboardButton("🏰 Город")],
             [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
+            [KeyboardButton("🦇 Подземелье")], 
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
@@ -1433,6 +1435,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 [KeyboardButton("⚔️ Нанять существо")],
                 [KeyboardButton("🏰 Город")],
                 [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
+                [KeyboardButton("🦇 Подземелье")],
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
@@ -1449,6 +1452,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         elif text == "🏰 Город":
             await city_menu(update, context)
+            return
+
+        elif text == "🦇 Подземелье":
+            await dungeon_menu(update, context)
             return
 
         # ⭐ КНОПКА "🔙 НАЗАД В ТАВЕРНУ" ⭐
@@ -5810,6 +5817,53 @@ async def city_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
     except Exception as e:
         logger.error(f"Ошибка в city_menu: {e}")
+
+async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает меню Подземелья."""
+    try:
+        # ⭐ КЛАВИАТУРА С КНОПКАМИ ⭐
+        keyboard = [
+            [KeyboardButton("🔙 Назад в меню")],
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
+        caption = "Вы входите в подземелье!"
+        
+        # ⭐ ПРОВЕРКА: callback или сообщение ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=DUNGEON_IMAGE_URL,  # ← Изображение Подземелья
+                caption=caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        else:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=DUNGEON_IMAGE_URL,  # ← Изображение Подземелья
+                caption=caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        logger.error(f"Ошибка в dungeon_menu: {e}")
+        # ⭐ ЗАПАСНОЙ ВАРИАНТ: если изображение не загрузилось ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Ошибка при загрузке изображения", show_alert=True)
+        else:
+            await update.message.reply_text(
+                "🦇 **Подземелье**\n\n"
+                "Вы входите в подземелье!\n\n"
+                "Здесь вас ждут опасные приключения!",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
 
 
 
