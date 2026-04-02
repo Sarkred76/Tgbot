@@ -5951,7 +5951,8 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         
         # ⭐ ФИЛЬТРУЕМ ТОЛЬКО UpgradeT1-UpgradeT7 ⭐
         upgrade_cards = []
-        card_counts = Counter(user_data["cards"])
+        user_card_ids = user_data["cards"]
+        card_counts = Counter(user_card_ids)
         
         for card_id, count in card_counts.items():
             card = find_card_by_id(card_id, data["cards"])
@@ -5972,7 +5973,20 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         context.user_data[user_id] = {
             "step": "sacrifice_select",
             "sacrifice_cards": upgrade_cards,
+            "sacrifice_page": 0,
+            "sacrifice_cards_per_page": 5,
         }
+
+        caption = (
+            "🩸 **Жертвенный алтарь**\n\n"
+            "Пожертвуйте существо редкости UpgradeT1-UpgradeT7\n"
+            "и получите награду!\n\n"
+            "💰 **Награды:**\n"
+            "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
+            "• UpgradeT5: 2 бесплатных найма\n"
+            "• UpgradeT6: 5 бесплатных наймов\n"
+            "• UpgradeT7: 10 бесплатных наймов"
+        )
         
         # ⭐ ОТПРАВЛЯЕМ INLINE КЛАВИАТУРУ ДЛЯ СОРТИРОВКИ ⭐
         inline_keyboard = [
@@ -5980,18 +5994,27 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             [InlineKeyboardButton("📋 Все существа", callback_data="sacrifice_all")],
         ]
         
-        await update.message.reply_text(
-            "🩸 **Жертвенный алтарь**\n\n"
-            "Пожертвуйте существо и получите награду!\n\n"
-            "💰 **Награды:**\n"
-            "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
-            "• UpgradeT5: 2 бесплатных найма\n"
-            "• UpgradeT6: 5 бесплатных наймов\n"
-            "• UpgradeT7: 10 бесплатных наймов\n\n"
-            "Выберите способ просмотра:",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard),
-            parse_mode="Markdown"
-        )
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=ALTAR_IMAGE_URL,
+                caption=caption,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                parse_mode="Markdown"
+            )
+        else:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=ALTAR_IMAGE_URL,
+                caption=caption,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                parse_mode="Markdown"
+            )
         
         # ⭐ ОТПРАВЛЯЕМ REPLY KEYBOARD ДЛЯ НАВИГАЦИИ ⭐
         keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
