@@ -5841,18 +5841,16 @@ async def city_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает меню Подземелья с ReplyKeyboardMarkup."""
+    """Показывает меню Подземелья."""
     try:
-        # ⭐ КЛАВИАТУРА С КНОПКАМИ ПОДЗЕМЕЛЬЯ (ReplyKeyboardMarkup) ⭐
+        # ⭐ КЛАВИАТУРА С КНОПКАМИ ПОДЗЕМЕЛЬЯ ⭐
         keyboard = [
             [KeyboardButton("🩸 Жертвенный алтарь")],
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
-        caption = (
-            "🦇 Вы входите в подземелье!\n\n"
-        )
+        caption = "🦇 Вы входите в подземелье!"
         
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -5878,15 +5876,6 @@ async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             )
     except Exception as e:
         logger.error(f"Ошибка в dungeon_menu: {e}")
-        # ⭐ ЗАПАСНОЙ ВАРИАНТ ⭐
-        if hasattr(update, 'callback_query') and update.callback_query:
-            await update.callback_query.answer("❌ Ошибка при загрузке изображения", show_alert=True)
-        else:
-            await update.message.reply_text(
-                "🦇 Вы входите в тёмное подземелье!\n\n",
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
-            )
 
 
 async def dungeon_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -5926,10 +5915,11 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         data = load_data()
         user_data = data["users"].get(user_id)
         
-        # ⭐ ПРОВЕРКА: есть ли существа для жертвоприношения ⭐
+        # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД ⭐
+        keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
         if not user_data or not user_data.get("cards"):
-            keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
-            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
                 "❌ У вас нет существ для жертвоприношения!",
                 reply_markup=reply_markup
@@ -5948,8 +5938,6 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 upgrade_cards.append((card_id, count, card))
         
         if not upgrade_cards:
-            keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
-            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
                 "❌ У вас нет существ редкости UpgradeT1-UpgradeT7 для жертвоприношения!",
                 reply_markup=reply_markup
@@ -5960,54 +5948,30 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         context.user_data[user_id] = {
             "step": "sacrifice_select",
             "sacrifice_cards": upgrade_cards,
-            "sacrifice_page": 0,
-            "sacrifice_cards_per_page": 5,
         }
-
-        caption = (
-            "🩸 **Жертвенный алтарь**\n\n"
-        )
         
-        # ⭐ ОТПРАВЛЯЕМ INLINE КЛАВИАТУРУ ДЛЯ СОРТИРОВКИ ⭐
+        # ⭐ INLINE КЛАВИАТУРА ДЛЯ СОРТИРОВКИ ⭐
         inline_keyboard = [
             [InlineKeyboardButton("📊 По редкости", callback_data="sacrifice_rarity")],
             [InlineKeyboardButton("📋 Все существа", callback_data="sacrifice_all")],
         ]
         
-        if hasattr(update, 'callback_query') and update.callback_query:
-            query = update.callback_query
-            try:
-                await query.message.delete()
-            except:
-                pass
-            await context.bot.send_photo(
-                chat_id=query.message.chat_id,
-                photo=ALTAR_IMAGE_URL,
-                caption=caption,
-                reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                parse_mode="Markdown"
-            )
-        else:
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id,
-                photo=ALTAR_IMAGE_URL,
-                caption=caption,
-                reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                parse_mode="Markdown"
-            )
-        
-        # ⭐ ОТПРАВЛЯЕМ REPLY KEYBOARD ДЛЯ НАВИГАЦИИ ⭐
-        keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        await update.message.reply_text(
-            "Пожертвуйте существо редкости UpgradeT1-UpgradeT7\n"
-            "и получите награду!\n\n"
-            "💰 **Награды:**\n"
-            "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
-            "• UpgradeT5: 2 бесплатных найма\n"
-            "• UpgradeT6: 5 бесплатных наймов\n"
-            "• UpgradeT7: 10 бесплатных наймов",
-            reply_markup=reply_markup
+        # ⭐ ОТПРАВЛЯЕМ ФОТО АЛТАРЯ С INLINE-КНОПКАМИ ⭐
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=ALTAR_IMAGE_URL,
+            caption=(
+                "🩸 **Жертвенный алтарь**\n\n"
+                "Пожертвуйте существо и получите награду!\n\n"
+                "💰 **Награды:**\n"
+                "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
+                "• UpgradeT5: 2 бесплатных найма\n"
+                "• UpgradeT6: 5 бесплатных наймов\n"
+                "• UpgradeT7: 10 бесплатных наймов\n\n"
+                "Выберите способ просмотра:"
+            ),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard),
+            parse_mode="Markdown"
         )
         
     except Exception as e:
@@ -6015,62 +5979,35 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.message.reply_text("❌ Ошибка при открытии алтаря")
 
 
-async def show_sacrifice_creatures(update: Update, context: ContextTypes.DEFAULT_TYPE, 
-                                    sort_type: str = "all", page: int = 0) -> None:
+async def sacrifice_show_creatures(update: Update, context: ContextTypes.DEFAULT_TYPE, 
+                                    sort_type: str = "all") -> None:
     """Показывает существ для жертвоприношения."""
     try:
-        user_id = str(update.effective_user.id)
+        query = update.callback_query
+        user_id = str(query.from_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
         
-        # ⭐ ПРОВЕРКА: callback query или сообщение ⭐
-        if hasattr(update, 'callback_query') and update.callback_query:
-            query = update.callback_query
-            chat_id = query.message.chat_id
-        else:
-            chat_id = update.effective_chat.id
-        
-        if not user_data or not user_data.get("cards"):
-            if hasattr(update, 'callback_query') and update.callback_query:
-                await query.answer("❌ У вас нет существ для жертвоприношения!", show_alert=True)
-            else:
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text="❌ У вас нет существ для жертвоприношения!"
-                )
+        if user_id not in context.user_data:
+            await query.answer("❌ Сессия алтаря истекла!", show_alert=True)
             return
         
-        # ⭐ ФИЛЬТРУЕМ ТОЛЬКО UpgradeT1-UpgradeT7 ⭐
-        upgrade_cards = []
-        user_card_ids = user_data["cards"]
-        card_counts = Counter(user_card_ids)
+        sacrifice_cards = context.user_data[user_id].get("sacrifice_cards", [])
         
-        for card_id, count in card_counts.items():
-            card = find_card_by_id(card_id, data["cards"])
-            if card and card.get("rarity") in ["UpgradeT1", "UpgradeT2", "UpgradeT3", 
-                                                "UpgradeT4", "UpgradeT5", "UpgradeT6", "UpgradeT7"]:
-                upgrade_cards.append((card_id, count, card))
-        
-        if not upgrade_cards:
-            if hasattr(update, 'callback_query') and update.callback_query:
-                await query.answer("❌ У вас нет существ редкости UpgradeT1-UpgradeT7!", show_alert=True)
-            else:
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text="❌ У вас нет существ редкости UpgradeT1-UpgradeT7 для жертвоприношения!"
-                )
+        if not sacrifice_cards:
+            await query.answer("❌ Нет существ для жертвоприношения!", show_alert=True)
             return
         
         # ⭐ СОРТИРОВКА ⭐
         if sort_type == "rarity":
             rarity_order = ["UpgradeT7", "UpgradeT6", "UpgradeT5", "UpgradeT4", 
                            "UpgradeT3", "UpgradeT2", "UpgradeT1"]
-            upgrade_cards.sort(key=lambda x: rarity_order.index(x[2]["rarity"]) 
-                              if x[2]["rarity"] in rarity_order else 99)
+            sacrifice_cards.sort(key=lambda x: rarity_order.index(x[2]["rarity"]) 
+                                if x[2]["rarity"] in rarity_order else 99)
         
         # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ ⭐
         inline_keyboard = []
-        for card_id, count, card in upgrade_cards:
+        for card_id, count, card in sacrifice_cards:
             reward = SACRIFICE_REWARDS.get(card["rarity"], {})
             reward_text = ""
             if reward.get("cents", 0) > 0:
@@ -6085,48 +6022,27 @@ async def show_sacrifice_creatures(update: Update, context: ContextTypes.DEFAULT
                 )
             ])
         
-        # ⭐ КНОПКА НАЗАД ⭐
-        inline_keyboard.append([
-            InlineKeyboardButton("🔙 Назад в алтарь", callback_data="sacrifice_back")
-        ])
+        inline_keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="sacrifice_back")])
         
-        # ⭐ ОТПРАВЛЯЕМ СООБЩЕНИЕ ⭐
-        if hasattr(update, 'callback_query') and update.callback_query:
-            try:
-                await query.edit_message_text(
-                    "🩸 **Жертвенный алтарь**\n\n"
-                    "Выберите существо для жертвоприношения:\n\n"
-                    "⚠️ Существо будет удалено из коллекции!",
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                    parse_mode="Markdown"
-                )
-            except Exception as edit_error:
-                logger.error(f"Ошибка редактирования: {edit_error}")
-                await query.message.delete()
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text="🩸 **Жертвенный алтарь**\n\n"
-                         "Выберите существо для жертвоприношения:\n\n"
-                         "⚠️ Существо будет удалено из коллекции!",
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                    parse_mode="Markdown"
-                )
-        else:
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text="🩸 **Жертвенный алтарь**\n\n"
-                     "Выберите существо для жертвоприношения:\n\n"
-                     "⚠️ Существо будет удалено из коллекции!",
-                reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                parse_mode="Markdown"
-            )
+        # ⭐ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ И ОТПРАВЛЯЕМ НОВОЕ ⭐
+        try:
+            await query.message.delete()
+        except:
+            pass
+        
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=(
+                f"🩸 **Выберите существо для жертвоприношения:**\n"
+                f"📊 Сортировка: {'По редкости' if sort_type == 'rarity' else 'Все существа'}"
+            ),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard),
+            parse_mode="Markdown"
+        )
         
     except Exception as e:
-        logger.error(f"Ошибка в show_sacrifice_creatures: {e}")
-        if hasattr(update, 'callback_query') and update.callback_query:
-            await update.callback_query.answer("❌ Произошла ошибка", show_alert=True)
-        else:
-            await update.message.reply_text("❌ Произошла ошибка")
+        logger.error(f"Ошибка в sacrifice_show_creatures: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
 
 async def sacrifice_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню выбора редкости для жертвоприношения."""
