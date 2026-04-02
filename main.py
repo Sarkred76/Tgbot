@@ -42,6 +42,7 @@ TAVERN_IMAGE_URL = "https://files.catbox.moe/jes2nn.jpg"
 BARRACKS_IMAGE_URL = "https://files.catbox.moe/a5kew7.jpg"
 DUNGEON_IMAGE_URL = "https://files.catbox.moe/6kx269.png"
 ALTAR_IMAGE_URL = "https://files.catbox.moe/oonjfr.jpg"
+REFUGEE_CAMP_IMAGE_URL = "https://files.catbox.moe/eplmfl.jpg"
 
 SACRIFICE_REWARDS = {
     "UpgradeT1": {"cents": 100, "free_rolls": 0},  # 200/2 = 100
@@ -138,6 +139,12 @@ def load_data() -> Dict[str, Any]:
                     user_data["notification_sent"] = False
                 if "used_promo_codes" not in user_data:
                     user_data["used_promo_codes"] = []
+                if "refugee_camp_last_visit" not in user_data:
+                    user_data["refugee_camp_last_visit"] = 0
+                if "refugee_camp_offered_card" not in user_data:
+                    user_data["refugee_camp_offered_card"] = None
+                if "refugee_camp_purchased" not in user_data:
+                    user_data["refugee_camp_purchased"] = False
             
             return data
             
@@ -1459,6 +1466,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # ⭐ КНОПКА "🌲 ЛЕС" ⭐
         elif text == "🌲 Лес":
             await forest_menu(update, context)
+            return
+
+        elif text == "🏕️ Лагерь Беженцев":
+            await refugee_camp(update, context)
+            return
+
+        elif text.startswith("💰 Купить за ") and "золота" in text:
+            await buy_refugee_creature(update, context)
             return
 
         elif text == "🏰 Город":
@@ -5673,6 +5688,7 @@ async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         # ⭐ КЛАВИАТУРА С КНОПКАМИ МЕНЮ ⭐
         keyboard = [
             [KeyboardButton("🏰 Форт на холме")],
+            [KeyboardButton("🏕️ Лагерь Беженцев")], 
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -6331,8 +6347,209 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except Exception as e:
         logger.error(f"Ошибка в sacrifice_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
+
+
+def check_refugee_camp_reset(user_data: Dict) -> None:
+    """Проверяет и сбрасывает Лагерь Беженцев в полночь по МСК."""
+    import datetime
+    
+    # Получаем текущее время по МСК
+    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+    now_msk = datetime.datetime.now(msk_tz)
+    
+    # Получаем дату последнего посещения
+    last_visit = user_data.get("refugee_camp_last_visit", 0)
+    
+    # Если сегодня ещё не посещали
+    if (
+        last_visit == 0
+        or now_msk.day != datetime.datetime.fromtimestamp(last_visit, msk_tz).day
+    ):
+        # Сбрасываем покупку
+        user_data["refugee_camp_purchased"] = False
+        # Генерируем новое существо для предложения
+        user_data["refugee_camp_offered_card"] = None
+        logger.info(f"Сброс Лагеря Беженцев для пользователя {user_data.get('username', 'unknown')}")
         
+
+async def refugee_camp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает Лагерь Беженцев с ежедневным предложением."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
         
+        if not user_data:
+            user_data = {
+                "username": update.effective_user.username or "",
+                "first_name": update.effective_user.first_name or "",
+                "cards": [],
+                "total_points": 0,
+                "season_points": 0,
+                "cents": 0,
+                "refugee_camp_last_visit": 0,
+                "refugee_camp_offered_card": None,
+                "refugee_camp_purchased": False,
+            }
+            data["users"][user_id] = user_data
+        
+        # ⭐ ПРОВЕРЯЕМ СБРОС ⭐
+        check_refugee_camp_reset(user_data)
+        
+        # ⭐ ГЕНЕРИРУЕМ ПРЕДЛОЖЕНИЕ ЕСЛИ НЕТ ⭐
+        if user_data.get("refugee_camp_offered_card") is None:
+            # Собираем доступные карты (T1-T7, без Upgrade)
+            available_cards = [
+                card for card in data["cards"]
+                if card["available"]
+                and card.get("rarity") in ["T1", "T2", "T3", "T4", "T5", "T6", "T7"]
+            ]
+            
+            if available_cards:
+                # Выбираем случайное существо
+                offered_card = random.choice(available_cards)
+                user_data["refugee_camp_offered_card"] = offered_card["id"]
+                save_data(data)
+        
+        # ⭐ КЛАВИАТУРА С КНОПКАМИ ⭐
+        keyboard = [
+            [KeyboardButton("🔙 Назад в Лес")],
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
+        # ⭐ ПОЛУЧАЕМ ИНФОРМАЦИЮ О СУЩЕСТВЕ ⭐
+        offered_card_id = user_data.get("refugee_camp_offered_card")
+        offered_card = find_card_by_id(offered_card_id, data["cards"]) if offered_card_id else None
+        
+        if not offered_card:
+            await update.message.reply_text(
+                "🏕️ **Лагерь Беженцев**\n\n"
+                "❌ Сегодня нет доступных существ для покупки.\n"
+                "Заходите завтра после 00:00 МСК!",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+            return
+        
+        # ⭐ СЧИТАЕМ СТОИМОСТЬ (удвоенная награда за найм) ⭐
+        base_reward = RARITY_BONUSES.get(offered_card["rarity"], {"cents": 0})
+        price = base_reward["cents"] * 2
+        
+        # ⭐ ПРОВЕРЯЕМ, КУПИЛ ЛИ УЖЕ ⭐
+        purchased = user_data.get("refugee_camp_purchased", False)
+        
+        if purchased:
+            await update.message.reply_text(
+                f"🏕️ **Лагерь Беженцев**\n\n"
+                f"🃏 **Существо дня:** {offered_card['title']}\n"
+                f"🌟 **Редкость:** {offered_card['rarity']}\n"
+                f"💰 **Цена:** {price} золота\n\n"
+                f"✅ **Вы уже купили это существо сегодня!**\n"
+                f"⏰ Следующее предложение завтра в 00:00 МСК",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        else:
+            # ⭐ ДОБАВЛЯЕМ КНОПКУ ПОКУПКИ ⭐
+            keyboard = [
+                [KeyboardButton(f"💰 Купить за {price} золота")],
+                [KeyboardButton("🔙 Назад в Лес")],
+            ]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            
+            await update.message.reply_text(
+                f"🏕️ **Лагерь Беженцев**\n\n"
+                f"🃏 **Существо дня:** {offered_card['title']}\n"
+                f"🌟 **Редкость:** {offered_card['rarity']}\n"
+                f"💰 **Цена:** {price} золота (2x от награды за найм)\n\n"
+                f"⚠️ **Можно купить только 1 раз в день!**\n"
+                f"⏰ Обновляется в 00:00 МСК\n\n"
+                f"💳 **Ваш баланс:** {user_data.get('cents', 0)} золота",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        
+    except Exception as e:
+        logger.error(f"Ошибка в refugee_camp: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии Лагеря Беженцев")
+
+
+async def buy_refugee_creature(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает покупку существа в Лагере Беженцев."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data:
+            await update.message.reply_text("❌ Вы ещё не начали игру!")
+            return
+        
+        # ⭐ ПРОВЕРЯЕМ СБРОС ⭐
+        check_refugee_camp_reset(user_data)
+        
+        # ⭐ ПРОВЕРЯЕМ, КУПИЛ ЛИ УЖЕ ⭐
+        if user_data.get("refugee_camp_purchased", False):
+            await update.message.reply_text(
+                "❌ **Вы уже купили существо сегодня!**\n"
+                "⏰ Следующее предложение завтра в 00:00 МСК",
+                parse_mode="Markdown"
+            )
+            return
+        
+        # ⭐ ПОЛУЧАЕМ ПРЕДЛОЖЕННОЕ СУЩЕСТВО ⭐
+        offered_card_id = user_data.get("refugee_camp_offered_card")
+        offered_card = find_card_by_id(offered_card_id, data["cards"]) if offered_card_id else None
+        
+        if not offered_card:
+            await update.message.reply_text("❌ Сегодня нет доступных существ для покупки!")
+            return
+        
+        # ⭐ СЧИТАЕМ СТОИМОСТЬ ⭐
+        base_reward = RARITY_BONUSES.get(offered_card["rarity"], {"cents": 0})
+        price = base_reward["cents"] * 2
+        
+        # ⭐ ПРОВЕРЯЕМ БАЛАНС ⭐
+        if user_data.get("cents", 0) < price:
+            await update.message.reply_text(
+                f"❌ **Недостаточно золота!**\n"
+                f"💰 Нужно: {price} золота\n"
+                f"💳 У вас: {user_data.get('cents', 0)} золота\n\n"
+                f"Нанимайте существ и получайте больше наград!",
+                parse_mode="Markdown"
+            )
+            return
+        
+        # ⭐ СПИСЫВАЕМ ЗОЛОТО ⭐
+        user_data["cents"] -= price
+        
+        # ⭐ ДОБАВЛЯЕМ КАРТУ ⭐
+        user_data["cards"].append(offered_card["id"])
+        
+        # ⭐ ОТМЕЧАЕМ КАК КУПЛЕННОЕ ⭐
+        user_data["refugee_camp_purchased"] = True
+        user_data["refugee_camp_last_visit"] = int(time.time())
+        
+        save_data(data)
+        
+        # ⭐ ОТПРАВЛЯЕМ КАРТУ ⭐
+        caption = (
+            f"🏕️ **Покупка успешна!**\n\n"
+            f"🃏 **Вы получили:** {offered_card['title']}\n"
+            f"🌟 **Редкость:** {offered_card['rarity']}\n"
+            f"💰 **Списано:** {price} золота\n\n"
+            f"⏰ Следующее предложение завтра в 00:00 МСК"
+        )
+        
+        await send_card(update, offered_card, context, caption=caption)
+        
+        logger.info(f"Игрок {user_id} купил существо #{offered_card_id} в Лагере Беженцев за {price} золота")
+        
+    except Exception as e:
+        logger.error(f"Ошибка buy_refugee_creature: {e}")
+        await update.message.reply_text("❌ Ошибка при покупке существа")
+        
+
 # ===== ЗАПУСК БОТА =====
 
 
