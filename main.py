@@ -2792,10 +2792,13 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await process_craft(update, context, user_id, card_id, data, query)
             
             # ⭐ ПАУЗА ЧТОБЫ ПОЛЬЗОВАТЕЛЬ УВИДЕЛ РЕЗУЛЬТАТ ⭐
-            await asyncio.sleep(2)
+            await asyncio.sleep(1)
+            
+            # ⭐ ПЕРЕЗАГРУЖАЕМ ДАННЫЕ ПОСЛЕ КРАФТА ⭐
+            data = load_data()  # ← ДОБАВЬТЕ ЭТУ СТРОКУ
+            user_data = data["users"].get(user_id)
             
             # ⭐ ПРОВЕРЯЕМ, ЕСТЬ ЛИ ЕЩЁ КАРТЫ ДЛЯ КРАФТА ⭐
-            user_data = data["users"].get(user_id)
             if user_data and user_data.get("cards"):
                 card_counts = Counter(user_data["cards"])
                 craftable_cards = {
@@ -2821,7 +2824,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         "craft_page": 0,
                         "craft_cards_per_page": 5,
                     }
-                    # ⭐ ВАЖНО: ПЕРЕДАЁМ UPDATE ЧТОБЫ МОЖНО БЫЛО РЕДАКТИРОВАТЬ ⭐
+                    # ⭐ ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ С МЕНЮ КРАФТА ⭐
                     await show_craft_page(update, context, 0)
                     return
             
