@@ -6106,11 +6106,11 @@ async def sacrifice_show_rarity(update: Update, context: ContextTypes.DEFAULT_TY
                 reward_text += f" 🎲 {reward['free_rolls']} наймов"
             
             keyboard.append([
-                InlineKeyboardButton(
-                    f"{card['title']} - {reward_text}",
-                    callback_data=f"sacrifice_confirm_{card_id}"
-                )
-            ])
+                    InlineKeyboardButton(
+                        f"{card['title']} ({card['rarity']}) {count}шт. - {reward_text}",
+                        callback_data=f"sacrifice_confirm_{card_id}"
+                    )
+                ])
         
         # Кнопка "Назад"
         keyboard.append([
@@ -6172,11 +6172,11 @@ async def sacrifice_all_creatures(update: Update, context: ContextTypes.DEFAULT_
                 reward_text += f" 🎲 {reward['free_rolls']} наймов"
             
             keyboard.append([
-                InlineKeyboardButton(
-                    f"{card['title']} ({card['rarity']}) - {reward_text}",
-                    callback_data=f"sacrifice_confirm_{card_id}"
-                )
-            ])
+                    InlineKeyboardButton(
+                        f"{card['title']} ({card['rarity']}) {count}шт. - {reward_text}",
+                        callback_data=f"sacrifice_confirm_{card_id}"
+                    )
+                ])
         
         # Кнопка "Назад"
         keyboard.append([
@@ -6260,6 +6260,7 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.edit_message_text(
                 f"❓ **Вы уверены, что хотите пожертвовать {card['title']}?**\n\n"
                 f"🌟 Редкость: {card['rarity']}\n"
+                f"📦 В коллекции: {count} шт.\n"
                 f"🎁 **Награда:**\n"
                 f"{'\n'.join(reward_text)}\n\n"
                 f"⚠️ Существо будет удалено из коллекции!",
