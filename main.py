@@ -2786,19 +2786,18 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if query.data.startswith("craft_"):
             user_id = str(query.from_user.id)
             card_id = int(query.data.split("_")[1])
+            
+            # ⭐ ЗАГРУЖАЕМ ДАННЫЕ ПЕРЕД КРАФТОМ ⭐
             data = load_data()
             
             # ⭐ ВЫПОЛНЯЕМ КРАФТ ⭐
             await process_craft(update, context, user_id, card_id, data, query)
             
-            # ⭐ ПАУЗА ЧТОБЫ ПОЛЬЗОВАТЕЛЬ УВИДЕЛ РЕЗУЛЬТАТ ⭐
-            await asyncio.sleep(1)
-            
             # ⭐ ПЕРЕЗАГРУЖАЕМ ДАННЫЕ ПОСЛЕ КРАФТА ⭐
-            data = load_data()  # ← ДОБАВЬТЕ ЭТУ СТРОКУ
-            user_data = data["users"].get(user_id)
+            data = load_data()  # ← ДОБАВЬТЕ ЭТУ СТРОКУ!
             
             # ⭐ ПРОВЕРЯЕМ, ЕСТЬ ЛИ ЕЩЁ КАРТЫ ДЛЯ КРАФТА ⭐
+            user_data = data["users"].get(user_id)
             if user_data and user_data.get("cards"):
                 card_counts = Counter(user_data["cards"])
                 craftable_cards = {
