@@ -5839,15 +5839,23 @@ async def city_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает меню Подземелья."""
+    """Показывает меню Подземелья с ReplyKeyboardMarkup."""
     try:
-        # ⭐ КЛАВИАТУРА С КНОПКАМИ ⭐
+        # ⭐ КЛАВИАТУРА С КНОПКАМИ ПОДЗЕМЕЛЬЯ (ReplyKeyboardMarkup) ⭐
         keyboard = [
-            [InlineKeyboardButton("🩸 Жертвенный алтарь", callback_data="sacrifice_altar")],
-            [InlineKeyboardButton("🔙 Назад в меню", callback_data="dungeon_back")],
+            [KeyboardButton("🩸 Жертвенный алтарь")],
+            [KeyboardButton("🔙 Назад в меню")],
         ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
-        caption = "🦇 Вы входите в подземелье!"
+        caption = (
+            "🦇 **Подземелье**\n\n"
+            "Вы входите в тёмное подземелье!\n\n"
+            "Здесь вы можете:\n"
+            "• 🩸 Пожертвовать существо редкости UpgradeT1-UpgradeT7\n"
+            "• 💰 Получить золото за пожертвование\n\n"
+            "Выберите действие:"
+        )
         
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -5860,7 +5868,7 @@ async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 chat_id=query.message.chat_id,
                 photo=DUNGEON_IMAGE_URL,
                 caption=caption,
-                reply_markup=InlineKeyboardMarkup(keyboard),
+                reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
         else:
@@ -5868,11 +5876,22 @@ async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 chat_id=update.effective_chat.id,
                 photo=DUNGEON_IMAGE_URL,
                 caption=caption,
-                reply_markup=InlineKeyboardMarkup(keyboard),
+                reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
     except Exception as e:
         logger.error(f"Ошибка в dungeon_menu: {e}")
+        # ⭐ ЗАПАСНОЙ ВАРИАНТ ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Ошибка при загрузке изображения", show_alert=True)
+        else:
+            await update.message.reply_text(
+                "🦇 **Подземелье**\n\n"
+                "Вы входите в тёмное подземелье!\n\n"
+                "Выберите действие:",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
 
 
 async def dungeon_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
