@@ -5956,106 +5956,62 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             [InlineKeyboardButton("📋 Все существа", callback_data="sacrifice_all")],
         ]
         
-        # ⭐ ОТПРАВЛЯЕМ ФОТО АЛТАРЯ С INLINE-КНОПКАМИ ⭐
-        await context.bot.send_photo(
-            chat_id=update.effective_chat.id,
-            photo=ALTAR_IMAGE_URL,
-            caption=(
-                "🩸 **Жертвенный алтарь**\n\n"
-                "Пожертвуйте существо и получите награду!\n\n"
-                "💰 **Награды:**\n"
-                "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
-                "• UpgradeT5: 2 бесплатных найма\n"
-                "• UpgradeT6: 5 бесплатных наймов\n"
-                "• UpgradeT7: 10 бесплатных наймов\n\n"
-                "Выберите способ просмотра:"
-            ),
-            reply_markup=InlineKeyboardMarkup(inline_keyboard),
-            parse_mode="Markdown"
-        )
+        # ⭐ ПРОВЕРКА: callback или сообщение ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=ALTAR_IMAGE_URL,
+                caption=(
+                    "🩸 **Жертвенный алтарь**\n\n"
+                    "Пожертвуйте существо и получите награду!\n\n"
+                    "💰 **Награды:**\n"
+                    "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
+                    "• UpgradeT5: 2 бесплатных найма\n"
+                    "• UpgradeT6: 5 бесплатных наймов\n"
+                    "• UpgradeT7: 10 бесплатных наймов\n\n"
+                    "Выберите способ просмотра:"
+                ),
+                reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                parse_mode="Markdown"
+            )
+        else:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=ALTAR_IMAGE_URL,
+                caption=(
+                    "🩸 **Жертвенный алтарь**\n\n"
+                    "Пожертвуйте существо и получите награду!\n\n"
+                    "💰 **Награды:**\n"
+                    "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
+                    "• UpgradeT5: 2 бесплатных найма\n"
+                    "• UpgradeT6: 5 бесплатных наймов\n"
+                    "• UpgradeT7: 10 бесплатных наймов\n\n"
+                    "Выберите способ просмотра:"
+                ),
+                reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                parse_mode="Markdown"
+            )
         
     except Exception as e:
         logger.error(f"Ошибка в sacrifice_altar: {e}")
         await update.message.reply_text("❌ Ошибка при открытии алтаря")
 
 
-async def sacrifice_show_creatures(update: Update, context: ContextTypes.DEFAULT_TYPE, 
-                                    sort_type: str = "all") -> None:
-    """Показывает существ для жертвоприношения."""
-    try:
-        query = update.callback_query
-        user_id = str(query.from_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
-        if user_id not in context.user_data:
-            await query.answer("❌ Сессия алтаря истекла!", show_alert=True)
-            return
-        
-        sacrifice_cards = context.user_data[user_id].get("sacrifice_cards", [])
-        
-        if not sacrifice_cards:
-            await query.answer("❌ Нет существ для жертвоприношения!", show_alert=True)
-            return
-        
-        # ⭐ СОРТИРОВКА ⭐
-        if sort_type == "rarity":
-            rarity_order = ["UpgradeT7", "UpgradeT6", "UpgradeT5", "UpgradeT4", 
-                           "UpgradeT3", "UpgradeT2", "UpgradeT1"]
-            sacrifice_cards.sort(key=lambda x: rarity_order.index(x[2]["rarity"]) 
-                                if x[2]["rarity"] in rarity_order else 99)
-        
-        # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ ⭐
-        inline_keyboard = []
-        for card_id, count, card in sacrifice_cards:
-            reward = SACRIFICE_REWARDS.get(card["rarity"], {})
-            reward_text = ""
-            if reward.get("cents", 0) > 0:
-                reward_text = f"💰 {reward['cents']} золота"
-            if reward.get("free_rolls", 0) > 0:
-                reward_text += f" 🎲 {reward['free_rolls']} наймов"
-            
-            inline_keyboard.append([
-                InlineKeyboardButton(
-                    f"{card['title']} ({card['rarity']}) - {reward_text}",
-                    callback_data=f"sacrifice_confirm_{card_id}"
-                )
-            ])
-        
-        inline_keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="sacrifice_back")])
-        
-        # ⭐ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ И ОТПРАВЛЯЕМ НОВОЕ ⭐
-        try:
-            await query.message.delete()
-        except:
-            pass
-        
-        await context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text=(
-                f"🩸 **Выберите существо для жертвоприношения:**\n"
-                f"📊 Сортировка: {'По редкости' if sort_type == 'rarity' else 'Все существа'}"
-            ),
-            reply_markup=InlineKeyboardMarkup(inline_keyboard),
-            parse_mode="Markdown"
-        )
-        
-    except Exception as e:
-        logger.error(f"Ошибка в sacrifice_show_creatures: {e}")
-        await query.answer("❌ Произошла ошибка", show_alert=True)
-
 async def sacrifice_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню выбора редкости для жертвоприношения."""
     try:
         query = update.callback_query
-        await query.answer()
-        
         user_id = str(query.from_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
         
         if not user_data or not user_data.get("cards"):
-            await query.edit_message_text("❌ У вас нет существ для жертвоприношения!")
+            await query.answer("❌ У вас нет существ!", show_alert=True)
             return
         
         # Считаем карты по редкостям (только UpgradeT1-UpgradeT7)
@@ -6067,7 +6023,6 @@ async def sacrifice_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TY
             card = find_card_by_id(card_id, data["cards"])
             if card:
                 rarity = card.get("rarity", "")
-                # Фильтруем только UpgradeT1-UpgradeT7
                 if rarity in ["UpgradeT1", "UpgradeT2", "UpgradeT3", 
                               "UpgradeT4", "UpgradeT5", "UpgradeT6", "UpgradeT7"]:
                     if rarity not in rarity_cards:
@@ -6075,13 +6030,13 @@ async def sacrifice_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TY
                     rarity_cards[rarity] += count
         
         if not rarity_cards:
-            await query.edit_message_text("❌ У вас нет существ редкости UpgradeT1-UpgradeT7!")
+            await query.answer("❌ Нет существ для жертвоприношения!", show_alert=True)
             return
         
         # Создаём клавиатуру с редкостями
         keyboard = []
-        for rarity in ["UpgradeT1", "UpgradeT2", "UpgradeT3", 
-                       "UpgradeT4", "UpgradeT5", "UpgradeT6", "UpgradeT7"]:
+        for rarity in ["UpgradeT7", "UpgradeT6", "UpgradeT5", "UpgradeT4", 
+                       "UpgradeT3", "UpgradeT2", "UpgradeT1"]:
             if rarity in rarity_cards:
                 count = rarity_cards[rarity]
                 keyboard.append([
@@ -6096,8 +6051,15 @@ async def sacrifice_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TY
             InlineKeyboardButton("🔙 Назад", callback_data="sacrifice_back")
         ])
         
-        await query.edit_message_text(
-            "🩸 **Выберите редкость для жертвоприношения:**",
+        # ⭐ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ И ОТПРАВЛЯЕМ НОВОЕ ⭐
+        try:
+            await query.message.delete()
+        except:
+            pass
+        
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="🩸 **Выберите редкость для жертвоприношения:**",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
@@ -6111,14 +6073,12 @@ async def sacrifice_show_rarity(update: Update, context: ContextTypes.DEFAULT_TY
     """Показывает существ конкретной редкости для жертвоприношения."""
     try:
         query = update.callback_query
-        await query.answer()
-        
         user_id = str(query.from_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
         
         if not user_data or not user_data.get("cards"):
-            await query.edit_message_text("❌ У вас нет существ!")
+            await query.answer("❌ У вас нет существ!", show_alert=True)
             return
         
         # Получаем существ нужной редкости
@@ -6132,16 +6092,23 @@ async def sacrifice_show_rarity(update: Update, context: ContextTypes.DEFAULT_TY
                 rarity_cards.append((card_id, count, card))
         
         if not rarity_cards:
-            await query.edit_message_text(f"❌ У вас нет существ редкости {rarity}!")
+            await query.answer(f"❌ Нет существ редкости {rarity}!", show_alert=True)
             return
         
         # Создаём клавиатуру с существами
         keyboard = []
         for card_id, count, card in rarity_cards:
+            reward = SACRIFICE_REWARDS.get(card["rarity"], {})
+            reward_text = ""
+            if reward.get("cents", 0) > 0:
+                reward_text = f"💰 {reward['cents']} золота"
+            if reward.get("free_rolls", 0) > 0:
+                reward_text += f" 🎲 {reward['free_rolls']} наймов"
+            
             keyboard.append([
                 InlineKeyboardButton(
-                    f"{card['title']} ({count} шт.)",
-                    callback_data=f"sacrifice_select_{card_id}"
+                    f"{card['title']} - {reward_text}",
+                    callback_data=f"sacrifice_confirm_{card_id}"
                 )
             ])
         
@@ -6150,15 +6117,87 @@ async def sacrifice_show_rarity(update: Update, context: ContextTypes.DEFAULT_TY
             InlineKeyboardButton("🔙 Назад к редкостям", callback_data="sacrifice_rarity")
         ])
         
-        await query.edit_message_text(
-            f"🩸 **Существа редкости {rarity}:**\n"
-            "Выберите существо для жертвоприношения:",
+        # ⭐ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ И ОТПРАВЛЯЕМ НОВОЕ ⭐
+        try:
+            await query.message.delete()
+        except:
+            pass
+        
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=f"🩸 **Существа редкости {rarity}:**\nВыберите существо для жертвоприношения:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
         
     except Exception as e:
         logger.error(f"Ошибка sacrifice_show_rarity: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
+
+async def sacrifice_all_creatures(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает все существа для жертвоприношения."""
+    try:
+        query = update.callback_query
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if not user_data or not user_data.get("cards"):
+            await query.answer("❌ У вас нет существ!", show_alert=True)
+            return
+        
+        # Получаем все существа UpgradeT1-UpgradeT7
+        card_counts = Counter(user_data["cards"])
+        all_cards = []
+        
+        for card_id, count in card_counts.items():
+            card = find_card_by_id(card_id, data["cards"])
+            if card and card.get("rarity") in ["UpgradeT1", "UpgradeT2", "UpgradeT3", 
+                                                "UpgradeT4", "UpgradeT5", "UpgradeT6", "UpgradeT7"]:
+                all_cards.append((card_id, count, card))
+        
+        if not all_cards:
+            await query.answer("❌ Нет существ для жертвоприношения!", show_alert=True)
+            return
+        
+        # Создаём клавиатуру со всеми существами
+        keyboard = []
+        for card_id, count, card in all_cards:
+            reward = SACRIFICE_REWARDS.get(card["rarity"], {})
+            reward_text = ""
+            if reward.get("cents", 0) > 0:
+                reward_text = f"💰 {reward['cents']} золота"
+            if reward.get("free_rolls", 0) > 0:
+                reward_text += f" 🎲 {reward['free_rolls']} наймов"
+            
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"{card['title']} ({card['rarity']}) - {reward_text}",
+                    callback_data=f"sacrifice_confirm_{card_id}"
+                )
+            ])
+        
+        # Кнопка "Назад"
+        keyboard.append([
+            InlineKeyboardButton("🔙 Назад", callback_data="sacrifice_back")
+        ])
+        
+        # ⭐ УДАЛЯЕМ СТАРОЕ СООБЩЕНИЕ И ОТПРАВЛЯЕМ НОВОЕ ⭐
+        try:
+            await query.message.delete()
+        except:
+            pass
+        
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="🩸 **Все существа для жертвоприношения:**\nВыберите существо:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка sacrifice_all_creatures: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
 
@@ -6173,149 +6212,18 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         # ⭐ КНОПКА "ПО РЕДКОСТИ" ⭐
         if query.data == "sacrifice_rarity":
-            if not user_data or not user_data.get("cards"):
-                await query.edit_message_text("❌ У вас нет существ для жертвоприношения!")
-                return
-            
-            # Считаем карты по редкостям (только UpgradeT1-UpgradeT7)
-            card_counts = Counter(user_data["cards"])
-            rarity_cards = {}
-            
-            for card_id, count in card_counts.items():
-                card = find_card_by_id(card_id, data["cards"])
-                if card:
-                    rarity = card.get("rarity", "")
-                    if rarity in ["UpgradeT1", "UpgradeT2", "UpgradeT3", 
-                                  "UpgradeT4", "UpgradeT5", "UpgradeT6", "UpgradeT7"]:
-                        if rarity not in rarity_cards:
-                            rarity_cards[rarity] = 0
-                        rarity_cards[rarity] += count
-            
-            if not rarity_cards:
-                await query.edit_message_text("❌ У вас нет существ редкости UpgradeT1-UpgradeT7!")
-                return
-            
-            # Создаём клавиатуру с редкостями
-            keyboard = []
-            for rarity in ["UpgradeT1", "UpgradeT2", "UpgradeT3", 
-                           "UpgradeT4", "UpgradeT5", "UpgradeT6", "UpgradeT7"]:
-                if rarity in rarity_cards:
-                    count = rarity_cards[rarity]
-                    keyboard.append([
-                        InlineKeyboardButton(
-                            f"{rarity} ({count} шт.)",
-                            callback_data=f"sacrifice_show_rarity_{rarity}"
-                        )
-                    ])
-            
-            keyboard.append([
-                InlineKeyboardButton("🔙 Назад", callback_data="sacrifice_back")
-            ])
-            
-            await query.edit_message_text(
-                "🩸 **Выберите редкость для жертвоприношения:**",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
+            await sacrifice_rarity_menu(update, context)
             return
         
         # ⭐ КНОПКА "ПОКАЗАТЬ СУЩЕСТВА РЕДКОСТИ" ⭐
         if query.data.startswith("sacrifice_show_rarity_"):
             rarity = query.data.replace("sacrifice_show_rarity_", "")
-            
-            if not user_data or not user_data.get("cards"):
-                await query.edit_message_text("❌ У вас нет существ!")
-                return
-            
-            # Получаем существ нужной редкости
-            card_counts = Counter(user_data["cards"])
-            rarity_cards = []
-            
-            for card_id, count in card_counts.items():
-                card = find_card_by_id(card_id, data["cards"])
-                if card and card.get("rarity") == rarity:
-                    rarity_cards.append((card_id, count, card))
-            
-            if not rarity_cards:
-                await query.edit_message_text(f"❌ У вас нет существ редкости {rarity}!")
-                return
-            
-            # Создаём клавиатуру с существами
-            keyboard = []
-            for card_id, count, card in rarity_cards:
-                reward = SACRIFICE_REWARDS.get(card["rarity"], {})
-                reward_text = ""
-                if reward.get("cents", 0) > 0:
-                    reward_text = f"💰 {reward['cents']} золота"
-                if reward.get("free_rolls", 0) > 0:
-                    reward_text += f" 🎲 {reward['free_rolls']} наймов"
-                
-                keyboard.append([
-                    InlineKeyboardButton(
-                        f"{card['title']} - {reward_text}",
-                        callback_data=f"sacrifice_confirm_{card_id}"
-                    )
-                ])
-            
-            keyboard.append([
-                InlineKeyboardButton("🔙 Назад к редкостям", callback_data="sacrifice_rarity")
-            ])
-            
-            await query.edit_message_text(
-                f"🩸 **Существа редкости {rarity}:**\n"
-                "Выберите существо для жертвоприношения:",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
+            await sacrifice_show_rarity(update, context, rarity)
             return
         
         # ⭐ КНОПКА "ВСЕ СУЩЕСТВА" ⭐
         if query.data == "sacrifice_all":
-            if not user_data or not user_data.get("cards"):
-                await query.edit_message_text("❌ У вас нет существ для жертвоприношения!")
-                return
-            
-            # Получаем все существа UpgradeT1-UpgradeT7
-            card_counts = Counter(user_data["cards"])
-            all_cards = []
-            
-            for card_id, count in card_counts.items():
-                card = find_card_by_id(card_id, data["cards"])
-                if card and card.get("rarity") in ["UpgradeT1", "UpgradeT2", "UpgradeT3", 
-                                                    "UpgradeT4", "UpgradeT5", "UpgradeT6", "UpgradeT7"]:
-                    all_cards.append((card_id, count, card))
-            
-            if not all_cards:
-                await query.edit_message_text("❌ У вас нет существ редкости UpgradeT1-UpgradeT7!")
-                return
-            
-            # Создаём клавиатуру со всеми существами
-            keyboard = []
-            for card_id, count, card in all_cards:
-                reward = SACRIFICE_REWARDS.get(card["rarity"], {})
-                reward_text = ""
-                if reward.get("cents", 0) > 0:
-                    reward_text = f"💰 {reward['cents']} золота"
-                if reward.get("free_rolls", 0) > 0:
-                    reward_text += f" 🎲 {reward['free_rolls']} наймов"
-                
-                keyboard.append([
-                    InlineKeyboardButton(
-                        f"{card['title']} ({card['rarity']}) - {reward_text}",
-                        callback_data=f"sacrifice_confirm_{card_id}"
-                    )
-                ])
-            
-            keyboard.append([
-                InlineKeyboardButton("🔙 Назад", callback_data="sacrifice_back")
-            ])
-            
-            await query.edit_message_text(
-                "🩸 **Все существа для жертвоприношения:**\n"
-                "Выберите существо:",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
+            await sacrifice_all_creatures(update, context)
             return
         
         # ⭐ КНОПКА "ПОДТВЕРДИТЬ ЖЕРТВОПРИНОШЕНИЕ" ⭐
@@ -6324,13 +6232,13 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
             # Проверяем, есть ли у игрока эта карта
             if not user_data or card_id not in user_data.get("cards", []):
-                await query.edit_message_text("❌ У вас нет этого существа!")
+                await query.answer("❌ У вас нет этого существа!", show_alert=True)
                 return
             
             # Находим карту
             card = find_card_by_id(card_id, data["cards"])
             if not card:
-                await query.edit_message_text("❌ Существо не найдено!")
+                await query.answer("❌ Существо не найдено!", show_alert=True)
                 return
             
             # Получаем награду
@@ -6366,13 +6274,13 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
             # Проверяем, есть ли у игрока эта карта
             if not user_data or card_id not in user_data.get("cards", []):
-                await query.edit_message_text("❌ У вас нет этого существа!")
+                await query.answer("❌ У вас нет этого существа!", show_alert=True)
                 return
             
             # Находим карту
             card = find_card_by_id(card_id, data["cards"])
             if not card:
-                await query.edit_message_text("❌ Существо не найдено!")
+                await query.answer("❌ Существо не найдено!", show_alert=True)
                 return
             
             # ⭐ УДАЛЯЕМ КАРТУ ⭐
@@ -6409,12 +6317,17 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         # ⭐ КНОПКА "НАЗАД" ⭐
         if query.data == "sacrifice_back":
+            try:
+                await query.message.delete()
+            except:
+                pass
             await sacrifice_altar(update, context)
             return
         
     except Exception as e:
         logger.error(f"Ошибка в sacrifice_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
+        
         
 # ===== ЗАПУСК БОТА =====
 
