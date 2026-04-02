@@ -5837,6 +5837,7 @@ async def city_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.error(f"Ошибка в city_menu: {e}")
 
+
 async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню Подземелья."""
     try:
@@ -5873,76 +5874,74 @@ async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             )
     except Exception as e:
         logger.error(f"Ошибка в dungeon_menu: {e}")
-        # ⭐ ЗАПАСНОЙ ВАРИАНТ: если изображение не загрузилось ⭐
-        if hasattr(update, 'callback_query') and update.callback_query:
-            await update.callback_query.answer("❌ Ошибка при загрузке изображения", show_alert=True)
-        else:
-            await update.message.reply_text(
-                "🦇 **Подземелье**\n\n"
-                "Вы входите в подземелье!\n\n"
-                "Здесь вас ждут опасные приключения!",
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
-            )
-
 
 async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает Жертвенный алтарь для пожертвования существ."""
+    """Показывает Жертвенный алтарь."""
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
         
-        if not user_data or not user_data.get("cards"):
-            keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
-            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-            await update.message.reply_text(
-                "❌ У вас нет существ для пожертвования!",
-                reply_markup=reply_markup
-            )
-            return
-        
-        # ⭐ ФИЛЬТРУЕМ ТОЛЬКО UpgradeT1-UpgradeT7 ⭐
-        upgrade_cards = []
-        user_card_ids = user_data["cards"]
-        card_counts = Counter(user_card_ids)
-        
-        for card_id, count in card_counts.items():
-            card = find_card_by_id(card_id, data["cards"])
-            if card and card.get("rarity") in ["UpgradeT1", "UpgradeT2", "UpgradeT3", 
-                                                "UpgradeT4", "UpgradeT5", "UpgradeT6", "UpgradeT7"]:
-                upgrade_cards.append((card_id, count, card))
-        
-        if not upgrade_cards:
-            keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
-            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-            await update.message.reply_text(
-                "❌ У вас нет существ редкости UpgradeT1-UpgradeT7 для пожертвования!",
-                reply_markup=reply_markup
-            )
-            return
-        
-        # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ ⭐
-        inline_keyboard = [
-            [InlineKeyboardButton("📊 По редкости", callback_data="sacrifice_rarity")],
-            [InlineKeyboardButton("📋 Все существа", callback_data="sacrifice_all")],
+        # ⭐ КЛАВИАТУРА С КНОПКОЙ "НАЗАД В ПОДЗЕМЕЛЬЕ" ⭐
+        keyboard = [
+            [KeyboardButton("🔙 Назад в Подземелье")],
         ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
-        await update.message.reply_text(
-            "🩸 **Жертвенный алтарь**\n\n"
-            "Пожертвуйте своим существом и получите награду!\n\n"
-            "💰 **Награды:**\n"
-            "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
-            "• UpgradeT5: 2 бесплатных найма\n"
-            "• UpgradeT6: 5 бесплатных наймов\n"
-            "• UpgradeT7: 10 бесплатных наймов\n\n"
-            "Выберите способ просмотра:",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard),
-            parse_mode="Markdown"
-        )
+        # ⭐ ПРОВЕРКА: callback или сообщение ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                await query.message.delete()
+            except:
+                pass
+            # ⭐ ОТПРАВЛЯЕМ ФОТО АЛТАРЯ ⭐
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=ALTAR_IMAGE_URL,
+                caption=(
+                    "🩸 **Жертвенный алтарь**\n\n"
+                    "Пожертвуйте существо редкости UpgradeT1-UpgradeT7\n"
+                    "и получите награду!\n\n"
+                    "💰 **Награды:**\n"
+                    "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
+                    "• UpgradeT5: 2 бесплатных найма\n"
+                    "• UpgradeT6: 5 бесплатных наймов\n"
+                    "• UpgradeT7: 10 бесплатных наймов"
+                ),
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        else:
+            # ⭐ ОТПРАВЛЯЕМ ФОТО АЛТАРЯ ⭐
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=ALTAR_IMAGE_URL,
+                caption=(
+                    "🩸 **Жертвенный алтарь**\n\n"
+                    "Пожертвуйте существо редкости UpgradeT1-UpgradeT7\n"
+                    "и получите награду!\n\n"
+                    "💰 **Награды:**\n"
+                    "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
+                    "• UpgradeT5: 2 бесплатных найма\n"
+                    "• UpgradeT6: 5 бесплатных наймов\n"
+                    "• UpgradeT7: 10 бесплатных наймов"
+                ),
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
     except Exception as e:
         logger.error(f"Ошибка в sacrifice_altar: {e}")
-        await update.message.reply_text("❌ Ошибка при открытии алтаря")
+        # ⭐ ЗАПАСНОЙ ВАРИАНТ ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Ошибка при загрузке алтаря", show_alert=True)
+        else:
+            await update.message.reply_text(
+                "🩸 **Жертвенный алтарь**\n\n"
+                "Пожертвуйте существо и получите награду!",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
 
 
 async def show_sacrifice_creatures(update: Update, context: ContextTypes.DEFAULT_TYPE, 
