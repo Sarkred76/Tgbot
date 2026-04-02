@@ -2711,9 +2711,9 @@ async def process_craft(
         # ========================================
         save_data(data)
         
-        # Отправляем результат
+        # ⭐ ОТПРАВЛЯЕМ РЕЗУЛЬТАТ КАК НОВОЕ СООБЩЕНИЕ ⭐
         result_text = (
-            f"✅ **Улучшение прошло успешно!**\n"
+            f"✅ **Улучшение прошло успешно!**\n\n"
             f"🔨 **Использовано:** 2x {card['title']} ({card['rarity']})\n"
             f"🎁 **Получено:** {new_card['title']}\n"
             f"💰 **+{bonus['cents']} золота**\n"
@@ -2729,59 +2729,13 @@ async def process_craft(
             )
             # ⭐ ОТПРАВЛЯЕМ КАРТУ ⭐
             caption = generate_card_caption(new_card, user_data, count=1, show_bonus=False)
-            await send_card(
-                update,
-                new_card,
-                context,
-                caption=caption,
-                chat_id=query.message.chat_id,
-            )
-            
-            # ⭐ НОВАЯ ЛОГИКА: ПОКАЗЫВАЕМ МЕНЮ КРАФТА СНОВА ⭐
-            await asyncio.sleep(1)  # Небольшая пауза чтобы пользователь увидел результат
-            
-            # Проверяем, есть ли ещё карты для крафта
-            updated_card_counts = Counter(user_data["cards"])
-            new_craftable_cards = {
-                cid: count for cid, count in updated_card_counts.items() if count >= 2
-            }
-            
-            # Фильтруем только карты T1-T7
-            new_craftable_by_rarity = {}
-            for cid, count in new_craftable_cards.items():
-                c = find_card_by_id(cid, data["cards"])
-                if c and c.get("rarity") in ["T1", "T2", "T3", "T4", "T5", "T6", "T7"]:
-                    new_craftable_by_rarity[cid] = {
-                        "count": count,
-                        "rarity": c["rarity"],
-                        "title": c["title"],
-                    }
-            
-            if new_craftable_by_rarity:
-                # ⭐ ОБНОВЛЯЕМ context.user_data ⭐
-                context.user_data[user_id] = {
-                    "step": "craft_select",
-                    "craftable_cards": new_craftable_by_rarity,
-                    "craft_page": 0,
-                    "craft_cards_per_page": 5,
-                }
-                # ⭐ ПОКАЗЫВАЕМ МЕНЮ КРАФТА СНОВА ⭐
-                await show_craft_page(update, context, 0)
-            else:
-                # ⭐ ЕСЛИ НЕТ СУЩЕСТВ ДЛЯ КРАФТА ⭐
-                forest_keyboard = [
-                    [KeyboardButton("🔙 Назад в Лес")],
-                ]
-                forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
-                await context.bot.send_message(
-                    chat_id=query.message.chat_id,
-                    text="❌ Больше нет существ для улучшения!",
-                    reply_markup=forest_reply_markup
-                )
+            await send_card(update, new_card, context, caption=caption, chat_id=query.message.chat_id)
+            await show_craft_page(update, context, 0)
         else:
             await update.message.reply_text(result_text, parse_mode="Markdown")
             caption = generate_card_caption(new_card, user_data, count=1, show_bonus=False)
             await send_card(update, new_card, context, caption=caption)
+            await show_craft_page(update, context, 0)
             
     except Exception as e:
         logger.error(f"Ошибка обработки крафта: {e}")
@@ -2789,6 +2743,7 @@ async def process_craft(
             await query.answer("❌ Произошла ошибка", show_alert=True)
         else:
             await update.message.reply_text("❌ Произошла ошибка при улучшении")
+
 
 async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопок крафта."""
@@ -2806,8 +2761,54 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_id = str(query.from_user.id)
             card_id = int(query.data.split("_")[1])
             data = load_data()
-            # ⭐ ЛОГИКА ПЕРЕНОСИТСЯ В process_craft ⭐
+            
+            # ⭐ ВЫПОЛНЯЕМ КРАФТ ⭐
             await process_craft(update, context, user_id, card_id, data, query)
+            
+            # ⭐ ПАУЗА ЧТОБЫ ПОЛЬЗОВАТЕЛЬ УВИДЕЛ РЕЗУЛЬТАТ ⭐
+            await asyncio.sleep(2)
+            
+            # ⭐ ПРОВЕРЯЕМ, ЕСТЬ ЛИ ЕЩЁ КАРТЫ ДЛЯ КРАФТА ⭐
+            user_data = data["users"].get(user_id)
+            if user_data and user_data.get("cards"):
+                card_counts = Counter(user_data["cards"])
+                craftable_cards = {
+                    cid: count for cid, count in card_counts.items() if count >= 2
+                }
+                
+                # Фильтруем только карты T1-T7
+                craftable_by_rarity = {}
+                for cid, count in craftable_cards.items():
+                    card = find_card_by_id(cid, data["cards"])
+                    if card and card.get("rarity") in ["T1", "T2", "T3", "T4", "T5", "T6", "T7"]:
+                        craftable_by_rarity[cid] = {
+                            "count": count,
+                            "rarity": card["rarity"],
+                            "title": card["title"],
+                        }
+                
+                if craftable_by_rarity:
+                    # ⭐ ОБНОВЛЯЕМ context.user_data ⭐
+                    context.user_data[user_id] = {
+                        "step": "craft_select",
+                        "craftable_cards": craftable_by_rarity,
+                        "craft_page": 0,
+                        "craft_cards_per_page": 5,
+                    }
+                    # ⭐ ВАЖНО: ПЕРЕДАЁМ UPDATE ЧТОБЫ МОЖНО БЫЛО РЕДАКТИРОВАТЬ ⭐
+                    await show_craft_page(update, context, 0)
+                    return
+            
+            # ⭐ ЕСЛИ НЕТ СУЩЕСТВ ДЛЯ КРАФТА ⭐
+            forest_keyboard = [
+                [KeyboardButton("🔙 Назад в Лес")],
+            ]
+            forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="❌ Больше нет существ для улучшения!",
+                reply_markup=forest_reply_markup
+            )
             
     except Exception as e:
         logger.error(f"Ошибка callback крафта: {e}")
