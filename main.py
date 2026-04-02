@@ -25,7 +25,6 @@ from telegram.ext import (
     CallbackQueryHandler,
 )
 from telegram.error import NetworkError, TimedOut
-from telegram.error import BadRequest
 
 # ===== КОНФИГУРАЦИЯ =====
 
@@ -2492,17 +2491,22 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
     """Показывает страницу списка карт для крафта."""
     try:
         user_id = str(update.effective_user.id)
-        data = load_data()  # ← Всегда загружаем свежие данные
+        data = load_data()
         
-        forest_keyboard = [[KeyboardButton("🔙 Назад в Лес")]]
+        # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД В ЛЕС ⭐
+        forest_keyboard = [
+            [KeyboardButton("🔙 Назад в Лес")],
+        ]
         forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
         
         if user_id not in context.user_data:
-            # Обработка через ответ, а не редактирование
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.answer("❌ Сессия улучшения истекла!", show_alert=True)
             else:
-                await update.message.reply_text("❌ Сессия улучшения истекла!", reply_markup=forest_reply_markup)
+                await update.message.reply_text(
+                    "❌ Сессия улучшения истекла!",
+                    reply_markup=forest_reply_markup
+                )
             return
         
         craft_info = context.user_data[user_id]
@@ -2513,23 +2517,33 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
             if hasattr(update, 'callback_query') and update.callback_query:
                 await update.callback_query.answer("❌ Нет существ для улучшения!", show_alert=True)
             else:
-                await update.message.reply_text("❌ Нет существ для улучшения!", reply_markup=forest_reply_markup)
+                await update.message.reply_text(
+                    "❌ Нет существ для улучшения!",
+                    reply_markup=forest_reply_markup
+                )
             return
         
-        # Конвертируем в список и считаем страницы
+        # ⭐ КОНВЕРТИРУЕМ В СПИСОК ⭐
         cards_list = list(craftable_cards.items())
         total_cards = len(cards_list)
+        
+        # ⭐ РАСЧЁТ СТРАНИЦ ⭐
         total_pages = (total_cards + cards_per_page - 1) // cards_per_page
         
         # Корректируем страницу
-        page = max(0, min(page, total_pages - 1))
+        if page < 0:
+            page = 0
+        elif page >= total_pages:
+            page = total_pages - 1
+        
         context.user_data[user_id]["craft_page"] = page
         
+        # Получаем карты для текущей страницы
         start_index = page * cards_per_page
         end_index = min(start_index + cards_per_page, total_cards)
         page_cards = cards_list[start_index:end_index]
         
-        # Создаём inline-клавиатуру
+        # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ ДЛЯ ВЫБОРА КАРТ ⭐
         inline_keyboard = []
         for card_id, info in page_cards:
             inline_keyboard.append([
@@ -2539,13 +2553,14 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
                 )
             ])
         
-        # Кнопки навигации
+        # ⭐ КНОПКИ НАВИГАЦИИ ⭐
         nav_buttons = []
         if page > 0:
             nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"craft_nav_{page - 1}"))
         nav_buttons.append(InlineKeyboardButton(f"{page + 1}/{total_pages}", callback_data="craft_page_info"))
         if page < total_pages - 1:
             nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"craft_nav_{page + 1}"))
+        
         if nav_buttons:
             inline_keyboard.append(nav_buttons)
         
@@ -2556,37 +2571,19 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
             f"🐦‍🔥 Доступно для улучшения: {total_cards}"
         )
         
-        # ⭐ ОТПРАВКА С ОБРАБОТКОЙ ОШИБОК ⭐
+        # ⭐ ПРОВЕРЯЕМ ЕСТЬ ЛИ CALLBACK QUERY ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
             query = update.callback_query
+            # ⭐ ПЫТАЕМСЯ ОТРЕДАКТИРОВАТЬ СУЩЕСТВУЮЩЕЕ СООБЩЕНИЕ ⭐
             try:
-                # Пытаемся отредактировать
                 await query.edit_message_text(
                     caption,
                     reply_markup=InlineKeyboardMarkup(inline_keyboard),
                     parse_mode="Markdown"
                 )
-            except BadRequest as e:
-                if "Message is not modified" in str(e):
-                    pass  # Игнорируем, если контент не изменился
-                else:
-                    # При других ошибках — отправляем новое сообщение
-                    try:
-                        await query.message.delete()
-                    except:
-                        pass
-                    await context.bot.send_message(
-                        chat_id=query.message.chat_id,
-                        text=caption,
-                        reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                        parse_mode="Markdown"
-                    )
-            except Exception:
-                # Фолбэк: удаляем и отправляем новое
-                try:
-                    await query.message.delete()
-                except:
-                    pass
+            except Exception as edit_error:
+                logger.error(f"Ошибка редактирования: {edit_error}")
+                # ⭐ ЕСЛИ НЕ МОЖНО ОТРЕДАКТИРОВАТЬ - ОТПРАВЛЯЕМ НОВОЕ ⭐
                 await context.bot.send_message(
                     chat_id=query.message.chat_id,
                     text=caption,
@@ -2594,12 +2591,13 @@ async def show_craft_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
                     parse_mode="Markdown"
                 )
         else:
+            # ⭐ ПЕРВЫЙ ЗАПУСК - ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ ⭐
             await update.message.reply_text(
                 caption,
                 reply_markup=InlineKeyboardMarkup(inline_keyboard),
                 parse_mode="Markdown"
             )
-                
+        
     except Exception as e:
         logger.error(f"Ошибка show_craft_page: {e}")
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -2789,21 +2787,18 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_id = str(query.from_user.id)
             card_id = int(query.data.split("_")[1])
             
-            # ⭐ ВАЖНО: загружаем данные ПЕРЕД крафтом ⭐
+            # ⭐ ЗАГРУЖАЕМ ДАННЫЕ ПЕРЕД КРАФТОМ ⭐
             data = load_data()
             
-            # Выполняем крафт
+            # ⭐ ВЫПОЛНЯЕМ КРАФТ ⭐
             await process_craft(update, context, user_id, card_id, data, query)
             
-            # ⭐ ПАУЗА, чтобы пользователь увидел результат ⭐
-            await asyncio.sleep(1)
+            # ⭐ ПЕРЕЗАГРУЖАЕМ ДАННЫЕ ПОСЛЕ КРАФТА ⭐
+            data = load_data()  # ← ДОБАВЬТЕ ЭТУ СТРОКУ!
             
-            # ⭐ ПЕРЕЗАГРУЖАЕМ ДАННЫЕ ПОСЛЕ СОХРАНЕНИЯ ⭐
-            data = load_data()
+            # ⭐ ПРОВЕРЯЕМ, ЕСТЬ ЛИ ЕЩЁ КАРТЫ ДЛЯ КРАФТА ⭐
             user_data = data["users"].get(user_id)
-            
             if user_data and user_data.get("cards"):
-                # ⭐ ПЕРЕСЧИТЫВАЕМ доступные для крафта карты ⭐
                 card_counts = Counter(user_data["cards"])
                 craftable_cards = {
                     cid: count for cid, count in card_counts.items() if count >= 2
@@ -2828,26 +2823,8 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         "craft_page": 0,
                         "craft_cards_per_page": 5,
                     }
-                    
-                    # ⭐ ОТПРАВЛЯЕМ МЕНЮ КРАФТА СНОВА (с обработкой BadRequest) ⭐
-                    try:
-                        # Пытаемся отредактировать текущее сообщение
-                        await show_craft_page(update, context, 0)
-                    except BadRequest as e:
-                        if "Message is not modified" in str(e):
-                            # Если контент не изменился — просто игнорируем
-                            pass
-                        else:
-                            # Другие ошибки BadRequest — логируем
-                            logger.warning(f"BadRequest при обновлении меню крафта: {e}")
-                    except Exception as e:
-                        # Если редактирование не удалось — отправляем новое сообщение
-                        logger.info(f"Редактирование не удалось, отправляем новое сообщение: {e}")
-                        try:
-                            await query.message.delete()
-                        except:
-                            pass
-                        await show_craft_page(update, context, 0)
+                    # ⭐ ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ С МЕНЮ КРАФТА ⭐
+                    await show_craft_page(update, context, 0)
                     return
             
             # ⭐ ЕСЛИ НЕТ СУЩЕСТВ ДЛЯ КРАФТА ⭐
@@ -2855,24 +2832,12 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 [KeyboardButton("🔙 Назад в Лес")],
             ]
             forest_reply_markup = ReplyKeyboardMarkup(forest_keyboard, resize_keyboard=True)
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="❌ Больше нет существ для улучшения!",
+                reply_markup=forest_reply_markup
+            )
             
-            try:
-                await query.message.edit_text(
-                    "❌ Больше нет существ для улучшения!",
-                    reply_markup=forest_reply_markup
-                )
-            except BadRequest:
-                # Если не удалось отредактировать — отправляем новое
-                try:
-                    await query.message.delete()
-                except:
-                    pass
-                await context.bot.send_message(
-                    chat_id=query.message.chat_id,
-                    text="❌ Больше нет существ для улучшения!",
-                    reply_markup=forest_reply_markup
-                )
-                
     except Exception as e:
         logger.error(f"Ошибка callback крафта: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
