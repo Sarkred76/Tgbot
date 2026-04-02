@@ -4600,74 +4600,79 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.answer()
         user_id = str(query.from_user.id)  # Это ОТПРАВИТЕЛЬ (Игрок А)
         data = load_data()
-        
         # ⭐ ЧИТАЕМ ИЗ ФАЙЛА ВМЕСТО context.user_data ⭐
         if user_id not in data.get("active_trades", {}):
             await query.edit_message_text("❌ Трейд не найден или истёк!")
             return
-        
         trade_info = data["active_trades"][user_id]
-        
         # Проверяем шаг
         if trade_info.get("step") != "waiting_sender_confirm":
             await query.edit_message_text("❌ Трейд не ожидает подтверждения!")
             return
-        
         partner_id = trade_info.get("receiver_id") or trade_info.get("from_user")  # ID получателя (Игрок Б)
         received_cards = trade_info.get("sender_cards", [])  # Карты, которые отправитель предлагает
         selected_return_cards = trade_info.get("receiver_cards", [])  # Карты, которые выбрал получатель
-        
         # Подтверждение обмена
         if query.data.startswith("trade_final_confirm_"):
             if not selected_return_cards:
                 await query.edit_message_text("❌ Ошибка: карты партнёра не найдены!")
                 return
-            
             # Выполняем обмен
             user_data = data["users"][user_id]
             partner_data = data["users"][partner_id]
-            
             # Удаляем карты у отправителя
             for card_id in received_cards:
                 if card_id in user_data["cards"]:
                     user_data["cards"].remove(card_id)
-            
             # Добавляем карты от получателя отправителю
             user_data["cards"].extend(selected_return_cards)
-            
             # Удаляем карты у получателя
             for card_id in selected_return_cards:
                 if card_id in partner_data["cards"]:
                     partner_data["cards"].remove(card_id)
-            
             # Добавляем карты от отправителя получателю
             partner_data["cards"].extend(received_cards)
-            
             save_data(data)
-            
             # Очищаем трейд
             del data["active_trades"][user_id]
             save_data(data)
-            
-            # Очищаем context.user_data
+            # ⭐ ИСПРАВЛЕНИЕ: Очищаем ТОЛЬКО торговые данные из context.user_data ⭐
             if user_id in context.user_data:
-                del context.user_data[user_id]
+                # Удаляем только ключи, связанные с трейдом
+                trade_keys = ["step", "trade_partner", "selected_card_ids", "trade_type", 
+                             "partner_id", "cards_count", "selected_cards", "current_index",
+                             "user_card_ids", "received_cards", "previous_step_before_search"]
+                for key in trade_keys:
+                    if key in context.user_data[user_id]:
+                        del context.user_data[user_id][key]
+                # Если словарь пустой - удаляем всю запись
+                if not context.user_data[user_id]:
+                    del context.user_data[user_id]
+            
             if partner_id in context.user_data:
-                del context.user_data[partner_id]
+                # Удаляем только ключи, связанные с трейдом
+                trade_keys = ["step", "trade_partner", "selected_card_ids", "trade_type", 
+                             "partner_id", "cards_count", "selected_cards", "current_index",
+                             "user_card_ids", "received_cards", "previous_step_before_search"]
+                for key in trade_keys:
+                    if key in context.user_data[partner_id]:
+                        del context.user_data[partner_id][key]
+                # Если словарь пустой - удаляем всю запись
+                if not context.user_data[partner_id]:
+                    del context.user_data[partner_id]
             
             await query.edit_message_text(
-                "✅ **Обмен завершён!**\n\n"
+                "✅ **Обмен завершён!**\n"
                 f"🐦‍🔥 Вы отдали: {len(received_cards)} существ\n"
                 f"🐦‍🔥 Вы получили: {len(selected_return_cards)} существ",
                 parse_mode="Markdown"
             )
-            
             # Уведомляем получателя
             try:
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
-                        "✅ **Обмен завершён!**\n\n"
+                        "✅ **Обмен завершён!**\n"
                         f"🐦‍🔥 Вы отдали: {len(selected_return_cards)} существ\n"
                         f"🐦‍🔥 Вы получили: {len(received_cards)} существ"
                     ),
@@ -4675,21 +4680,33 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 )
             except:
                 pass
-        
         # Отмена обмена
         elif query.data.startswith("trade_final_decline_"):
             # Очищаем трейд
             del data["active_trades"][user_id]
             save_data(data)
-            
-            # Очищаем context.user_data
+            # ⭐ ИСПРАВЛЕНИЕ: Очищаем ТОЛЬКО торговые данные ⭐
             if user_id in context.user_data:
-                del context.user_data[user_id]
+                trade_keys = ["step", "trade_partner", "selected_card_ids", "trade_type", 
+                             "partner_id", "cards_count", "selected_cards", "current_index",
+                             "user_card_ids", "received_cards", "previous_step_before_search"]
+                for key in trade_keys:
+                    if key in context.user_data[user_id]:
+                        del context.user_data[user_id][key]
+                if not context.user_data[user_id]:
+                    del context.user_data[user_id]
+            
             if partner_id in context.user_data:
-                del context.user_data[partner_id]
+                trade_keys = ["step", "trade_partner", "selected_card_ids", "trade_type", 
+                             "partner_id", "cards_count", "selected_cards", "current_index",
+                             "user_card_ids", "received_cards", "previous_step_before_search"]
+                for key in trade_keys:
+                    if key in context.user_data[partner_id]:
+                        del context.user_data[partner_id][key]
+                if not context.user_data[partner_id]:
+                    del context.user_data[partner_id]
             
             await query.edit_message_text("❌ Обмен отменён")
-            
             # Уведомляем получателя
             try:
                 await context.bot.send_message(
@@ -4698,7 +4715,6 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 )
             except:
                 pass
-        
     except Exception as e:
         logger.error(f"Ошибка trade_final_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
