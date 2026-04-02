@@ -1514,7 +1514,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
                 data["users"][user_id] = user_data
 
-            COOLDOWN_SECONDS = 1 * 60 * 60
+            COOLDOWN_SECONDS = 3 * 60 * 60
 
             current_time = int(time.time())
 
@@ -2872,7 +2872,7 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # Проверка кулдауна (6 часов)
 
-        DICE_COOLDOWN = 6 * 60 * 60
+        DICE_COOLDOWN = 12 * 60 * 60
 
         current_time = int(time.time())
 
@@ -4758,8 +4758,7 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             "Соберите всех существ отдельной фракции,\n"
             "чтобы получить награду!\n\n"
             "🎁 **Награда за достижение:**\n"
-            "• 50 бесплатных попыток\n"
-            "• 50000 золота\n\n"
+            "• 30 бесплатных попыток\n"
             "Выберите достижение:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
@@ -4825,8 +4824,7 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             return
         
         # ⭐ ВЫДАЁМ НАГРАДУ ⭐
-        user_data["free_rolls"] = user_data.get("free_rolls", 0) + 50
-        user_data["cents"] = user_data.get("cents", 0) + 50000
+        user_data["free_rolls"] = user_data.get("free_rolls", 0) + 30
         claimed_achievements.append(faction)
         user_data["claimed_achievements"] = claimed_achievements
         
@@ -4836,8 +4834,7 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             f"🎉 **Достижение получено!**\n\n"
             f"🏆 {achievement_num}. {faction}\n\n"
             f"🎁 **Награда:**\n"
-            f"• 🎲 +50 бесплатных наймов\n"
-            f"• 💰 +50000 золота\n\n"
+            f"• 🎲 +30 бесплатных наймов\n"
             f"Поздравляем!",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
@@ -5971,9 +5968,9 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     "Пожертвуйте существо и получите награду!\n\n"
                     "💰 **Награды:**\n"
                     "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
-                    "• UpgradeT5: 2 бесплатных найма\n"
-                    "• UpgradeT6: 5 бесплатных наймов\n"
-                    "• UpgradeT7: 10 бесплатных наймов\n\n"
+                    "• UpgradeT5: 3 бесплатных найма\n"
+                    "• UpgradeT6: 7 бесплатных наймов\n"
+                    "• UpgradeT7: 15 бесплатных наймов\n\n"
                     "Выберите способ просмотра:"
                 ),
                 reply_markup=InlineKeyboardMarkup(inline_keyboard),
@@ -5988,9 +5985,9 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     "Пожертвуйте существо и получите награду!\n\n"
                     "💰 **Награды:**\n"
                     "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
-                    "• UpgradeT5: 2 бесплатных найма\n"
-                    "• UpgradeT6: 5 бесплатных наймов\n"
-                    "• UpgradeT7: 10 бесплатных наймов\n\n"
+                    "• UpgradeT5: 3 бесплатных найма\n"
+                    "• UpgradeT6: 7 бесплатных наймов\n"
+                    "• UpgradeT7: 15 бесплатных наймов\n\n"
                     "Выберите способ просмотра:"
                 ),
                 reply_markup=InlineKeyboardMarkup(inline_keyboard),
