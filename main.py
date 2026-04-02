@@ -5849,12 +5849,7 @@ async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
         caption = (
-            "🦇 **Подземелье**\n\n"
-            "Вы входите в тёмное подземелье!\n\n"
-            "Здесь вы можете:\n"
-            "• 🩸 Пожертвовать существо редкости UpgradeT1-UpgradeT7\n"
-            "• 💰 Получить золото за пожертвование\n\n"
-            "Выберите действие:"
+            "🦇 Вы входите в подземелье!\n\n"
         )
         
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
@@ -5886,9 +5881,7 @@ async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             await update.callback_query.answer("❌ Ошибка при загрузке изображения", show_alert=True)
         else:
             await update.message.reply_text(
-                "🦇 **Подземелье**\n\n"
-                "Вы входите в тёмное подземелье!\n\n"
-                "Выберите действие:",
+                "🦇 Вы входите в тёмное подземелье!\n\n",
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
