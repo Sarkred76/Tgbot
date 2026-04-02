@@ -6150,7 +6150,6 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             keyboard = [
                 [InlineKeyboardButton("📊 По редкости", callback_data="sacrifice_rarity")],
                 [InlineKeyboardButton("📋 Все существа", callback_data="sacrifice_all")],
-                [InlineKeyboardButton("🔙 Назад в Подземелье", callback_data="dungeon_back")],
             ]
             await query.edit_message_text(
                 "🩸 **Жертвенный алтарь**\n\n",
