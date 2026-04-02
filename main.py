@@ -6014,7 +6014,7 @@ async def sacrifice_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TY
             await query.answer("❌ У вас нет существ!", show_alert=True)
             return
         
-        # Считаем карты по редкостям (только UpgradeT1-UpgradeT7)
+        # ⭐ СЧИТАЕМ КАРТЫ ПО РЕДКОСТЯМ ⭐
         user_card_ids = user_data["cards"]
         card_counts = Counter(user_card_ids)
         
@@ -6033,7 +6033,7 @@ async def sacrifice_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TY
             await query.answer("❌ Нет существ для жертвоприношения!", show_alert=True)
             return
         
-        # Создаём клавиатуру с редкостями
+        # ⭐ СОЗДАЁМ КЛАВИАТУРУ С РЕДКОСТЯМИ ⭐
         keyboard = []
         for rarity in ["UpgradeT7", "UpgradeT6", "UpgradeT5", "UpgradeT4", 
                        "UpgradeT3", "UpgradeT2", "UpgradeT1"]:
@@ -6046,7 +6046,6 @@ async def sacrifice_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TY
                     )
                 ])
         
-        # Кнопка "Назад"
         keyboard.append([
             InlineKeyboardButton("🔙 Назад", callback_data="sacrifice_back")
         ])
@@ -6081,38 +6080,40 @@ async def sacrifice_show_rarity(update: Update, context: ContextTypes.DEFAULT_TY
             await query.answer("❌ У вас нет существ!", show_alert=True)
             return
         
-        # Получаем существ нужной редкости
+        # ⭐ СЧИТАЕМ КОЛИЧЕСТВО КАЖДОЙ КАРТЫ ⭐
         user_card_ids = user_data["cards"]
         card_counts = Counter(user_card_ids)
         
-        rarity_cards = []
+        rarity_cards = {}
         for card_id, count in card_counts.items():
             card = find_card_by_id(card_id, data["cards"])
             if card and card.get("rarity") == rarity:
-                rarity_cards.append((card_id, count, card))
+                rarity_cards[card_id] = count
         
         if not rarity_cards:
             await query.answer(f"❌ Нет существ редкости {rarity}!", show_alert=True)
             return
         
-        # Создаём клавиатуру с существами
+        # ⭐ СОЗДАЁМ КЛАВИАТУРУ С СУЩЕСТВАМИ ⭐
         keyboard = []
-        for card_id, count, card in rarity_cards:
-            reward = SACRIFICE_REWARDS.get(card["rarity"], {})
-            reward_text = ""
-            if reward.get("cents", 0) > 0:
-                reward_text = f"💰 {reward['cents']} золота"
-            if reward.get("free_rolls", 0) > 0:
-                reward_text += f" 🎲 {reward['free_rolls']} наймов"
-            
-            keyboard.append([
+        for card_id, count in rarity_cards.items():
+            card = find_card_by_id(card_id, data["cards"])
+            if card:
+                reward = SACRIFICE_REWARDS.get(card["rarity"], {})
+                reward_text = ""
+                if reward.get("cents", 0) > 0:
+                    reward_text = f"💰 {reward['cents']} золота"
+                if reward.get("free_rolls", 0) > 0:
+                    reward_text += f" 🎲 {reward['free_rolls']} наймов"
+                
+                # ⭐ ДОБАВЛЯЕМ КОЛИЧЕСТВО В ТЕКСТ КНОПКИ ⭐
+                keyboard.append([
                     InlineKeyboardButton(
                         f"{card['title']} ({card['rarity']}) {count}шт. - {reward_text}",
                         callback_data=f"sacrifice_confirm_{card_id}"
                     )
                 ])
         
-        # Кнопка "Назад"
         keyboard.append([
             InlineKeyboardButton("🔙 Назад к редкостям", callback_data="sacrifice_rarity")
         ])
@@ -6147,38 +6148,41 @@ async def sacrifice_all_creatures(update: Update, context: ContextTypes.DEFAULT_
             await query.answer("❌ У вас нет существ!", show_alert=True)
             return
         
-        # Получаем все существа UpgradeT1-UpgradeT7
-        card_counts = Counter(user_data["cards"])
-        all_cards = []
+        # ⭐ СЧИТАЕМ КОЛИЧЕСТВО КАЖДОЙ КАРТЫ ⭐
+        user_card_ids = user_data["cards"]
+        card_counts = Counter(user_card_ids)
         
+        all_cards = {}
         for card_id, count in card_counts.items():
             card = find_card_by_id(card_id, data["cards"])
             if card and card.get("rarity") in ["UpgradeT1", "UpgradeT2", "UpgradeT3", 
                                                 "UpgradeT4", "UpgradeT5", "UpgradeT6", "UpgradeT7"]:
-                all_cards.append((card_id, count, card))
+                all_cards[card_id] = count
         
         if not all_cards:
             await query.answer("❌ Нет существ для жертвоприношения!", show_alert=True)
             return
         
-        # Создаём клавиатуру со всеми существами
+        # ⭐ СОЗДАЁМ КЛАВИАТУРУ СО ВСЕМИ СУЩЕСТВАМИ ⭐
         keyboard = []
-        for card_id, count, card in all_cards:
-            reward = SACRIFICE_REWARDS.get(card["rarity"], {})
-            reward_text = ""
-            if reward.get("cents", 0) > 0:
-                reward_text = f"💰 {reward['cents']} золота"
-            if reward.get("free_rolls", 0) > 0:
-                reward_text += f" 🎲 {reward['free_rolls']} наймов"
-            
-            keyboard.append([
+        for card_id, count in all_cards.items():
+            card = find_card_by_id(card_id, data["cards"])
+            if card:
+                reward = SACRIFICE_REWARDS.get(card["rarity"], {})
+                reward_text = ""
+                if reward.get("cents", 0) > 0:
+                    reward_text = f"💰 {reward['cents']} золота"
+                if reward.get("free_rolls", 0) > 0:
+                    reward_text += f" 🎲 {reward['free_rolls']} наймов"
+                
+                # ⭐ ДОБАВЛЯЕМ КОЛИЧЕСТВО В ТЕКСТ КНОПКИ ⭐
+                keyboard.append([
                     InlineKeyboardButton(
                         f"{card['title']} ({card['rarity']}) {count}шт. - {reward_text}",
                         callback_data=f"sacrifice_confirm_{card_id}"
                     )
                 ])
         
-        # Кнопка "Назад"
         keyboard.append([
             InlineKeyboardButton("🔙 Назад", callback_data="sacrifice_back")
         ])
@@ -6241,6 +6245,10 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await query.answer("❌ Существо не найдено!", show_alert=True)
                 return
             
+            # Считаем количество этой карты в коллекции
+            card_counts = Counter(user_data["cards"])
+            count = card_counts.get(card_id, 1)
+            
             # Получаем награду
             reward = SACRIFICE_REWARDS.get(card["rarity"], {"cents": 0, "free_rolls": 0})
             reward_text = []
@@ -6301,9 +6309,7 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             if reward["free_rolls"] > 0:
                 reward_text.append(f"🎲 +{reward['free_rolls']} бесплатных наймов")
             
-            keyboard = [[
-                InlineKeyboardButton("🔙 Назад в алтарь", callback_data="sacrifice_back")
-            ]]
+            keyboard = [[InlineKeyboardButton("🔙 Назад в алтарь", callback_data="sacrifice_back")]]
             
             await query.edit_message_text(
                 f"✅ **Жертвоприношение успешно!**\n\n"
