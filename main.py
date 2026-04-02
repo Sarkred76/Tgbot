@@ -6020,7 +6020,7 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
-            "Выберите действие:",
+            "",
             reply_markup=reply_markup
         )
         
