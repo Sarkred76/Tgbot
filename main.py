@@ -5811,14 +5811,14 @@ async def open_casino_from_button(update: Update, context: ContextTypes.DEFAULT_
         cents = user_data.get("cents", 0) if user_data else 0
         
         keyboard = [
-            [InlineKeyboardButton("🎰 Играть (2000 золота)", callback_data="casino_play")]
+            [InlineKeyboardButton("🎰 Играть (3000 золота)", callback_data="casino_play")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
             f"🎰 **Казино**\n\n"
             f"📜 **Правила:**\n"
-            f"• Стоимость игры: 2000 золота\n"
+            f"• Стоимость игры: 3000 золота\n"
             f"• Крутите слот и получите 3 одинаковых значения\n"
             f"• При победе: 10 бесплатных наймов существ\n"
             f"• Попыток сегодня: {attempts}/10\n"
