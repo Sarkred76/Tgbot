@@ -2936,7 +2936,7 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"🎲 Выпало: {dice_value}!\n\n"
             f"✨ Получено бесплатных наймов: {dice_value}\n"
             f"📊 Всего бесплатных наймов: {user_data['free_rolls']}\n\n"
-            f"⏳ Следующий бросок через 6 часов"
+            f"⏳ Следующий бросок через 12 часов"
         )
 
     except Exception as e:
@@ -3021,7 +3021,7 @@ async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await query.edit_message_text(
             f"🎰 **Казино**\n\n"
             f"📜 **Правила:**\n"
-            f"• Стоимость игры: 2000 золота\n"
+            f"• Стоимость игры: 3000 золота\n"
             f"• Крутите слот и получите 3 одинаковых значения\n"
             f"• При победе: 10 бесплатных наймов существ\n"
             f"• Попыток сегодня: {attempts}/10\n"
@@ -3088,11 +3088,11 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
             # Проверяем баланс
 
-            if cents < 2000:
+            if cents < 3000:
 
                 await query.edit_message_text(
                     f"❌ **Недостаточно золота!**\n\n"
-                    f"Нужно: 2000 золота\n"
+                    f"Нужно: 3000 золота\n"
                     f"У вас: {cents} золота\n\n"
                     f"Нанимайте существ и получайте больше наград! 💰",
                     parse_mode="Markdown",
@@ -3102,7 +3102,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
             # Списываем центы и попытки
 
-            user_data["cents"] -= 2000
+            user_data["cents"] -= 3000
 
             user_data["casino_attempts"] -= 1
 
@@ -3147,7 +3147,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
             await query.message.reply_text(
                 f"😔 Не повезло! Попробуйте ещё раз.\n\n"
-                f"💰 Списано: 2000 золота\n"
+                f"💰 Списано: 3000 золота\n"
                 f"🎲 Осталось попыток: {user_data['casino_attempts']}\n"
                 f"💰 Ваш баланс: {user_data['cents']} золота",
                 parse_mode="Markdown",
@@ -3553,7 +3553,7 @@ async def trade_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             "🔄 **Трейд существ**\n\n"
             "Выберите тип обмена:\n"
             "• 1 ↔ 1 - обмен 1 существо на 1\n"
-            "📝 После выбора нужно будет указать героя и выбрать карты.",
+            "📝 После выбора нужно будет указать героя и выбрать существ.",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
@@ -3694,8 +3694,8 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
                 f"✅ Партнёр: {partner_id}\n"
                 f"🐦‍🔥 Выберите {cards_count} существ для обмена.\n"
                 f"Используйте кнопки для навигации:\n"
-                f"• [<] [>] - листать карты\n"
-                f"• [✅ Выбрать] - добавить карту\n"
+                f"• [<] [>] - листать существ\n"
+                f"• [✅ Выбрать] - добавить существо\n"
                 f"• [🔍 Поиск] - найти по названию\n"
                 f"• [➡️ Далее] - завершить выбор",
                 parse_mode="Markdown"
@@ -3987,10 +3987,10 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
-                        f"🔄 **Вам предложили обмен!**\n\n"
+                        f"🔄 Вам предложили обмен!\n\n"
                         f"👤 От: {sender_name}\n"
                         f"🐦‍🔥 Существ в обмене: {cards_count}\n\n"
-                        f"📋 **Карты отправителя:**\n"
+                        f"📋 Существа отправителя:\n"
                         f"{cards_text}\n\n"
                         f"Нажмите кнопку для действия:"
                     ),
@@ -4061,9 +4061,9 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             save_data(data)
             
             await query.edit_message_text(
-                f"✅ **Запрос принят от {sender_name}**\n\n"
+                f"✅ Запрос принят от {sender_name}\n\n"
                 f"🐦‍🔥 Существ в обмене: {len(cards_offered)}\n\n"
-                f"📋 **Просмотрите существ ниже:**\n"
+                f"📋 Просмотрите существ ниже:\n"
                 f"Используйте [<] [>] для навигации",
                 parse_mode="Markdown"
             )
@@ -4183,9 +4183,9 @@ async def trade_accept(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         context.user_data[user_id]["current_offer_index"] = 0
         
         await update.message.reply_text(
-            f"✅ **Запрос на обмен от {sender_name}**\n\n"
+            f"✅ Запрос на обмен от {sender_name}\n\n"
             f"🐦‍🔥 Существ в обмене: {len(cards_offered)}\n\n"
-            f"📋 **Просмотрите существ ниже:**\n"
+            f"📋 Просмотрите существ ниже:\n"
             f"Используйте [<] [>] для навигации\n"
             f"Когда будете готовы, нажмите [✅ Принять обмен]",
             parse_mode="Markdown"
@@ -4525,7 +4525,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 trade_info["step"] = "search_mode"
             await query.answer("🔍 Введите название существа для поиска", show_alert=False)
             await query.message.reply_text(
-                "🔍 **Поиск существ**\n"
+                "🔍 Поиск существ\n"
                 "Введите часть названия существа:\n"
                 "Например: \"дракон\", \"демон\", \"огр\"\n"
                 "❌ Для отмены: /cancel",
@@ -4587,10 +4587,10 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
-                        f"🔄 **Герой готов к обмену!**\n"
+                        f"🔄 Герой готов к обмену!\n"
                         f"👤 {sender_name} предлагает:\n"
                         f"{return_cards_text}\n"
-                        f"📋 **Ваше предложение:**\n"
+                        f"📋 Ваше предложение:\n"
                         f"{offered_cards_text}\n"
                         f"Нажмите кнопку для подтверждения:"
                     ),
@@ -4663,7 +4663,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             if partner_id in context.user_data:
                 del context.user_data[partner_id]
             await query.edit_message_text(
-                "✅ **Обмен завершён!**\n"
+                "✅ Обмен завершён!\n"
                 f"🐦‍🔥 Вы отдали: {len(received_cards)} существ\n"
                 f"🐦‍🔥 Вы получили: {len(selected_return_cards)} существ",
                 parse_mode="Markdown"
@@ -4673,7 +4673,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
-                        "✅ **Обмен завершён!**\n"
+                        "✅ Обмен завершён!\n"
                         f"🐦‍🔥 Вы отдали: {len(selected_return_cards)} существ\n"
                         f"🐦‍🔥 Вы получили: {len(received_cards)} существ"
                     ),
@@ -4769,10 +4769,10 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="profile_back")])
         
         await query.edit_message_text(
-            "🏆 **Достижения**\n\n"
+            "🏆 Достижения\n\n"
             "Соберите всех существ отдельной фракции,\n"
             "чтобы получить награду!\n\n"
-            "🎁 **Награда за достижение:**\n"
+            "🎁 Награда за достижение:\n"
             "• 30 бесплатных попыток\n"
             "Выберите достижение:",
             reply_markup=InlineKeyboardMarkup(keyboard),
@@ -5330,7 +5330,7 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
                 "Попробуйте другой запрос или введите @никнейм для выбора партнёра.")
             if step == "search_mode":
                 trade_info["step"] = "select_cards" # Возвращаемся к выбору
-                await update.message.reply_text(" bird:‍🔥 Выберите существо кнопками:")
+                await update.message.reply_text(" 🐦‍🔥 Выберите существо кнопками:")
             return
         
         # Показываем результаты поиска
@@ -5367,7 +5367,7 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
             keyboard.append([InlineKeyboardButton("❌ Отмена поиска", callback_data="trade_search_cancel")])
             
             await update.message.reply_text(
-                f"🔍 **Найдено существ: {len(found_creatures)}**\n\n"
+                f"🔍 Найдено существ: {len(found_creatures)}\n\n"
                 f"По запросу: \"{text}\"\n\n"
                 f"Выберите существо для трейда:",
                 reply_markup=InlineKeyboardMarkup(keyboard),
@@ -5405,11 +5405,7 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
             except ValueError:
                 await query.answer("❌ Неверный ID карты.", show_alert=True)
                 return
-
-            # --- ИСПРАВЛЕНИЕ: Загрузка данных ---
-            data = load_data() # <-- ЭТА СТРОКА БЫЛА ПРОПУЩЕНА ИЛИ НЕПРАВИЛЬНО РАСПОЛОЖЕНА
-            # ---------------------------------
-
+            data = load_data()
             # Проверяем, есть ли у игрока это существо
             user_data = data["users"].get(user_id)
             if not user_data or card_id not in user_data.get("cards", []):
