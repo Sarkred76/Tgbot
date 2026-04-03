@@ -43,6 +43,7 @@ BARRACKS_IMAGE_URL = "https://files.catbox.moe/a5kew7.jpg"
 DUNGEON_IMAGE_URL = "https://files.catbox.moe/6kx269.png"
 ALTAR_IMAGE_URL = "https://files.catbox.moe/oonjfr.jpg"
 REFUGEE_CAMP_IMAGE_URL = "https://files.catbox.moe/eplmfl.jpg"
+MERCENARY_GUILD_IMAGE_URL = "https://files.catbox.moe/k7gzi0.jpg"
 
 SACRIFICE_REWARDS = {
     "UpgradeT1": {"cents": 100, "free_rolls": 0},  # 200/2 = 100
@@ -58,14 +59,14 @@ SACRIFICE_REWARDS = {
 
 
 RARITY_BONUSES = {
-    "T1": {"cents": 100, "points": 100, "probability": 53.19},
+    "T1": {"cents": 100, "points": 100, "probability": 53.16},
     "T2": {"cents": 250, "points": 250, "probability": 20.8},
     "T3": {"cents": 500, "points": 500, "probability": 11.8},
     "T4": {"cents": 1000, "points": 1000, "probability": 6.91},
     "T5": {"cents": 2000, "points": 2000, "probability": 4.51},
     "T6": {"cents": 5000, "points": 5000, "probability": 1.96},
     "T7": {"cents": 10000, "points": 10000, "probability": 0.78},
-    "T8": {"cents": 50000, "points": 50000, "probability": 0.05},
+    "T8": {"cents": 50000, "points": 50000, "probability": 0.08},
     "UpgradeT1": {"cents": 200, "points": 200, "probability": 100},
     "UpgradeT2": {"cents": 500, "points": 500, "probability": 100},
     "UpgradeT3": {"cents": 1000, "points": 1000, "probability": 100},
@@ -108,12 +109,6 @@ def load_data() -> Dict[str, Any]:
             if "promo_codes" not in data:
                 data["promo_codes"] = {}
 
-            if "mercenary_guild" not in data:
-                data["mercenary_guild"] = {
-                    "creatures": [],  # Список существ для продажи
-                    "max_slots": 4    # Максимум 4 существа
-                }
-
             if "achievements" not in data:
                 data["achievements"] = {
                     "Замок": {"cards": [], "reward_claimed": False},
@@ -125,6 +120,12 @@ def load_data() -> Dict[str, Any]:
                     "Цитадель": {"cards": [], "reward_claimed": False},
                     "Крепость": {"cards": [], "reward_claimed": False},
                     "Сопряжение": {"cards": [], "reward_claimed": False},
+                }
+
+            if "mercenary_guild" not in data:
+                data["mercenary_guild"] = {
+                    "creatures": [],  # Список существ для продажи
+                    "max_slots": 4    # Максимум 4 существа
                 }
             
             for user_id, user_data in data.get("users", {}).items():
@@ -162,6 +163,10 @@ def load_data() -> Dict[str, Any]:
                 "season": 1,
                 "admins": [INITIAL_ADMIN_ID],
                 "active_trades": {},
+                "mercenary_guild": {
+                    "creatures": [],
+                    "max_slots": 4
+                },
                 "achievements": {
                     "Замок": {"cards": [], "reward_claimed": False},
                     "Оплот": {"cards": [], "reward_claimed": False},
@@ -435,7 +440,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         
         response += "🦇 **Подземелье:**\n"
         response += "• 🩸 Жертвенный алтарь - пожертвовать существо за награду\n"
-        response += "• 🏛 Гильдия Наёмников - купить существ за золото\n\n"
+        response += "• 🪓 Гильдия Наёмников - купить существ за золото\n\n"
         
         response += "🏕️ **Лагерь Беженцев:**\n"
         response += "• Купить рандомное существо 1 раз в день\n"
@@ -445,7 +450,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         response += "/start - начать работу с ботом\n"
         response += "/help - показать это сообщение\n"
         response += "/profile - мой профиль\n"
-        response += "/dice - бросить кубик 🎲\n"
+        response += "/dice - бросить кубик\n"
         response += "/craft - крафт существ\n"
         response += "/top - топ героев\n"
         response += "/trade - трейд существ\n"
@@ -482,10 +487,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         response += "💡 **Нужна помощь?**\n"
         response += "Напишите администратору бота."
         
+        # ⭐ ИСПРАВЛЕНИЕ: Используем Markdown с правильным форматированием ⭐
         await update.message.reply_text(response, parse_mode="Markdown")
         
     except Exception as e:
         logger.error(f"Ошибка в help: {e}")
+        # ⭐ ЗАПАСНОЙ ВАРИАНТ: без форматирования ⭐
         await update.message.reply_text("❌ Ошибка при показе помощи")
 
 async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1511,7 +1518,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await sacrifice_altar(update, context)
             return
 
-        elif text == "🏛 Гильдия Наёмников":
+        elif text == "🪓 Гильдия Наёмников":
             await mercenary_guild(update, context)
             return
 
@@ -2963,7 +2970,7 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"🎲 Выпало: {dice_value}!\n\n"
             f"✨ Получено бесплатных наймов: {dice_value}\n"
             f"📊 Всего бесплатных наймов: {user_data['free_rolls']}\n\n"
-            f"⏳ Следующий бросок через 12 часов"
+            f"⏳ Следующий бросок через 6 часов"
         )
 
     except Exception as e:
@@ -3040,7 +3047,7 @@ async def casino_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         cents = user_data.get("cents", 0)
 
         keyboard = [
-            [InlineKeyboardButton("🎰 Играть (2000 золота)", callback_data="casino_play")]
+            [InlineKeyboardButton("🎰 Играть (3000 золота)", callback_data="casino_play")]
         ]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -3760,7 +3767,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
                          reply_markup=InlineKeyboardMarkup(keyboard)
                      )
             else:
-                 await update.message.reply_text("❌ У вас нет карт для трейда.")
+                 await update.message.reply_text("❌ У вас нет существ для трейда.")
                  del context.user_data[user_id]
 
     except Exception as e:
@@ -4014,10 +4021,10 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
-                        f"🔄 Вам предложили обмен!\n\n"
+                        f"🔄 **Вам предложили обмен!**\n\n"
                         f"👤 От: {sender_name}\n"
                         f"🐦‍🔥 Существ в обмене: {cards_count}\n\n"
-                        f"📋 Существа отправителя:\n"
+                        f"📋 **Карты отправителя:**\n"
                         f"{cards_text}\n\n"
                         f"Нажмите кнопку для действия:"
                     ),
@@ -4088,9 +4095,9 @@ async def trade_button_callback(update: Update, context: ContextTypes.DEFAULT_TY
             save_data(data)
             
             await query.edit_message_text(
-                f"✅ Запрос принят от {sender_name}\n\n"
+                f"✅ **Запрос принят от {sender_name}**\n\n"
                 f"🐦‍🔥 Существ в обмене: {len(cards_offered)}\n\n"
-                f"📋 Просмотрите существ ниже:\n"
+                f"📋 **Просмотрите существ ниже:**\n"
                 f"Используйте [<] [>] для навигации",
                 parse_mode="Markdown"
             )
@@ -4210,9 +4217,9 @@ async def trade_accept(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         context.user_data[user_id]["current_offer_index"] = 0
         
         await update.message.reply_text(
-            f"✅ Запрос на обмен от {sender_name}\n\n"
+            f"✅ **Запрос на обмен от {sender_name}**\n\n"
             f"🐦‍🔥 Существ в обмене: {len(cards_offered)}\n\n"
-            f"📋 Просмотрите существ ниже:\n"
+            f"📋 **Просмотрите существ ниже:**\n"
             f"Используйте [<] [>] для навигации\n"
             f"Когда будете готовы, нажмите [✅ Принять обмен]",
             parse_mode="Markdown"
@@ -4552,7 +4559,7 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 trade_info["step"] = "search_mode"
             await query.answer("🔍 Введите название существа для поиска", show_alert=False)
             await query.message.reply_text(
-                "🔍 Поиск существ\n"
+                "🔍 **Поиск существ**\n"
                 "Введите часть названия существа:\n"
                 "Например: \"дракон\", \"демон\", \"огр\"\n"
                 "❌ Для отмены: /cancel",
@@ -4614,10 +4621,10 @@ async def trade_return_callback(update: Update, context: ContextTypes.DEFAULT_TY
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
-                        f"🔄 Герой готов к обмену!\n"
+                        f"🔄 **Герой готов к обмену!**\n"
                         f"👤 {sender_name} предлагает:\n"
                         f"{return_cards_text}\n"
-                        f"📋 Ваше предложение:\n"
+                        f"📋 **Ваше предложение:**\n"
                         f"{offered_cards_text}\n"
                         f"Нажмите кнопку для подтверждения:"
                     ),
@@ -4690,7 +4697,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             if partner_id in context.user_data:
                 del context.user_data[partner_id]
             await query.edit_message_text(
-                "✅ Обмен завершён!\n"
+                "✅ **Обмен завершён!**\n"
                 f"🐦‍🔥 Вы отдали: {len(received_cards)} существ\n"
                 f"🐦‍🔥 Вы получили: {len(selected_return_cards)} существ",
                 parse_mode="Markdown"
@@ -4700,7 +4707,7 @@ async def trade_final_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 await context.bot.send_message(
                     chat_id=partner_id,
                     text=(
-                        "✅ Обмен завершён!\n"
+                        "✅ **Обмен завершён!**\n"
                         f"🐦‍🔥 Вы отдали: {len(selected_return_cards)} существ\n"
                         f"🐦‍🔥 Вы получили: {len(received_cards)} существ"
                     ),
@@ -4796,10 +4803,10 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="profile_back")])
         
         await query.edit_message_text(
-            "🏆 Достижения\n\n"
+            "🏆 **Достижения**\n\n"
             "Соберите всех существ отдельной фракции,\n"
             "чтобы получить награду!\n\n"
-            "🎁 Награда за достижение:\n"
+            "🎁 **Награда за достижение:**\n"
             "• 30 бесплатных попыток\n"
             "Выберите достижение:",
             reply_markup=InlineKeyboardMarkup(keyboard),
@@ -5394,7 +5401,7 @@ async def search_creatures_for_trade(update: Update, context: ContextTypes.DEFAU
             keyboard.append([InlineKeyboardButton("❌ Отмена поиска", callback_data="trade_search_cancel")])
             
             await update.message.reply_text(
-                f"🔍 Найдено существ: {len(found_creatures)}\n\n"
+                f"🔍 **Найдено существ: {len(found_creatures)}**\n\n"
                 f"По запросу: \"{text}\"\n\n"
                 f"Выберите существо для трейда:",
                 reply_markup=InlineKeyboardMarkup(keyboard),
@@ -5432,7 +5439,11 @@ async def trade_search_callback(update: Update, context: ContextTypes.DEFAULT_TY
             except ValueError:
                 await query.answer("❌ Неверный ID карты.", show_alert=True)
                 return
-            data = load_data()
+
+            # --- ИСПРАВЛЕНИЕ: Загрузка данных ---
+            data = load_data() # <-- ЭТА СТРОКА БЫЛА ПРОПУЩЕНА ИЛИ НЕПРАВИЛЬНО РАСПОЛОЖЕНА
+            # ---------------------------------
+
             # Проверяем, есть ли у игрока это существо
             user_data = data["users"].get(user_id)
             if not user_data or card_id not in user_data.get("cards", []):
@@ -5882,7 +5893,7 @@ async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # ⭐ КЛАВИАТУРА С КНОПКАМИ ПОДЗЕМЕЛЬЯ ⭐
         keyboard = [
             [KeyboardButton("🩸 Жертвенный алтарь")],
-            [KeyboardButton("🏛 Гильдия Наёмников")],
+            [KeyboardButton("🪓 Гильдия Наёмников")],
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -6576,7 +6587,8 @@ async def buy_refugee_creature(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         logger.error(f"Ошибка buy_refugee_creature: {e}")
         await update.message.reply_text("❌ Ошибка при покупке существа")
-        
+
+
 async def mercenary_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Добавляет существо в Гильдию Наёмников."""
     try:
@@ -6619,9 +6631,7 @@ async def mercenary_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         # Проверяем, не добавлено ли уже это существо
         for creature in guild["creatures"]:
             if creature["card_id"] == card_id:
-                await update.message.reply_text(
-                    f"⚠️ Это существо уже есть в Гильдии!"
-                )
+                await update.message.reply_text(f"⚠️ Это существо уже есть в Гильдии!")
                 return
         
         # Добавляем существо
@@ -6712,12 +6722,14 @@ async def mercenary_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         guild = data["mercenary_guild"]
         
         if not guild["creatures"]:
-            await update.message.reply_text("📭 **Гильдия Наёмников пуста!**\n\n"
-                                          "Добавьте существ командой /mercenary_add",
-                                          parse_mode="Markdown")
+            await update.message.reply_text(
+                "📭 **Гильдия Наёмников пуста!**\n\n"
+                "Добавьте существ командой /mercenary_add",
+                parse_mode="Markdown"
+            )
             return
         
-        message_text = "🏰 **Гильдия Наёмников**\n\n"
+        message_text = "🪓 **Гильдия Наёмников**\n\n"
         message_text += f"📊 **Существ:** {len(guild['creatures'])}/{guild['max_slots']}\n\n"
         
         for i, creature in enumerate(guild["creatures"], 1):
@@ -6788,7 +6800,6 @@ async def mercenary_update_price(update: Update, context: ContextTypes.DEFAULT_T
         logger.error(f"Ошибка mercenary_update_price: {e}")
         await update.message.reply_text("❌ Ошибка при обновлении цены")
 
-
 async def mercenary_guild(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает Гильдию Наёмников с доступными существами."""
     try:
@@ -6802,7 +6813,7 @@ async def mercenary_guild(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
-                "🏰 **Гильдия Наёмников**\n\n"
+                "🪓 **Гильдия Наёмников**\n\n"
                 "❌ Сейчас нет доступных существ для найма.\n"
                 "Заходите позже!",
                 reply_markup=reply_markup,
@@ -6815,7 +6826,7 @@ async def mercenary_guild(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             context.user_data[user_id] = {}
         context.user_data[user_id]["mercenary_page"] = 0
         
-        # ⭐ ОТПРАВЛЯЕМ ПЕРВУЮ СТРАНИЦУ ⭐
+        # ⭐ ОТПРАВЛЯЕМ ПЕРВУЮ СТРАНИЦУ С ФОТО ⭐
         await show_mercenary_page(update, context, 0)
         
     except Exception as e:
@@ -6824,7 +6835,7 @@ async def mercenary_guild(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int) -> None:
-    """Показывает страницу Гильдии Наёмников."""
+    """Показывает страницу Гильдии Наёмников с фото существа."""
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
@@ -6890,7 +6901,7 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         # ⭐ ФОРМИРУЕМ CAPTION ⭐
         caption = (
-            f"🏰 **Гильдия Наёмников**\n\n"
+            f"🪓 **Гильдия Наёмников**\n\n"
             f"🃏 **Существо:** {card['title']}\n"
             f"🌟 **Редкость:** {card['rarity']}\n"
             f"💰 **Цена:** {creature['price']} золота\n\n"
@@ -6898,18 +6909,23 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"📊 Страница {page + 1}/{total_pages}"
         )
         
-        # ⭐ ОТПРАВЛЯЕМ СУЩЕСТВО ⭐
+        # ⭐ ОТПРАВЛЯЕМ ФОТО СУЩЕСТВА ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
             query = update.callback_query
             try:
+                # ⭐ РЕДАКТИРУЕМ СООБЩЕНИЕ С ФОТО ⭐
+                media = InputMediaPhoto(media=card["image_url"], caption=caption)
                 await query.edit_message_media(
-                    media=InputMediaPhoto(media=card["image_url"], caption=caption),
+                    media=media,
                     reply_markup=InlineKeyboardMarkup(inline_keyboard),
                     parse_mode="Markdown"
                 )
             except Exception as edit_error:
                 logger.error(f"Ошибка редактирования: {edit_error}")
-                await query.message.delete()
+                try:
+                    await query.message.delete()
+                except:
+                    pass
                 await context.bot.send_photo(
                     chat_id=query.message.chat_id,
                     photo=card["image_url"],
@@ -6951,7 +6967,7 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         # ⭐ ИНФОРМАЦИЯ ⭐
         if query.data == "mercenary_info":
-            await query.answer("🏰 Гильдия Наёмников - покупайте существ за золото!", show_alert=False)
+            await query.answer("🪓 Гильдия Наёмников - покупайте существ за золото!", show_alert=False)
             return
         
         # ⭐ НАЗАД ⭐
