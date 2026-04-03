@@ -6422,7 +6422,7 @@ async def refugee_camp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         
         # ⭐ ПРОВЕРЯЕМ СБРОС ⭐
         check_refugee_camp_reset(user_data)
-        save_data(data)  # ← Сохраняем после проверки сброса
+        save_data(data)
         
         # ⭐ ГЕНЕРИРУЕМ ПРЕДЛОЖЕНИЕ ЕСЛИ НЕТ ⭐
         if user_data.get("refugee_camp_offered_card") is None:
@@ -6432,74 +6432,94 @@ async def refugee_camp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 if card["available"]
                 and card.get("rarity") in ["T1", "T2", "T3", "T4", "T5", "T6", "T7"]
             ]
-            
             if available_cards:
                 # Выбираем случайное существо
                 offered_card = random.choice(available_cards)
                 user_data["refugee_camp_offered_card"] = offered_card["id"]
                 save_data(data)
         
-        # ⭐ КЛАВИАТУРА С КНОПКАМИ ⭐
-        keyboard = [
-            [KeyboardButton("🔙 Назад в Лес")],
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        
         # ⭐ ПОЛУЧАЕМ ИНФОРМАЦИЮ О СУЩЕСТВЕ ⭐
         offered_card_id = user_data.get("refugee_camp_offered_card")
         offered_card = find_card_by_id(offered_card_id, data["cards"]) if offered_card_id else None
         
-        if not offered_card:
-            await update.message.reply_text(
-                "🏕️ **Лагерь Беженцев**\n\n"
-                "❌ Сегодня нет доступных существ для покупки.\n"
-                "Заходите завтра после 00:00 МСК!",
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
-            )
-            return
-        
         # ⭐ СЧИТАЕМ СТОИМОСТЬ (удвоенная награда за найм) ⭐
-        base_reward = RARITY_BONUSES.get(offered_card["rarity"], {"cents": 0})
+        base_reward = RARITY_BONUSES.get(offered_card["rarity"], {"cents": 0}) if offered_card else {"cents": 0}
         price = base_reward["cents"] * 2
         
         # ⭐ ПРОВЕРЯЕМ, КУПИЛ ЛИ УЖЕ ⭐
         purchased = user_data.get("refugee_camp_purchased", False)
         
-        if purchased:
-            await update.message.reply_text(
-                f"🏕️ **Лагерь Беженцев**\n\n"
-                f"🃏 **Существо дня:** {offered_card['title']}\n"
-                f"🌟 **Редкость:** {offered_card['rarity']}\n"
-                f"💰 **Цена:** {price} золота\n\n"
-                f"✅ **Вы уже купили это существо сегодня!**\n"
-                f"⏰ Следующее предложение завтра в 00:00 МСК",
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
-            )
+        # ⭐ КЛАВИАТУРА С КНОПКАМИ ⭐
+        if purchased or not offered_card:
+            keyboard = [[KeyboardButton("🔙 Назад в Лес")]]
         else:
-            # ⭐ ДОБАВЛЯЕМ КНОПКУ ПОКУПКИ ⭐
             keyboard = [
                 [KeyboardButton(f"💰 Купить за {price} золота")],
                 [KeyboardButton("🔙 Назад в Лес")],
             ]
-            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-            
-            await update.message.reply_text(
-                f"🏕️ **Лагерь Беженцев**\n\n"
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
+        # ⭐ ОТПРАВЛЯЕМ ФОТО ЛАГЕРЯ БЕЖЕНЦЕВ ⭐
+        if not offered_card:
+            caption = (
+                "🏕️ **Лагерь Беженцев**\n\n"
+                "❌ Сегодня нет доступных существ для покупки.\n"
+                "Заходите завтра после 00:00 МСК!"
+            )
+        elif purchased:
+            caption = (
+                "🏕️ **Лагерь Беженцев**\n\n"
+                f"🃏 **Существо дня:** {offered_card['title']}\n"
+                f"🌟 **Редкость:** {offered_card['rarity']}\n"
+                f"💰 **Цена:** {price} золота\n\n"
+                f"✅ **Вы уже купили это существо сегодня!**\n"
+                f"⏰ Следующее предложение завтра в 00:00 МСК"
+            )
+        else:
+            caption = (
+                "🏕️ **Лагерь Беженцев**\n\n"
                 f"🃏 **Существо дня:** {offered_card['title']}\n"
                 f"🌟 **Редкость:** {offered_card['rarity']}\n"
                 f"💰 **Цена:** {price} золота (2x от награды за найм)\n\n"
                 f"⚠️ **Можно купить только 1 раз в день!**\n"
                 f"⏰ Обновляется в 00:00 МСК\n\n"
-                f"💳 **Ваш баланс:** {user_data.get('cents', 0)} золота",
+                f"💳 **Ваш баланс:** {user_data.get('cents', 0)} золота"
+            )
+        
+        # ⭐ ПРОВЕРКА: callback или сообщение ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=REFUGEE_CAMP_IMAGE_URL,  # ← Изображение Лагеря
+                caption=caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        else:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=REFUGEE_CAMP_IMAGE_URL,  # ← Изображение Лагеря
+                caption=caption,
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
         
     except Exception as e:
         logger.error(f"Ошибка в refugee_camp: {e}")
-        await update.message.reply_text("❌ Ошибка при открытии Лагеря Беженцев")
+        # ⭐ ЗАПАСНОЙ ВАРИАНТ ⭐
+        keyboard = [[KeyboardButton("🔙 Назад в Лес")]]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text(
+            "🏕️ **Лагерь Беженцев**\n\n"
+            "❌ Ошибка при открытии Лагеря Беженцев!",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
 
 
 async def buy_refugee_creature(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
