@@ -6798,7 +6798,7 @@ async def mercenary_guild(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             return
         
         # ⭐ СОХРАНЯЕМ ИНДЕКС СТРАНИЦЫ В context.user_data ⭐
-        if user_id not in context.user_
+        if user_id not in context.user_data:
             context.user_data[user_id] = {}
         context.user_data[user_id]["mercenary_page"] = 0
         
