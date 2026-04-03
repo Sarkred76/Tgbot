@@ -45,6 +45,14 @@ ALTAR_IMAGE_URL = "https://files.catbox.moe/oonjfr.jpg"
 REFUGEE_CAMP_IMAGE_URL = "https://files.catbox.moe/eplmfl.jpg"
 MERCENARY_GUILD_IMAGE_URL = "https://files.catbox.moe/k7gzi0.jpg"
 
+FREE_ROLLS_PACKAGE = {
+    "id": "free_rolls_package",
+    "title": "15 Бесплатных наймов",
+    "price": 35000,
+    "rolls": 15,
+}
+
+
 SACRIFICE_REWARDS = {
     "UpgradeT1": {"cents": 100, "free_rolls": 0},  # 200/2 = 100
     "UpgradeT2": {"cents": 250, "free_rolls": 0},  # 500/2 = 250
@@ -6817,19 +6825,23 @@ async def mercenary_update_price(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text("❌ Ошибка при обновлении цены")
 
 async def mercenary_guild(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает Гильдию Наёмников с доступными существами."""
+    """Показывает Гильдию Наёмников с доступными товарами."""
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
-        
         guild = data["mercenary_guild"]
         
-        if not guild["creatures"]:
+        # ⭐ ПРОВЕРЯЕМ ЕСТЬ ЛИ ТОВАРЫ ⭐
+        has_creatures = len(guild["creatures"]) > 0
+        has_rolls_package = True  # Пакет наймов всегда доступен
+        
+        if not has_creatures and not has_rolls_package:
+            keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
-                "🪓 Гильдия Наёмников\n\n"
-                "❌ Сейчас нет доступных существ для найма.\n"
+                "🪓 **Гильдия Наёмников**\n"
+                "❌ Сейчас нет доступных товаров.\n"
                 "Заходите позже!",
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
@@ -6840,8 +6852,9 @@ async def mercenary_guild(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if user_id not in context.user_data:
             context.user_data[user_id] = {}
         context.user_data[user_id]["mercenary_page"] = 0
+        context.user_data[user_id]["mercenary_type"] = "creatures"  # По умолчанию
         
-        # ⭐ ОТПРАВЛЯЕМ ПЕРВУЮ СТРАНИЦУ С ФОТО ⭐
+        # ⭐ ОТПРАВЛЯЕМ ПЕРВУЮ СТРАНИЦУ ⭐
         await show_mercenary_page(update, context, 0)
         
     except Exception as e:
@@ -6850,22 +6863,25 @@ async def mercenary_guild(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int) -> None:
-    """Показывает страницу Гильдии Наёмников с фото существа."""
+    """Показывает страницу Гильдии Наёмников с товарами."""
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
-        
         guild = data["mercenary_guild"]
         creatures = guild["creatures"]
         
-        if not creatures:
-            await update.message.reply_text("❌ Нет существ в Гильдии!")
+        # ⭐ ДОБАВЛЯЕМ ПАКЕТ НАЙМОВ КАК ПЕРВЫЙ ТОВАР ⭐
+        all_items = [FREE_ROLLS_PACKAGE] + creatures
+        total_items = len(all_items)
+        
+        if total_items == 0:
+            await update.message.reply_text("❌ Нет товаров в Гильдии!")
             return
         
         # ⭐ НАВИГАЦИЯ ПО СТРАНИЦАМ ⭐
-        creatures_per_page = 1  # Показываем по 1 существу за раз
-        total_pages = len(creatures)
+        items_per_page = 1  # Показываем по 1 товару за раз
+        total_pages = total_items
         
         if page < 0:
             page = 0
@@ -6874,27 +6890,29 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         context.user_data[user_id]["mercenary_page"] = page
         
-        # Получаем существо для текущей страницы
-        creature = creatures[page]
-        card = find_card_by_id(creature["card_id"], data["cards"])
-        
-        if not card:
-            await update.message.reply_text("❌ Ошибка: существо не найдено!")
-            return
+        # Получаем товар для текущей страницы
+        item = all_items[page]
+        is_rolls_package = item.get("id") == "free_rolls_package"
         
         # ⭐ ПРОВЕРЯЕМ БАЛАНС ИГРОКА ⭐
-        can_afford = user_data.get("cents", 0) >= creature["price"] if user_data else False
+        can_afford = user_data.get("cents", 0) >= item["price"] if user_data else False
         
         # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ ⭐
         inline_keyboard = []
         
         # Кнопка "Купить"
-        buy_text = f"💰 Купить за {creature['price']} золота"
+        if is_rolls_package:
+            buy_text = f"💰 Купить за {item['price']} золота"
+            callback_data = f"mercenary_buy_rolls"
+        else:
+            buy_text = f"💰 Купить за {item['price']} золота"
+            callback_data = f"mercenary_buy_{item['card_id']}"
+        
         if not can_afford:
             buy_text += " ❌ (Недостаточно золота)"
         
         inline_keyboard.append([
-            InlineKeyboardButton(buy_text, callback_data=f"mercenary_buy_{creature['card_id']}")
+            InlineKeyboardButton(buy_text, callback_data=callback_data)
         ])
         
         # Кнопки навигации
@@ -6909,45 +6927,95 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         inline_keyboard.append(nav_buttons)
         
-        # ⭐ ФОРМИРУЕМ CAPTION ⭐
-        caption = (
-            f"🪓 Гильдия Наёмников\n\n"
-            f"🃏 Существо: {card['title']}\n"
-            f"🌟 Редкость: {card['rarity']}\n"
-            f"💰 Цена: {creature['price']} золота\n\n"
-            f"💳 Ваш баланс: {user_data.get('cents', 0) if user_data else 0} золота\n\n"
-            f"📊 Страница {page + 1}/{total_pages}"
-        )
+        # Кнопка "Назад"
+        inline_keyboard.append([
+            InlineKeyboardButton("🔙 Назад в Подземелье", callback_data="mercenary_back")
+        ])
         
-        # ⭐ ОТПРАВЛЯЕМ ФОТО СУЩЕСТВА ⭐
-        if hasattr(update, 'callback_query') and update.callback_query:
-            query = update.callback_query
-            try:
-                # ⭐ РЕДАКТИРУЕМ СООБЩЕНИЕ С ФОТО ⭐
-                media = InputMediaPhoto(media=card["image_url"], caption=caption)
-                await query.edit_message_media(
-                    media=media,
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                )
-            except Exception as edit_error:
-                logger.error(f"Ошибка редактирования: {edit_error}")
+        # ⭐ ФОРМИРУЕМ CAPTION ⭐
+        if is_rolls_package:
+            caption = (
+                f"🪓 **Гильдия Наёмников**\n"
+                f"🎁 **Товар:** {item['title']}\n"
+                f"🎲 **Наймов:** {item['rolls']} шт.\n"
+                f"💰 **Цена:** {item['price']} золота\n"
+                f"💳 **Ваш баланс:** {user_data.get('cents', 0) if user_data else 0} золота\n"
+                f"📊 Страница {page + 1}/{total_pages}"
+            )
+            # ⭐ ОТПРАВЛЯЕМ БЕЗ ФОТО (текстовое сообщение) ⭐
+            if hasattr(update, 'callback_query') and update.callback_query:
+                query = update.callback_query
                 try:
-                    await query.message.delete()
-                except:
-                    pass
+                    await query.edit_message_text(
+                        caption,
+                        reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                        parse_mode="Markdown"
+                    )
+                except Exception as edit_error:
+                    logger.error(f"Ошибка редактирования: {edit_error}")
+                    try:
+                        await query.message.delete()
+                    except:
+                        pass
+                    await context.bot.send_message(
+                        chat_id=query.message.chat_id,
+                        text=caption,
+                        reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                        parse_mode="Markdown"
+                    )
+            else:
+                await update.message.reply_text(
+                    caption,
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                    parse_mode="Markdown"
+                )
+        else:
+            # ⭐ СУЩЕСТВО - ОТПРАВЛЯЕМ С ФОТО ⭐
+            card = find_card_by_id(item["card_id"], data["cards"])
+            if not card:
+                await update.message.reply_text("❌ Ошибка: существо не найдено!")
+                return
+            
+            caption = (
+                f"🪓 **Гильдия Наёмников**\n"
+                f"🃏 **Существо:** {card['title']}\n"
+                f"🌟 **Редкость:** {card['rarity']}\n"
+                f"💰 **Цена:** {item['price']} золота\n"
+                f"💳 **Ваш баланс:** {user_data.get('cents', 0) if user_data else 0} золота\n"
+                f"📊 Страница {page + 1}/{total_pages}"
+            )
+            
+            # ⭐ ОТПРАВЛЯЕМ ФОТО СУЩЕСТВА ⭐
+            if hasattr(update, 'callback_query') and update.callback_query:
+                query = update.callback_query
+                try:
+                    media = InputMediaPhoto(media=card["image_url"], caption=caption)
+                    await query.edit_message_media(
+                        media=media,
+                        reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                        parse_mode="Markdown"
+                    )
+                except Exception as edit_error:
+                    logger.error(f"Ошибка редактирования: {edit_error}")
+                    try:
+                        await query.message.delete()
+                    except:
+                        pass
+                    await context.bot.send_photo(
+                        chat_id=query.message.chat_id,
+                        photo=card["image_url"],
+                        caption=caption,
+                        reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                        parse_mode="Markdown"
+                    )
+            else:
                 await context.bot.send_photo(
-                    chat_id=query.message.chat_id,
+                    chat_id=update.effective_chat.id,
                     photo=card["image_url"],
                     caption=caption,
                     reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                    parse_mode="Markdown"
                 )
-        else:
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id,
-                photo=card["image_url"],
-                caption=caption,
-                reply_markup=InlineKeyboardMarkup(inline_keyboard),
-            )
         
     except Exception as e:
         logger.error(f"Ошибка show_mercenary_page: {e}")
@@ -6974,12 +7042,48 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
         # ⭐ ИНФОРМАЦИЯ ⭐
         if query.data == "mercenary_info":
-            await query.answer("🪓 Гильдия Наёмников - покупайте существ за золото!", show_alert=False)
+            await query.answer("🪓 Гильдия Наёмников - покупайте существ и наймы за золото!", show_alert=False)
             return
         
         # ⭐ НАЗАД ⭐
         if query.data == "mercenary_back":
             await dungeon_menu(update, context)
+            return
+        
+        # ⭐ ПОКУПКА ПАКЕТА НАЙМОВ ⭐
+        if query.data == "mercenary_buy_rolls":
+            package = FREE_ROLLS_PACKAGE
+            price = package["price"]
+            
+            # Проверяем баланс
+            if not user_data or user_data.get("cents", 0) < price:
+                await query.answer(f"❌ Недостаточно золота! Нужно {price}", show_alert=True)
+                return
+            
+            # ⭐ СПИСЫВАЕМ ЗОЛОТО ⭐
+            user_data["cents"] -= price
+            
+            # ⭐ ДОБАВЛЯЕМ НАЙМЫ ⭐
+            user_data["free_rolls"] = user_data.get("free_rolls", 0) + package["rolls"]
+            
+            save_data(data)
+            
+            # ⭐ СООБЩЕНИЕ О ПОКУПКЕ ⭐
+            await query.edit_message_text(
+                f"✅ **Покупка успешна!**\n\n"
+                f"🎁 **Вы получили:** {package['title']}\n"
+                f"🎲 **Наймов:** {package['rolls']} шт.\n"
+                f"💰 **Списано:** {price} золота\n"
+                f"💳 **Остаток:** {user_data['cents']} золота",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 Назад в Гильдию", callback_data="mercenary_back_to_guild")
+                ]]),
+                parse_mode="Markdown"
+            )
+            
+            # ⭐ ВОЗВРАЩАЕМ В ГИЛЬДИЮ ЧЕРЕЗ 2 СЕКУНДЫ ⭐
+            await asyncio.sleep(2)
+            await show_mercenary_page(update, context, context.user_data.get(user_id, {}).get("mercenary_page", 0))
             return
         
         # ⭐ ПОКУПКА СУЩЕСТВА ⭐
@@ -7016,11 +7120,11 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             card = find_card_by_id(card_id, data["cards"])
             if card:
                 caption = (
-                    f"✅ Покупка успешна!\n\n"
-                    f"🃏 Вы получили: {card['title']}\n"
-                    f"🌟 Редкость: {card['rarity']}\n"
-                    f"💰 Списано: {price} золота\n\n"
-                    f"💳 Остаток: {user_data['cents']} золота"
+                    f"✅ **Покупка успешна!**\n"
+                    f"🃏 **Вы получили:** {card['title']}\n"
+                    f"🌟 **Редкость:** {card['rarity']}\n"
+                    f"💰 **Списано:** {price} золота\n"
+                    f"💳 **Остаток:** {user_data['cents']} золота"
                 )
                 
                 # ⭐ ПОКАЗЫВАЕМ КАРТУ ⭐
