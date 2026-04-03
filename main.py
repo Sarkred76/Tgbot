@@ -6927,17 +6927,11 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         inline_keyboard.append(nav_buttons)
         
-        # Кнопка "Назад"
-        inline_keyboard.append([
-            InlineKeyboardButton("🔙 Назад в Подземелье", callback_data="mercenary_back")
-        ])
-        
         # ⭐ ФОРМИРУЕМ CAPTION ⭐
         if is_rolls_package:
             caption = (
                 f"🪓 **Гильдия Наёмников**\n"
                 f"🎁 **Товар:** {item['title']}\n"
-                f"🎲 **Наймов:** {item['rolls']} шт.\n"
                 f"💰 **Цена:** {item['price']} золота\n"
                 f"💳 **Ваш баланс:** {user_data.get('cents', 0) if user_data else 0} золота\n"
                 f"📊 Страница {page + 1}/{total_pages}"
@@ -7072,7 +7066,6 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.edit_message_text(
                 f"✅ **Покупка успешна!**\n\n"
                 f"🎁 **Вы получили:** {package['title']}\n"
-                f"🎲 **Наймов:** {package['rolls']} шт.\n"
                 f"💰 **Списано:** {price} золота\n"
                 f"💳 **Остаток:** {user_data['cents']} золота",
                 reply_markup=InlineKeyboardMarkup([[
