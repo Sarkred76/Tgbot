@@ -58,14 +58,14 @@ SACRIFICE_REWARDS = {
 
 
 RARITY_BONUSES = {
-    "T1": {"cents": 100, "points": 100, "probability": 53.16},
+    "T1": {"cents": 100, "points": 100, "probability": 53.19},
     "T2": {"cents": 250, "points": 250, "probability": 20.8},
     "T3": {"cents": 500, "points": 500, "probability": 11.8},
     "T4": {"cents": 1000, "points": 1000, "probability": 6.91},
     "T5": {"cents": 2000, "points": 2000, "probability": 4.51},
     "T6": {"cents": 5000, "points": 5000, "probability": 1.96},
     "T7": {"cents": 10000, "points": 10000, "probability": 0.78},
-    "T8": {"cents": 50000, "points": 50000, "probability": 0.08},
+    "T8": {"cents": 50000, "points": 50000, "probability": 0.05},
     "UpgradeT1": {"cents": 200, "points": 200, "probability": 100},
     "UpgradeT2": {"cents": 500, "points": 500, "probability": 100},
     "UpgradeT3": {"cents": 1000, "points": 1000, "probability": 100},
@@ -107,6 +107,12 @@ def load_data() -> Dict[str, Any]:
 
             if "promo_codes" not in data:
                 data["promo_codes"] = {}
+
+            if "mercenary_guild" not in data:
+                data["mercenary_guild"] = {
+                    "creatures": [],  # Список существ для продажи
+                    "max_slots": 4    # Максимум 4 существа
+                }
 
             if "achievements" not in data:
                 data["achievements"] = {
@@ -175,6 +181,10 @@ def load_data() -> Dict[str, Any]:
         "season": 1,
         "admins": [INITIAL_ADMIN_ID],
         "active_trades": {},
+        "mercenary_guild": {
+            "creatures": [],
+            "max_slots": 4
+        },
         "achievements": {
             "Замок": {"cards": [], "reward_claimed": False},
             "Оплот": {"cards": [], "reward_claimed": False},
@@ -1486,6 +1496,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         elif text == "🩸 Жертвенный алтарь":
             await sacrifice_altar(update, context)
+            return
+
+        elif text == "🏛 Гильдия Наёмников":
+            await mercenary_guild(update, context)
             return
 
         elif text == "🔙 Назад в Подземелье":
@@ -5855,6 +5869,7 @@ async def dungeon_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # ⭐ КЛАВИАТУРА С КНОПКАМИ ПОДЗЕМЕЛЬЯ ⭐
         keyboard = [
             [KeyboardButton("🩸 Жертвенный алтарь")],
+            [KeyboardButton("🏛 Гильдия Наёмников")],
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -6549,6 +6564,444 @@ async def buy_refugee_creature(update: Update, context: ContextTypes.DEFAULT_TYP
         logger.error(f"Ошибка buy_refugee_creature: {e}")
         await update.message.reply_text("❌ Ошибка при покупке существа")
         
+async def mercenary_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Добавляет существо в Гильдию Наёмников."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # Проверяем аргументы: /mercenary_add [ID_карты] [цена]
+        if not context.args or len(context.args) < 2:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/mercenary_add [ID_карты] [цена_в_золоте]\n\n"
+                "**Пример:**\n"
+                "/mercenary_add 45 5000 - добавить карту #45 за 5000 золота",
+                parse_mode="Markdown"
+            )
+            return
+        
+        card_id = int(context.args[0])
+        price = int(context.args[1])
+        
+        # Проверяем существование карты
+        card = find_card_by_id(card_id, data["cards"])
+        if not card:
+            await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена!")
+            return
+        
+        # Проверяем лимит слотов
+        guild = data["mercenary_guild"]
+        if len(guild["creatures"]) >= guild["max_slots"]:
+            await update.message.reply_text(
+                f"❌ **Лимит достигнут!**\n"
+                f"В Гильдии может быть максимум {guild['max_slots']} существ.\n"
+                f"Удалите одно существо командой /mercenary_remove",
+                parse_mode="Markdown"
+            )
+            return
+        
+        # Проверяем, не добавлено ли уже это существо
+        for creature in guild["creatures"]:
+            if creature["card_id"] == card_id:
+                await update.message.reply_text(
+                    f"⚠️ Это существо уже есть в Гильдии!"
+                )
+                return
+        
+        # Добавляем существо
+        guild["creatures"].append({
+            "card_id": card_id,
+            "price": price,
+            "added_by": str(update.effective_user.id),
+            "added_at": int(time.time())
+        })
+        
+        save_data(data)
+        
+        await update.message.reply_text(
+            f"✅ **Существо добавлено в Гильдию Наёмников!**\n\n"
+            f"🃏 **Карта:** {card['title']} (#{card_id})\n"
+            f"🌟 **Редкость:** {card['rarity']}\n"
+            f"💰 **Цена:** {price} золота\n"
+            f"📊 **Всего существ в Гильдии:** {len(guild['creatures'])}/{guild['max_slots']}",
+            parse_mode="Markdown"
+        )
+        
+        logger.info(f"Админ добавил существо #{card_id} за {price} золота в Гильдию Наёмников")
+        
+    except ValueError:
+        await update.message.reply_text("⚠️ ID и цена должны быть числами!")
+    except Exception as e:
+        logger.error(f"Ошибка mercenary_add: {e}")
+        await update.message.reply_text("❌ Ошибка при добавлении существа")
+
+
+async def mercenary_remove(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Удаляет существо из Гильдии Наёмников."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # Проверяем аргументы: /mercenary_remove [ID_карты]
+        if not context.args:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/mercenary_remove [ID_карты]\n\n"
+                "**Пример:**\n"
+                "/mercenary_remove 45",
+                parse_mode="Markdown"
+            )
+            return
+        
+        card_id = int(context.args[0])
+        
+        # Ищем существо в Гильдии
+        guild = data["mercenary_guild"]
+        for i, creature in enumerate(guild["creatures"]):
+            if creature["card_id"] == card_id:
+                removed = guild["creatures"].pop(i)
+                save_data(data)
+                
+                card = find_card_by_id(card_id, data["cards"])
+                card_name = card["title"] if card else f"#{card_id}"
+                
+                await update.message.reply_text(
+                    f"✅ **Существо удалено из Гильдии!**\n\n"
+                    f"🃏 **Карта:** {card_name}\n"
+                    f"💰 **Цена была:** {removed['price']} золота\n"
+                    f"📊 **Осталось существ:** {len(guild['creatures'])}/{guild['max_slots']}",
+                    parse_mode="Markdown"
+                )
+                return
+        
+        await update.message.reply_text(f"⚠️ Существо #{card_id} не найдено в Гильдии!")
+        
+    except ValueError:
+        await update.message.reply_text("⚠️ ID должен быть числом!")
+    except Exception as e:
+        logger.error(f"Ошибка mercenary_remove: {e}")
+        await update.message.reply_text("❌ Ошибка при удалении существа")
+
+
+async def mercenary_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает список существ в Гильдии Наёмников."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        guild = data["mercenary_guild"]
+        
+        if not guild["creatures"]:
+            await update.message.reply_text("📭 **Гильдия Наёмников пуста!**\n\n"
+                                          "Добавьте существ командой /mercenary_add",
+                                          parse_mode="Markdown")
+            return
+        
+        message_text = "🏰 **Гильдия Наёмников**\n\n"
+        message_text += f"📊 **Существ:** {len(guild['creatures'])}/{guild['max_slots']}\n\n"
+        
+        for i, creature in enumerate(guild["creatures"], 1):
+            card = find_card_by_id(creature["card_id"], data["cards"])
+            card_name = card["title"] if card else "Неизвестно"
+            rarity = card["rarity"] if card else "?"
+            
+            message_text += (
+                f"{i}. **{card_name}** ({rarity})\n"
+                f"   💰 Цена: {creature['price']} золота\n"
+                f"   🆔 ID: {creature['card_id']}\n\n"
+            )
+        
+        await update.message.reply_text(message_text, parse_mode="Markdown")
+        
+    except Exception as e:
+        logger.error(f"Ошибка mercenary_list: {e}")
+        await update.message.reply_text("❌ Ошибка при получении списка")
+
+
+async def mercenary_update_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обновляет цену существа в Гильдии Наёмников."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        # Проверяем аргументы: /mercenary_price [ID_карты] [новая_цена]
+        if not context.args or len(context.args) < 2:
+            await update.message.reply_text(
+                "ℹ️ **Формат команды:**\n"
+                "/mercenary_price [ID_карты] [новая_цена]\n\n"
+                "**Пример:**\n"
+                "/mercenary_price 45 10000",
+                parse_mode="Markdown"
+            )
+            return
+        
+        card_id = int(context.args[0])
+        new_price = int(context.args[1])
+        
+        # Ищем существо в Гильдии
+        guild = data["mercenary_guild"]
+        for creature in guild["creatures"]:
+            if creature["card_id"] == card_id:
+                old_price = creature["price"]
+                creature["price"] = new_price
+                save_data(data)
+                
+                card = find_card_by_id(card_id, data["cards"])
+                card_name = card["title"] if card else f"#{card_id}"
+                
+                await update.message.reply_text(
+                    f"✅ **Цена обновлена!**\n\n"
+                    f"🃏 **Карта:** {card_name}\n"
+                    f"💰 **Было:** {old_price} золота\n"
+                    f"💰 **Стало:** {new_price} золота",
+                    parse_mode="Markdown"
+                )
+                return
+        
+        await update.message.reply_text(f"⚠️ Существо #{card_id} не найдено в Гильдии!")
+        
+    except ValueError:
+        await update.message.reply_text("⚠️ ID и цена должны быть числами!")
+    except Exception as e:
+        logger.error(f"Ошибка mercenary_update_price: {e}")
+        await update.message.reply_text("❌ Ошибка при обновлении цены")
+
+
+async def mercenary_guild(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает Гильдию Наёмников с доступными существами."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        guild = data["mercenary_guild"]
+        
+        if not guild["creatures"]:
+            keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+            await update.message.reply_text(
+                "🏰 **Гильдия Наёмников**\n\n"
+                "❌ Сейчас нет доступных существ для найма.\n"
+                "Заходите позже!",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+            return
+        
+        # ⭐ СОХРАНЯЕМ ИНДЕКС СТРАНИЦЫ В context.user_data ⭐
+        if user_id not in context.user_
+            context.user_data[user_id] = {}
+        context.user_data[user_id]["mercenary_page"] = 0
+        
+        # ⭐ ОТПРАВЛЯЕМ ПЕРВУЮ СТРАНИЦУ ⭐
+        await show_mercenary_page(update, context, 0)
+        
+    except Exception as e:
+        logger.error(f"Ошибка в mercenary_guild: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии Гильдии")
+
+
+async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int) -> None:
+    """Показывает страницу Гильдии Наёмников."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        guild = data["mercenary_guild"]
+        creatures = guild["creatures"]
+        
+        if not creatures:
+            await update.message.reply_text("❌ Нет существ в Гильдии!")
+            return
+        
+        # ⭐ НАВИГАЦИЯ ПО СТРАНИЦАМ ⭐
+        creatures_per_page = 1  # Показываем по 1 существу за раз
+        total_pages = len(creatures)
+        
+        if page < 0:
+            page = 0
+        elif page >= total_pages:
+            page = total_pages - 1
+        
+        context.user_data[user_id]["mercenary_page"] = page
+        
+        # Получаем существо для текущей страницы
+        creature = creatures[page]
+        card = find_card_by_id(creature["card_id"], data["cards"])
+        
+        if not card:
+            await update.message.reply_text("❌ Ошибка: существо не найдено!")
+            return
+        
+        # ⭐ ПРОВЕРЯЕМ БАЛАНС ИГРОКА ⭐
+        can_afford = user_data.get("cents", 0) >= creature["price"] if user_data else False
+        
+        # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ ⭐
+        inline_keyboard = []
+        
+        # Кнопка "Купить"
+        buy_text = f"💰 Купить за {creature['price']} золота"
+        if not can_afford:
+            buy_text += " ❌ (Недостаточно золота)"
+        
+        inline_keyboard.append([
+            InlineKeyboardButton(buy_text, callback_data=f"mercenary_buy_{creature['card_id']}")
+        ])
+        
+        # Кнопки навигации
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"mercenary_nav_{page - 1}"))
+        
+        nav_buttons.append(InlineKeyboardButton(f"{page + 1}/{total_pages}", callback_data="mercenary_info"))
+        
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"mercenary_nav_{page + 1}"))
+        
+        inline_keyboard.append(nav_buttons)
+        
+        # Кнопка "Назад"
+        inline_keyboard.append([
+            InlineKeyboardButton("🔙 Назад в Подземелье", callback_data="mercenary_back")
+        ])
+        
+        # ⭐ ФОРМИРУЕМ CAPTION ⭐
+        caption = (
+            f"🏰 **Гильдия Наёмников**\n\n"
+            f"🃏 **Существо:** {card['title']}\n"
+            f"🌟 **Редкость:** {card['rarity']}\n"
+            f"💰 **Цена:** {creature['price']} золота\n\n"
+            f"💳 **Ваш баланс:** {user_data.get('cents', 0) if user_data else 0} золота\n\n"
+            f"📊 Страница {page + 1}/{total_pages}"
+        )
+        
+        # ⭐ ОТПРАВЛЯЕМ СУЩЕСТВО ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                await query.edit_message_media(
+                    media=InputMediaPhoto(media=card["image_url"], caption=caption),
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                    parse_mode="Markdown"
+                )
+            except Exception as edit_error:
+                logger.error(f"Ошибка редактирования: {edit_error}")
+                await query.message.delete()
+                await context.bot.send_photo(
+                    chat_id=query.message.chat_id,
+                    photo=card["image_url"],
+                    caption=caption,
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                    parse_mode="Markdown"
+                )
+        else:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=card["image_url"],
+                caption=caption,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                parse_mode="Markdown"
+            )
+        
+    except Exception as e:
+        logger.error(f"Ошибка show_mercenary_page: {e}")
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.answer("❌ Произошла ошибка", show_alert=True)
+        else:
+            await update.message.reply_text("❌ Произошла ошибка")
+
+
+async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок Гильдии Наёмников."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        # ⭐ НАВИГАЦИЯ ПО СТРАНИЦАМ ⭐
+        if query.data.startswith("mercenary_nav_"):
+            page = int(query.data.replace("mercenary_nav_", ""))
+            await show_mercenary_page(update, context, page)
+            return
+        
+        # ⭐ ИНФОРМАЦИЯ ⭐
+        if query.data == "mercenary_info":
+            await query.answer("🏰 Гильдия Наёмников - покупайте существ за золото!", show_alert=False)
+            return
+        
+        # ⭐ НАЗАД ⭐
+        if query.data == "mercenary_back":
+            await dungeon_menu(update, context)
+            return
+        
+        # ⭐ ПОКУПКА СУЩЕСТВА ⭐
+        if query.data.startswith("mercenary_buy_"):
+            card_id = int(query.data.replace("mercenary_buy_", ""))
+            
+            # Ищем существо в Гильдии
+            guild = data["mercenary_guild"]
+            creature = None
+            for c in guild["creatures"]:
+                if c["card_id"] == card_id:
+                    creature = c
+                    break
+            
+            if not creature:
+                await query.edit_message_text("❌ Это существо больше недоступно!")
+                return
+            
+            # Проверяем баланс
+            price = creature["price"]
+            if not user_data or user_data.get("cents", 0) < price:
+                await query.answer(f"❌ Недостаточно золота! Нужно {price}", show_alert=True)
+                return
+            
+            # ⭐ СПИСЫВАЕМ ЗОЛОТО ⭐
+            user_data["cents"] -= price
+            
+            # ⭐ ДОБАВЛЯЕМ КАРТУ ⭐
+            user_data["cards"].append(card_id)
+            
+            save_data(data)
+            
+            # ⭐ ОТПРАВЛЯЕМ КАРТУ ⭐
+            card = find_card_by_id(card_id, data["cards"])
+            if card:
+                caption = (
+                    f"✅ **Покупка успешна!**\n\n"
+                    f"🃏 **Вы получили:** {card['title']}\n"
+                    f"🌟 **Редкость:** {card['rarity']}\n"
+                    f"💰 **Списано:** {price} золота\n\n"
+                    f"💳 **Остаток:** {user_data['cents']} золота"
+                )
+                
+                # ⭐ ПОКАЗЫВАЕМ КАРТУ ⭐
+                await query.message.delete()
+                await send_card(update, card, context, caption=caption)
+                
+                # ⭐ ВОЗВРАЩАЕМ В ГИЛЬДИЮ ⭐
+                await asyncio.sleep(2)
+                await show_mercenary_page(update, context, context.user_data.get(user_id, {}).get("mercenary_page", 0))
+            
+            logger.info(f"Игрок {user_id} купил существо #{card_id} за {price} золота в Гильдии Наёмников")
+            return
+        
+    except Exception as e:
+        logger.error(f"Ошибка mercenary_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
 
 # ===== ЗАПУСК БОТА =====
 
@@ -6603,6 +7056,10 @@ def main() -> None:
             CommandHandler("delete_promo", delete_promo_code),
             CommandHandler("list_promo", list_promo_codes),
             CommandHandler("promo", activate_promo_code),
+            CommandHandler("mercenary_add", mercenary_add),
+            CommandHandler("mercenary_remove", mercenary_remove),
+            CommandHandler("mercenary_list", mercenary_list),
+            CommandHandler("mercenary_price", mercenary_update_price),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(handle_callback, pattern=r"^card_.*"),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_).*"),
@@ -6619,7 +7076,7 @@ def main() -> None:
             CallbackQueryHandler(profile_callback, pattern=r"^(achievements_menu|profile_back|achievement_.*)"),
             CallbackQueryHandler(dungeon_callback, pattern=r"^dungeon_.*"),
             CallbackQueryHandler(sacrifice_callback, pattern=r"^sacrifice_.*"),
-     
+            CallbackQueryHandler(mercenary_callback, pattern=r"^mercenary_.*"),
         ]
 
         for handler in handlers:
