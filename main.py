@@ -1557,7 +1557,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
                 data["users"][user_id] = user_data
 
-            COOLDOWN_SECONDS = 3 * 60 * 60
+            COOLDOWN_SECONDS = 2 * 60 * 60
 
             current_time = int(time.time())
 
@@ -4801,7 +4801,8 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             "Соберите всех существ отдельной фракции,\n"
             "чтобы получить награду!\n\n"
             "🎁 **Награда за достижение:**\n"
-            "• 30 бесплатных попыток\n"
+            "• 30 бесплатных наймов\n"
+            "• 30000 золота\n"
             "Выберите достижение:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
@@ -4868,6 +4869,7 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         
         # ⭐ ВЫДАЁМ НАГРАДУ ⭐
         user_data["free_rolls"] = user_data.get("free_rolls", 0) + 30
+        user_data["cents"] = user_data.get("cents", 0) + 30000
         claimed_achievements.append(faction)
         user_data["claimed_achievements"] = claimed_achievements
         
@@ -4878,6 +4880,7 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             f"🏆 {achievement_num}. {faction}\n\n"
             f"🎁 **Награда:**\n"
             f"• 🎲 +30 бесплатных наймов\n"
+            f"• 💰 +30000 золота\n"
             f"Поздравляем!",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
@@ -6798,11 +6801,10 @@ async def mercenary_update_price(update: Update, context: ContextTypes.DEFAULT_T
                 card_name = card["title"] if card else f"#{card_id}"
                 
                 await update.message.reply_text(
-                    f"✅ **Цена обновлена!**\n\n"
-                    f"🃏 **Карта:** {card_name}\n"
-                    f"💰 **Было:** {old_price} золота\n"
-                    f"💰 **Стало:** {new_price} золота",
-                    parse_mode="Markdown"
+                    f"✅ Цена обновлена!\n\n"
+                    f"🃏 Карта: {card_name}\n"
+                    f"💰 Было: {old_price} золота\n"
+                    f"💰 Стало: {new_price} золота",
                 )
                 return
         
@@ -6824,10 +6826,9 @@ async def mercenary_guild(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         guild = data["mercenary_guild"]
         
         if not guild["creatures"]:
-            keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
-                "🪓 **Гильдия Наёмников**\n\n"
+                "🪓 Гильдия Наёмников\n\n"
                 "❌ Сейчас нет доступных существ для найма.\n"
                 "Заходите позже!",
                 reply_markup=reply_markup,
@@ -6908,18 +6909,13 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         inline_keyboard.append(nav_buttons)
         
-        # Кнопка "Назад"
-        inline_keyboard.append([
-            InlineKeyboardButton("🔙 Назад в Подземелье", callback_data="mercenary_back")
-        ])
-        
         # ⭐ ФОРМИРУЕМ CAPTION ⭐
         caption = (
-            f"🪓 **Гильдия Наёмников**\n\n"
-            f"🃏 **Существо:** {card['title']}\n"
-            f"🌟 **Редкость:** {card['rarity']}\n"
-            f"💰 **Цена:** {creature['price']} золота\n\n"
-            f"💳 **Ваш баланс:** {user_data.get('cents', 0) if user_data else 0} золота\n\n"
+            f"🪓 Гильдия Наёмников\n\n"
+            f"🃏 Существо: {card['title']}\n"
+            f"🌟 Редкость: {card['rarity']}\n"
+            f"💰 Цена: {creature['price']} золота\n\n"
+            f"💳 Ваш баланс: {user_data.get('cents', 0) if user_data else 0} золота\n\n"
             f"📊 Страница {page + 1}/{total_pages}"
         )
         
@@ -6932,7 +6928,6 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await query.edit_message_media(
                     media=media,
                     reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                    parse_mode="Markdown"
                 )
             except Exception as edit_error:
                 logger.error(f"Ошибка редактирования: {edit_error}")
@@ -6945,7 +6940,6 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
                     photo=card["image_url"],
                     caption=caption,
                     reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                    parse_mode="Markdown"
                 )
         else:
             await context.bot.send_photo(
@@ -6953,7 +6947,6 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
                 photo=card["image_url"],
                 caption=caption,
                 reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                parse_mode="Markdown"
             )
         
     except Exception as e:
@@ -7023,11 +7016,11 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             card = find_card_by_id(card_id, data["cards"])
             if card:
                 caption = (
-                    f"✅ **Покупка успешна!**\n\n"
-                    f"🃏 **Вы получили:** {card['title']}\n"
-                    f"🌟 **Редкость:** {card['rarity']}\n"
-                    f"💰 **Списано:** {price} золота\n\n"
-                    f"💳 **Остаток:** {user_data['cents']} золота"
+                    f"✅ Покупка успешна!\n\n"
+                    f"🃏 Вы получили: {card['title']}\n"
+                    f"🌟 Редкость: {card['rarity']}\n"
+                    f"💰 Списано: {price} золота\n\n"
+                    f"💳 Остаток: {user_data['cents']} золота"
                 )
                 
                 # ⭐ ПОКАЗЫВАЕМ КАРТУ ⭐
