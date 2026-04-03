@@ -419,34 +419,22 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             logger.error(f"Ошибка проверки админа: {e}")
             admin = False
         
-        response = "📜 **Доступные команды:**\n\n"
+        response = "📜 Доступные команды:\n\n"
         
         # Основные команды
-        response += "🎮 **Основные локации:**\n"
+        response += "🎮 Основные команды:\n"
         response += "⚔️ Нанять существо - нанять существо\n"
-        response += "🏰 Город - казарма и герой\n"
-        response += "🌲 Лес - крафт и Лагерь Беженцев\n"
-        response += "🍺 Таверна - казино и трейд\n"
-        response += "🦇 Подземелье - Жертвенный алтарь и Гильдия Наёмников\n\n"
+        response += "🛡 Казарма - посмотреть нанятых существ\n"
+        response += "👑 Мой герой - статистика героя\n"
+        response += "🏆 Топ героев - рейтинг по опыту\n"
+        response += "🎲 Бросить кубик - получить бесплатные наймы\n"
+        response += "🍺 Таверна - казино, трейд и другие игры\n"
+        response += "🔨 Крафт - скрафтить новое существо из 2 дубликатов\n"
+        response += "🔄 Трейд - обмен картами с героями\n"
+        response += "🏆 Достижения - награды за сбор карт фракций\n\n"
         
-        response += "🛡 **Казарма:**\n"
-        response += "• 📊 По редкости - сортировка по редкости\n"
-        response += "• ⚔️ По фракции - сортировка по фракции\n"
-        response += "• 📋 Все существа - полный список\n\n"
-        
-        response += "🔨 **Крафт (Форт на холме):**\n"
-        response += "• 2x T1-T7 → UpgradeT1-UpgradeT7\n"
-        response += "• Навигация по страницам ◀️ ▶️\n\n"
-        
-        response += "🦇 **Подземелье:**\n"
-        response += "• 🩸 Жертвенный алтарь - пожертвовать существо за награду\n"
-        response += "• 🪓 Гильдия Наёмников - купить существ за золото\n\n"
-        
-        response += "🏕️ **Лагерь Беженцев:**\n"
-        response += "• Купить рандомное существо 1 раз в день\n"
-        response += "• Сброс в 00:00 МСК\n\n"
-        
-        response += "📝 **Команды:**\n"
+        # Команды для всех
+        response += "📝 Команды:\n"
         response += "/start - начать работу с ботом\n"
         response += "/help - показать это сообщение\n"
         response += "/profile - мой профиль\n"
@@ -454,45 +442,47 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         response += "/craft - крафт существ\n"
         response += "/top - топ героев\n"
         response += "/trade - трейд существ\n"
+        response += "/trade_accept - принять трейд\n"
+        response += "/trade_decline - отклонить трейд\n"
         response += "/promo [КОД] - активировать промокод\n\n"
         
         # Админ-команды
         if admin:
-            response += "⚙️ **Админ-команды:**\n"
-            response += "/add_card - добавить карточку\n"
+            response += "⚙️ Админ-команды:\n"
+            response += "/add_card - добавить карточку в систему\n"
             response += "/edit_card - редактировать карту\n"
             response += "/card_info - информация о карте\n"
+            response += "/add_card_to_player - добавить карту игроку\n"
+            response += "/add_rolls_to_player - добавить попытки игроку\n"
+            response += "/reset_season_points [ID] - сбросить поинты за сезон\n"
+            response += "/cards - список всех карт\n"
+            response += "/disabled_cards - выключенные карты\n"
             response += "/toggle_card [ID] - вкл/выкл карту\n"
             response += "/delete_card [ID] - удалить карту\n"
-            response += "/cards - список всех карт\n"
-            response += "/add_card_to_player [ID] [ID_карты] - добавить карту игроку\n"
-            response += "/add_rolls_to_player [ID] [кол-во] - добавить наймы\n"
-            response += "/reset_season_points [ID] - сбросить поинты за сезон\n"
+            response += "/broadcast [текст] - рассылка всем игрокам\n"
             response += "/reset_all_cards - сбросить все карты\n"
             response += "/reset_user [ID] - сбросить карты игрока\n"
-            response += "/broadcast [текст] - рассылка всем\n"
             response += "/check_cards - статистика карт\n"
             response += "/list_admins - список админов\n"
             response += "/add_admin [ID] - добавить админа\n"
             response += "/remove_admin [ID] - удалить админа\n"
             response += "/create_promo [КОД] [ID/random] [лимит] - создать промокод\n"
             response += "/delete_promo [КОД] - удалить промокод\n"
-            response += "/list_promo - список промокодов\n"
+            response += "/list_promo - список всех промокодов\n"
             response += "/set_achievement_cards [Фракция] [ID...] - настроить достижение\n"
             response += "/mercenary_add [ID] [цена] - добавить в Гильдию Наёмников\n"
             response += "/mercenary_remove [ID] - удалить из Гильдии\n"
             response += "/mercenary_list - список Гильдии\n"
             response += "/mercenary_price [ID] [цена] - обновить цену\n\n"
         
-        response += "💡 **Нужна помощь?**\n"
+        response += "💡 Нужна помощь?\n"
         response += "Напишите администратору бота."
         
-        # ⭐ ИСПРАВЛЕНИЕ: Используем Markdown с правильным форматированием ⭐
-        await update.message.reply_text(response, parse_mode="Markdown")
+        # ⭐ ИСПРАВЛЕНИЕ: УБРАЛИ parse_mode="Markdown" ⭐
+        await update.message.reply_text(response)
         
     except Exception as e:
         logger.error(f"Ошибка в help: {e}")
-        # ⭐ ЗАПАСНОЙ ВАРИАНТ: без форматирования ⭐
         await update.message.reply_text("❌ Ошибка при показе помощи")
 
 async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
