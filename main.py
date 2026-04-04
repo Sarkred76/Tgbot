@@ -25,8 +25,13 @@ from telegram.ext import (
     CallbackQueryHandler,
 )
 from telegram.error import NetworkError, TimedOut
-
+from dotenv import load_dotenv
+load_dotenv()
 # ===== КОНФИГУРАЦИЯ =====
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+if not BOT_TOKEN:
+    raise ValueError("Токен бота не найден. Проверьте файл .env или переменные окружения.")
 
 INITIAL_ADMIN_ID = (
     "881692999"  # Первый администратор (будет добавлен в список при создании файла)
