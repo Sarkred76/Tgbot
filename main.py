@@ -2972,7 +2972,7 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"🎲 Выпало: {dice_value}!\n\n"
             f"✨ Получено бесплатных наймов: {dice_value}\n"
             f"📊 Всего бесплатных наймов: {user_data['free_rolls']}\n\n"
-            f"⏳ Следующий бросок через 6 часов"
+            f"⏳ Следующий бросок через 12 часов"
         )
 
     except Exception as e:
