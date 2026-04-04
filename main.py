@@ -4928,7 +4928,6 @@ async def set_achievement_cards(update: Update, context: ContextTypes.DEFAULT_TY
     except Exception as e:
         logger.error(f"Ошибка в send_card_notifications: {e}")
 
-
 async def check_card_notifications(application: Application) -> None:
     """Фоновая проверка уведомлений каждую минуту."""
     while True:
@@ -4936,10 +4935,7 @@ async def check_card_notifications(application: Application) -> None:
             await asyncio.sleep(60)  # Проверяем каждую минуту
             data = load_data()
             current_time = int(time.time())
-            
-            # ⭐ ИЗМЕНЕНО: 2 часа = 7200 секунд ⭐
-            COOLDOWN_SECONDS = 2 * 60 * 60  # ← 2 часа
-            
+            COOLDOWN_SECONDS = 2 * 60 * 60  # ⭐ 2 ЧАСА (как в handle_message) ⭐
             notified_count = 0
             
             for user_id, user_data in data["users"].items():
@@ -4956,6 +4952,8 @@ async def check_card_notifications(application: Application) -> None:
                                 chat_id=user_id,
                                 text=(
                                     "🎉 **Вы снова можете нанять существо!**\n\n"
+                                    "⏰ Кулдаун завершился.\n"
+                                    "⚔️ Нажмите кнопку «⚔️ Нанять существо»"
                                 ),
                                 parse_mode="Markdown"
                             )
@@ -4963,17 +4961,20 @@ async def check_card_notifications(application: Application) -> None:
                             user_data["notification_sent"] = True
                             notified_count += 1
                             logger.info(f"Уведомление отправлено пользователю {user_id}")
+                            
+                            # ⭐ ИСПРАВЛЕНИЕ: Сохраняем СРАЗУ ⭐
+                            save_data(data)
+                            
                         except Exception as send_error:
                             logger.error(f"Не удалось отправить уведомление {user_id}: {send_error}")
             
-            # Сохраняем данные если были уведомления
             if notified_count > 0:
-                save_data(data)
                 logger.info(f"Отправлено {notified_count} уведомлений")
                 
         except Exception as e:
             logger.error(f"Ошибка в check_card_notifications: {e}")
             await asyncio.sleep(60)
+
 
 async def create_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Создание промокода на карту."""
@@ -7215,9 +7216,16 @@ def main() -> None:
         print("Бот успешно запущен! Ctrl+C для остановки")
         logger.info("Бот запущен")
 
+        import threading
+        notification_thread = threading.Thread(
+            target=lambda: asyncio.run(check_card_notifications(application)), 
+            daemon=True
+        )
+        notification_thread.start()
+
+        logger.info("Запущена фоновая задача уведомлений") 
         application.run_polling(allowed_updates=Update.ALL_TYPES)
         
-        asyncio.create_task(check_card_notifications(application))
 
     except Exception as e:
 
