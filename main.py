@@ -28,7 +28,6 @@ from telegram.error import NetworkError, TimedOut
 
 # ===== КОНФИГУРАЦИЯ =====
 
-BOT_TOKEN = "8501838456:AAH2vwub2OgwerfCqUs-mRcczr4P5l6Rwcs"
 INITIAL_ADMIN_ID = (
     "881692999"  # Первый администратор (будет добавлен в список при создании файла)
 )
