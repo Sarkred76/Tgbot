@@ -6800,6 +6800,29 @@ async def mercenary_guild(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 parse_mode="Markdown"
             )
             return
+
+        caption = ("🪓 Вы заходите в Гильдию Наёмников!\n\n")
+
+        # ⭐ ПРОВЕРКА: callback или сообщение ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=MERCENARY_GUILD_IMAGE_URL,  # ← Изображение Гильдии
+                caption=caption,
+                parse_mode="Markdown"
+            )
+        else:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=MERCENARY_GUILD_IMAGE_URL,  # ← Изображение Гильдии
+                caption=caption,
+                parse_mode="Markdown"
+            )
         
         # ⭐ СОХРАНЯЕМ ИНДЕКС СТРАНИЦЫ В context.user_data ⭐
         if user_id not in context.user_data:
