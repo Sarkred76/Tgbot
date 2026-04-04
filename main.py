@@ -48,6 +48,7 @@ DUNGEON_IMAGE_URL = "https://files.catbox.moe/6kx269.png"
 ALTAR_IMAGE_URL = "https://files.catbox.moe/oonjfr.jpg"
 REFUGEE_CAMP_IMAGE_URL = "https://files.catbox.moe/eplmfl.jpg"
 MERCENARY_GUILD_IMAGE_URL = "https://files.catbox.moe/k7gzi0.jpg"
+FREE_ROLLS_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
 
 FREE_ROLLS_PACKAGE = {
     "id": "free_rolls_package",
@@ -6915,8 +6916,9 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
             if hasattr(update, 'callback_query') and update.callback_query:
                 query = update.callback_query
                 try:
-                    await query.edit_message_text(
-                        caption,
+                    media = InputMediaPhoto(media=FREE_ROLLS_IMAGE_URL, caption=caption)
+                    await query.edit_message_media(
+                        media=media,
                         reply_markup=InlineKeyboardMarkup(inline_keyboard),
                         parse_mode="Markdown"
                     )
@@ -6926,15 +6928,18 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
                         await query.message.delete()
                     except:
                         pass
-                    await context.bot.send_message(
+                    await context.bot.send_photo(
                         chat_id=query.message.chat_id,
-                        text=caption,
+                        photo=FREE_ROLLS_IMAGE_URL,
+                        caption=caption,
                         reply_markup=InlineKeyboardMarkup(inline_keyboard),
                         parse_mode="Markdown"
                     )
             else:
-                await update.message.reply_text(
-                    caption,
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=FREE_ROLLS_IMAGE_URL,
+                    caption=caption,
                     reply_markup=InlineKeyboardMarkup(inline_keyboard),
                     parse_mode="Markdown"
                 )
