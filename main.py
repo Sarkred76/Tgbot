@@ -6906,7 +6906,6 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
         # ⭐ ФОРМИРУЕМ CAPTION ⭐
         if is_rolls_package:
             caption = (
-                f"🪓 **Гильдия Наёмников**\n"
                 f"🎁 **Товар:** {item['title']}\n"
                 f"💰 **Цена:** {item['price']} золота\n"
                 f"💳 **Ваш баланс:** {user_data.get('cents', 0) if user_data else 0} золота\n"
@@ -6947,7 +6946,6 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
                 return
             
             caption = (
-                f"🪓 **Гильдия Наёмников**\n"
                 f"🃏 **Существо:** {card['title']}\n"
                 f"🌟 **Редкость:** {card['rarity']}\n"
                 f"💰 **Цена:** {item['price']} золота\n"
