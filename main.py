@@ -1570,74 +1570,46 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 data["users"][user_id] = user_data
 
             COOLDOWN_SECONDS = 2 * 60 * 60
-
             current_time = int(time.time())
-
             time_passed = current_time - user_data.get("last_card_time", 0)
 
             # ⭐ ПРОВЕРКА: является ли пользователь админом ⭐
-
             is_admin_user = is_admin(user_id, data)
 
             # ⭐ ПРОВЕРКА: есть ли бесплатные попытки ⭐
-
             free_rolls = user_data.get("free_rolls", 0)
-
             use_free_roll = False
 
             # ⭐ АДМИНЫ ПРОПУСКАЮТ КУЛДАУН ⭐
-
             if is_admin_user:
-
                 # Админы всегда могут получить карту (без кулдауна)
-
                 pass
-
             elif time_passed >= COOLDOWN_SECONDS:
-
                 # Обычная попытка (кулдаун прошёл)
-
                 pass
-
             elif free_rolls > 0:
-
                 # Используем бесплатную попытку
-
                 use_free_roll = True
-
             else:
-
                 # Нет бесплатных попыток и кулдаун не прошёл
-
                 remaining = COOLDOWN_SECONDS - time_passed
-
                 hours = remaining // 3600
-
                 minutes = (remaining % 3600) // 60
-
                 seconds = remaining % 60
-
                 time_text = ""
-
                 if hours > 0:
-
                     time_text += f"{hours} ч "
-
                 if minutes > 0:
-
                     time_text += f"{minutes} мин "
-
                 time_text += f"{seconds} сек"
 
                 await update.message.reply_text(
                     f"⏳ До следующего найма: {time_text}\n\n"
                     f"🎲 Или бросьте кубик для бесплатного найма!"
                 )
-
                 return
 
             # Собираем доступные карты
-
             available_cards = [
                 card
                 for card in data["cards"]
@@ -1655,49 +1627,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             ]
 
             if not available_cards:
-
                 await update.message.reply_text("⏳ Ожидайте новых существ!")
-
                 return
-
             card = get_card_with_fixed_rarity(available_cards)
 
             if not card:
-
                 await update.message.reply_text("⏳ Ожидайте новых существ!")
-
                 return
-
             bonus = RARITY_BONUSES.get(card["rarity"], {"cents": 0, "points": 0})
-
             user_data["total_points"] += bonus["points"]
-
             user_data["season_points"] += bonus["points"]
-
             user_data["cents"] += bonus["cents"]
-
             user_data["cards"].append(card["id"])
 
             # ⭐ ОБНОВЛЕНИЕ ВРЕМЕНИ И БЕСПЛАТНЫХ ПОПЫТОК ⭐
-
             if use_free_roll:
-
                 user_data["free_rolls"] -= 1  # Тратим бесплатную попытку
-
                 # Время НЕ обновляем!
-
             elif not is_admin_user:
-
                 # ⭐ Админам НЕ обновляем время (чтобы кулдаун не сбрасывался) ⭐
-
                 user_data["last_card_time"] = current_time
-            
             user_data["notification_sent"] = False  # ← ДОБАВЬТЕ
-            
             save_data(data)
-
             caption = generate_card_caption(card, user_data, count=1, show_bonus=True)
-
             await send_card(update, card, context, caption=caption)
 
         elif text == "🍺 Таверна":
@@ -4983,7 +4935,9 @@ async def check_card_notifications(application: Application) -> None:
             await asyncio.sleep(60)  # Проверяем каждую минуту
             data = load_data()
             current_time = int(time.time())
-            COOLDOWN_SECONDS = 61 * 60
+            
+            # ⭐ ИЗМЕНЕНО: 2 часа = 7200 секунд ⭐
+            COOLDOWN_SECONDS = 2 * 60 * 60  # ← 2 часа
             
             notified_count = 0
             
@@ -4991,7 +4945,7 @@ async def check_card_notifications(application: Application) -> None:
                 last_card_time = user_data.get("last_card_time", 0)
                 notification_sent = user_data.get("notification_sent", False)
                 
-                # Проверяем: прошло ли 61 минута И уведомление ещё не отправлено
+                # Проверяем: прошло ли 2 часа И уведомление ещё не отправлено
                 if last_card_time > 0 and not notification_sent:
                     time_passed = current_time - last_card_time
                     
@@ -5001,18 +4955,13 @@ async def check_card_notifications(application: Application) -> None:
                                 chat_id=user_id,
                                 text=(
                                     "🎉 **Вы снова можете нанять существо!**\n\n"
-                                    "⏰ Кулдаун завершился.\n"
-                                    "⚔️ Нажмите кнопку «⚔️ Нанять существо»"
                                 ),
                                 parse_mode="Markdown"
                             )
-                            
                             # Помечаем что уведомление отправлено
                             user_data["notification_sent"] = True
                             notified_count += 1
-                            
                             logger.info(f"Уведомление отправлено пользователю {user_id}")
-                            
                         except Exception as send_error:
                             logger.error(f"Не удалось отправить уведомление {user_id}: {send_error}")
             
@@ -5020,7 +4969,7 @@ async def check_card_notifications(application: Application) -> None:
             if notified_count > 0:
                 save_data(data)
                 logger.info(f"Отправлено {notified_count} уведомлений")
-            
+                
         except Exception as e:
             logger.error(f"Ошибка в check_card_notifications: {e}")
             await asyncio.sleep(60)
