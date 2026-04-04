@@ -7041,12 +7041,21 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
             save_data(data)
             
-            # ⭐ СООБЩЕНИЕ О ПОКУПКЕ ⭐
-            await query.edit_message_text(
-                f"✅ **Покупка успешна!**\n\n"
-                f"🎁 **Вы получили:** {package['title']}\n"
-                f"💰 **Списано:** {price} золота\n"
-                f"💳 **Остаток:** {user_data['cents']} золота",
+            # ⭐ ИСПРАВЛЕНИЕ: УДАЛЯЕМ СООБЩЕНИЕ ПЕРЕД ОТПРАВКОЙ ⭐
+            try:
+                await query.message.delete()
+            except:
+                pass
+            
+            # ⭐ ОТПРАВЛЯЕМ НОВОЕ СООБЩЕНИЕ О ПОКУПКЕ ⭐
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=(
+                    f"✅ **Покупка успешна!**\n\n"
+                    f"🎁 **Вы получили:** {package['title']}\n"
+                    f"💰 **Списано:** {price} золота\n"
+                    f"💳 **Остаток:** {user_data['cents']} золота"
+                ),
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("🔙 Назад в Гильдию", callback_data="mercenary_back_to_guild")
                 ]]),
@@ -7100,7 +7109,10 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 )
                 
                 # ⭐ ПОКАЗЫВАЕМ КАРТУ ⭐
-                await query.message.delete()
+                try:
+                    await query.message.delete()
+                except:
+                    pass
                 await send_card(update, card, context, caption=caption)
                 
                 # ⭐ ВОЗВРАЩАЕМ В ГИЛЬДИЮ ⭐
@@ -7108,6 +7120,11 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await show_mercenary_page(update, context, context.user_data.get(user_id, {}).get("mercenary_page", 0))
             
             logger.info(f"Игрок {user_id} купил существо #{card_id} за {price} золота в Гильдии Наёмников")
+            return
+        
+        # ⭐ КНОПКА "НАЗАД В ГИЛЬДИЮ" (после покупки) ⭐
+        if query.data == "mercenary_back_to_guild":
+            await show_mercenary_page(update, context, context.user_data.get(user_id, {}).get("mercenary_page", 0))
             return
         
     except Exception as e:
