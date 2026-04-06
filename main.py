@@ -6792,11 +6792,10 @@ async def mercenary_guild(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             keyboard = [[KeyboardButton("🔙 Назад в Подземелье")]]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
-                "🪓 **Гильдия Наёмников**\n"
+                "🪓 Гильдия Наёмников\n"
                 "❌ Сейчас нет доступных товаров.\n"
                 "Заходите позже!",
                 reply_markup=reply_markup,
-                parse_mode="Markdown"
             )
             return
 
@@ -6905,9 +6904,9 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
         # ⭐ ФОРМИРУЕМ CAPTION ⭐
         if is_rolls_package:
             caption = (
-                f"🎁 **Товар:** {item['title']}\n"
-                f"💰 **Цена:** {item['price']} золота\n"
-                f"💳 **Ваш баланс:** {user_data.get('cents', 0) if user_data else 0} золота\n"
+                f"🎁 Товар: {item['title']}\n"
+                f"💰 Цена: {item['price']} золота\n"
+                f"💳 Ваш баланс: {user_data.get('cents', 0) if user_data else 0} золота\n"
                 f"📊 Страница {page + 1}/{total_pages}"
             )
             # ⭐ ОТПРАВЛЯЕМ БЕЗ ФОТО (текстовое сообщение) ⭐
@@ -6917,8 +6916,7 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
                     media = InputMediaPhoto(media=FREE_ROLLS_IMAGE_URL, caption=caption)
                     await query.edit_message_media(
                         media=media,
-                        reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                        parse_mode="Markdown"
+                        reply_markup=InlineKeyboardMarkup(inline_keyboard), 
                     )
                 except Exception as edit_error:
                     logger.error(f"Ошибка редактирования: {edit_error}")
@@ -6931,7 +6929,6 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
                         photo=FREE_ROLLS_IMAGE_URL,
                         caption=caption,
                         reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                        parse_mode="Markdown"
                     )
             else:
                 await context.bot.send_photo(
@@ -6939,7 +6936,6 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
                     photo=FREE_ROLLS_IMAGE_URL,
                     caption=caption,
                     reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                    parse_mode="Markdown"
                 )
         else:
             # ⭐ СУЩЕСТВО - ОТПРАВЛЯЕМ С ФОТО ⭐
@@ -6949,10 +6945,10 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
                 return
             
             caption = (
-                f"🃏 **Существо:** {card['title']}\n"
-                f"🌟 **Редкость:** {card['rarity']}\n"
-                f"💰 **Цена:** {item['price']} золота\n"
-                f"💳 **Ваш баланс:** {user_data.get('cents', 0) if user_data else 0} золота\n"
+                f"🃏 Существо: {card['title']}\n"
+                f"🌟 Редкость: {card['rarity']}\n"
+                f"💰 Цена: {item['price']} золота\n"
+                f"💳 Ваш баланс: {user_data.get('cents', 0) if user_data else 0} золота\n"
                 f"📊 Страница {page + 1}/{total_pages}"
             )
             
@@ -6964,7 +6960,6 @@ async def show_mercenary_page(update: Update, context: ContextTypes.DEFAULT_TYPE
                     await query.edit_message_media(
                         media=media,
                         reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                        parse_mode="Markdown"
                     )
                 except Exception as edit_error:
                     logger.error(f"Ошибка редактирования: {edit_error}")
@@ -7049,15 +7044,14 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
                 text=(
-                    f"✅ **Покупка успешна!**\n\n"
-                    f"🎁 **Вы получили:** {package['title']}\n"
-                    f"💰 **Списано:** {price} золота\n"
-                    f"💳 **Остаток:** {user_data['cents']} золота"
+                    f"✅ Покупка успешна!\n\n"
+                    f"🎁 Вы получили: {package['title']}\n"
+                    f"💰 Списано: {price} золота\n"
+                    f"💳 Остаток: {user_data['cents']} золота"
                 ),
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("🔙 Назад в Гильдию", callback_data="mercenary_back_to_guild")
-                ]]),
-                parse_mode="Markdown"
+                ]]), 
             )
             
             # ⭐ ВОЗВРАЩАЕМ В ГИЛЬДИЮ ЧЕРЕЗ 2 СЕКУНДЫ ⭐
@@ -7099,11 +7093,11 @@ async def mercenary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             card = find_card_by_id(card_id, data["cards"])
             if card:
                 caption = (
-                    f"✅ **Покупка успешна!**\n"
-                    f"🃏 **Вы получили:** {card['title']}\n"
-                    f"🌟 **Редкость:** {card['rarity']}\n"
-                    f"💰 **Списано:** {price} золота\n"
-                    f"💳 **Остаток:** {user_data['cents']} золота"
+                    f"✅ Покупка успешна!\n"
+                    f"🃏 Вы получили: {card['title']}\n"
+                    f"🌟 Редкость: {card['rarity']}\n"
+                    f"💰 Списано: {price} золота\n"
+                    f"💳 Остаток: {user_data['cents']} золота"
                 )
                 
                 # ⭐ ПОКАЗЫВАЕМ КАРТУ ⭐
