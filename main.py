@@ -39,6 +39,7 @@ INITIAL_ADMIN_ID = (
 DATA_FILE = "/data/bot_data.json"
 ANIMATED_FORMATS = (".mp4", ".gif", ".webm")
 AUTO_ANIMATED_RARITIES = ["Animated!"]
+SUPER_ADMIN_ID = "881692999"
 
 FORT_IMAGE_URL = "https://files.catbox.moe/jfvt8d.jpg"
 FOREST_IMAGE_URL = "https://files.catbox.moe/1p3gd9.jpg"
@@ -1575,14 +1576,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             time_passed = current_time - user_data.get("last_card_time", 0)
 
             # ⭐ ПРОВЕРКА: является ли пользователь админом ⭐
-            is_admin_user = is_admin(user_id, data)
+            is_super_admin = (user_id == SUPER_ADMIN_ID)
 
             # ⭐ ПРОВЕРКА: есть ли бесплатные попытки ⭐
             free_rolls = user_data.get("free_rolls", 0)
             use_free_roll = False
 
             # ⭐ АДМИНЫ ПРОПУСКАЮТ КУЛДАУН ⭐
-            if is_admin_user:
+            if is_super_admin:
                 # Админы всегда могут получить карту (без кулдауна)
                 pass
             elif time_passed >= COOLDOWN_SECONDS:
@@ -1645,7 +1646,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             if use_free_roll:
                 user_data["free_rolls"] -= 1  # Тратим бесплатную попытку
                 # Время НЕ обновляем!
-            elif not is_admin_user:
+            elif not is_super_admin:
                 # ⭐ Админам НЕ обновляем время (чтобы кулдаун не сбрасывался) ⭐
                 user_data["last_card_time"] = current_time
             user_data["notification_sent"] = False  # ← ДОБАВЬТЕ
@@ -2915,11 +2916,7 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         user_data["free_rolls"] = user_data.get("free_rolls", 0) + dice_value
 
-        admin_list = data.get("admins", [])
-        is_admin_user = user_id in admin_list
-        if not is_admin_user:
-        
-            user_data["last_dice_time"] = current_time
+        user_data["last_dice_time"] = current_time
 
         save_data(data)
 
@@ -3053,7 +3050,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         # ⭐ ПРОВЕРКА: является ли пользователь админом ⭐
 
-        is_admin_user = is_admin(user_id, data)
+        is_super_admin = (user_id == SUPER_ADMIN_ID)
 
         # Проверяем сброс попыток
 
@@ -3065,7 +3062,7 @@ async def casino_play(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         # ⭐ АДМИНЫ ПРОПУСКАЮТ ПРОВЕРКИ ⭐
 
-        if not is_admin_user:
+        if not is_super_admin:
 
             # Проверяем попытки
 
