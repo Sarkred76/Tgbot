@@ -343,25 +343,25 @@ def generate_card_caption(
         caption = f"⚔️ {card['title']}\n🌟 Редкость: {card['rarity']}"
     else:
         # Если есть данные пользователя — показываем полную информацию
-        caption = f"⚔️ Вы наняли существо\n{card['title']}\n🌟 Редкость: {card['rarity']}"
+        caption = f"⚔️ Вы наняли существо\n{card['title']}\n Редкость: {card['rarity']}"
     
     # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
     if card.get("faction"):
-        caption += f"\n⚔️ Фракция: {card['faction']}"
+        caption += f"\n Фракция: {card['faction']}"
     
     # ⭐ ДОБАВЛЯЕМ АТРИБУТЫ ⭐
     if card.get("attack") or card.get("defense") or card.get("damage") or card.get("health") or card.get("speed"):
         caption += "\n\n**Характеристики:**"
         if card.get("attack"):
-            caption += f"\n⚔️ Атака: {card['attack']}"
+            caption += f"\n⚔️ {card['attack']}"
         if card.get("defense"):
-            caption += f"\n🛡️ Защита: {card['defense']}"
+            caption += f"\n🛡️ {card['defense']}"
         if card.get("damage"):
-            caption += f"\n💥 Урон: {format_damage_display(card['damage'])}"
+            caption += f"\n💥 {format_damage_display(card['damage'])}"
         if card.get("health"):
-            caption += f"\n❤️ Здоровье: {card['health']}"
+            caption += f"\n❤️ {card['health']}"
         if card.get("speed"):
-            caption += f"\n👟 Скорость: {card['speed']}"
+            caption += f"\n👟 {card['speed']}"
     
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
@@ -375,8 +375,8 @@ def generate_card_caption(
     # ⭐ ДОБАВЛЯЕМ ОПЫТ ТОЛЬКО ЕСЛИ ЕСТЬ user_data ⭐
     if user_data is not None:
         caption += (
-            f"\n\n💥 Опыта в этом сезоне: {user_data.get('season_points', 0)}"
-            f"\n💎 Опыта за все время: {user_data.get('total_points', 0)}"
+            f"\n\n Опыта в этом сезоне: {user_data.get('season_points', 0)}"
+            f"\n Опыта за все время: {user_data.get('total_points', 0)}"
         )
     
     return caption
