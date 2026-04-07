@@ -1832,50 +1832,40 @@ async def list_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         if not is_admin(str(update.effective_user.id), data):
             await update.message.reply_text("🚫 Только для администратора!")
             return
+        
         if not data["cards"]:
             await update.message.reply_text("📭 Нет добавленных карточек.")
             return
+        
         cards_list = []
         for card in data["cards"]:
             status = "✅" if card["available"] else "❌"
             faction_text = f"⚔️ {card.get('faction', '—')}" if card.get('faction') else "⚔️ —"
-            # ⭐ ИСПРАВЛЕНИЕ: добавляем все атрибуты ⭐
-            attrs = []
-            if card.get("attack"):
-                attrs.append(f"⚔️{card['attack']}")
-            if card.get("defense"):
-                attrs.append(f"🛡️{card['defense']}")
-            if card.get("damage"):
-                attrs.append(f"💥{card['damage']}")
-            if card.get("health"):
-                attrs.append(f"❤️{card['health']}")
-            if card.get("speed"):
-                attrs.append(f"👟{card['speed']}")
-            
-            attrs_text = " ".join(attrs) if attrs else ""
             
             card_info = (
                 f"{status} ID: {card['id']}\n"
                 f"📺 Тип: {'Анимация' if card.get('media_type') == 'animation' else 'Фото'}\n"
                 f"🏷 {card['title']}\n"
                 f"🌟 {card['rarity']}\n"
-                f"{faction_text}\n"
-                f"{attrs_text}\n" if attrs_text else ""
+                f"{faction_text}\n"  # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
                 f"🔗 {card['image_url'][:30]}...\n"
-                "\n"  # Пустая строка между картами
             )
             cards_list.append(card_info)
+        
         # Разбиваем на сообщения по 4000 символов
         MAX_LENGTH = 4000
-        current_message = "📋 Все карточки:\n\n"
+        current_message = "📋 Все карточки:\n"
+        
         for card_info in cards_list:
             if len(current_message) + len(card_info) + 2 > MAX_LENGTH:
-                await update.message.reply_text(current_message, parse_mode="Markdown")
-                current_message = "📋 Все карточки (продолжение):\n\n" + card_info
+                await update.message.reply_text(current_message)
+                current_message = "📋 Все карточки (продолжение):\n" + card_info
             else:
-                current_message += card_info
+                current_message += card_info + "\n"
+        
         if current_message.strip():
-            await update.message.reply_text(current_message, parse_mode="Markdown")
+            await update.message.reply_text(current_message)
+            
     except Exception as e:
         logger.error(f"Ошибка показа карточек: {e}")
         await update.message.reply_text("❌ Ошибка при получении списка")
@@ -7296,41 +7286,6 @@ def format_damage_display(damage_value) -> str:
         return str(damage_value)
 
 
-async def migrate_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Добавляет недостающие поля в старые карточки."""
-    try:
-        data = load_data()
-        if not is_admin(str(update.effective_user.id), data):
-            await update.message.reply_text("🚫 Только для администратора!")
-            return
-        
-        updated_count = 0
-        for card in data["cards"]:
-            # Добавляем фракцию если нет
-            if "faction" not in card:
-                card["faction"] = None
-            
-            # Добавляем атрибуты если нет
-            if "attack" not in card:
-                card["attack"] = 0
-            if "defense" not in card:
-                card["defense"] = 0
-            if "damage" not in card:
-                card["damage"] = 0
-            if "health" not in card:
-                card["health"] = 0
-            if "speed" not in card:
-                card["speed"] = 0
-            
-            updated_count += 1
-        
-        save_data(data)
-        await update.message.reply_text(f"✅ Обновлено {updated_count} карточек!")
-        
-    except Exception as e:
-        logger.error(f"Ошибка миграции: {e}")
-        await update.message.reply_text("❌ Ошибка при миграции")
-
 # ===== ЗАПУСК БОТА =====
 
 
@@ -7388,7 +7343,6 @@ def main() -> None:
             CommandHandler("mercenary_remove", mercenary_remove),
             CommandHandler("mercenary_list", mercenary_list),
             CommandHandler("mercenary_price", mercenary_update_price),
-            CommandHandler("migrate_cards", migrate_cards),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(handle_callback, pattern=r"^card_.*"),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_).*"),
