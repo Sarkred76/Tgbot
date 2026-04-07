@@ -145,6 +145,19 @@ def load_data() -> Dict[str, Any]:
                     "creatures": [],  # Список существ для продажи
                     "max_slots": 4    # Максимум 4 существа
                 }
+
+            # Добавьте в load_data() после загрузки данных:
+            for card in data.get("cards", []):
+                if "attack" not in card:
+                    card["attack"] = 0
+                if "defense" not in card:
+                    card["defense"] = 0
+                if "damage" not in card:
+                    card["damage"] = 0
+                if "health" not in card:
+                    card["health"] = 0
+                if "speed" not in card:
+                    card["speed"] = 0
             
             for user_id, user_data in data.get("users", {}).items():
                 if "last_card_time" not in user_data:
@@ -334,6 +347,19 @@ def generate_card_caption(
     # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
     if card.get("faction"):
         caption += f"\nФракция: {card['faction']}"
+
+    if card.get("attack") or card.get("defense") or card.get("damage") or card.get("health") or card.get("speed"):
+        caption += "\n\n**Характеристики:**"
+        if card.get("attack"):
+            caption += f"\n⚔️ {card['attack']}"
+        if card.get("defense"):
+            caption += f"\n🛡️ {card['defense']}"
+        if card.get("damage"):
+            caption += f"\n💥 {card['damage']}"
+        if card.get("health"):
+            caption += f"\n❤️ {card['health']}"
+        if card.get("speed"):
+            caption += f"\n👟 {card['speed']}"
     
     # Показываем бонусы только при получении новой карты
     if show_bonus:
@@ -1746,6 +1772,11 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "faction": faction if faction.lower() != "нет" else None,  # ⭐ ФРАКЦИЯ ⭐
             "available": True,
             "media_type": media_type,
+            "attack": 0,      # Атака ⚔️
+            "defense": 0,     # Защита 🛡️
+            "damage": 0,      # Урон 💥
+            "health": 0,      # Здоровье ❤️
+            "speed": 0,       # Скорость 👟
         }
         
         data["cards"].append(new_card)
@@ -1782,12 +1813,28 @@ async def list_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             status = "✅" if card["available"] else "❌"
             faction_text = f"⚔️ {card.get('faction', '—')}" if card.get('faction') else "⚔️ —"
             
+            # ⭐ ДОБАВЛЯЕМ АТРИБУТЫ ⭐
+            attrs = []
+            if card.get("attack"):
+                attrs.append(f"⚔️{card['attack']}")
+            if card.get("defense"):
+                attrs.append(f"🛡️{card['defense']}")
+            if card.get("damage"):
+                attrs.append(f"💥{card['damage']}")
+            if card.get("health"):
+                attrs.append(f"❤️{card['health']}")
+            if card.get("speed"):
+                attrs.append(f"👟{card['speed']}")
+            
+            attrs_text = " ".join(attrs) if attrs else ""
+            
             card_info = (
                 f"{status} ID: {card['id']}\n"
                 f"📺 Тип: {'Анимация' if card.get('media_type') == 'animation' else 'Фото'}\n"
                 f"🏷 {card['title']}\n"
                 f"🌟 {card['rarity']}\n"
-                f"{faction_text}\n"  # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
+                f"{faction_text}\n"
+                f"{attrs_text}\n" if attrs_text else ""
                 f"🔗 {card['image_url'][:30]}...\n"
             )
             cards_list.append(card_info)
@@ -1795,7 +1842,6 @@ async def list_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         # Разбиваем на сообщения по 4000 символов
         MAX_LENGTH = 4000
         current_message = "📋 Все карточки:\n"
-        
         for card_info in cards_list:
             if len(current_message) + len(card_info) + 2 > MAX_LENGTH:
                 await update.message.reply_text(current_message)
@@ -2156,18 +2202,22 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not context.args or len(context.args) < 3:
             await update.message.reply_text(
                 "ℹ️ **Формат команды:**\n"
-                "/edit_card [ID] [параметр] [новое_значение]\n\n"
+                "/edit_card [ID] [параметр] [новое_значение]\n"
                 "**Параметры:**\n"
                 "• title - название карты\n"
                 "• url - URL изображения\n"
                 "• rarity - редкость (T1-T8, UpgradeT1-UpgradeT7)\n"
-                "• faction - фракция (текст)\n"  # ← НОВЫЙ ПАРАМЕТР
-                "• available - статус (true/false)\n\n"
+                "• faction - фракция (текст)\n"
+                "• attack - атака (число)\n"
+                "• defense - защита (число)\n"
+                "• damage - урон (число)\n"
+                "• health - здоровье (число)\n"
+                "• speed - скорость (число)\n"
+                "• available - статус (true/false)\n"
                 "**Примеры:**\n"
                 "/edit_card 45 title Новая карта\n"
-                "/edit_card 45 url https://example.com/img.jpg\n"
-                "/edit_card 45 rarity T3\n"
-                "/edit_card 45 faction Демоны\n"  # ← НОВЫЙ ПРИМЕР
+                "/edit_card 45 attack 150\n"
+                "/edit_card 45 defense 100\n"
                 "/edit_card 45 available false",
                 parse_mode="Markdown",
             )
@@ -2184,7 +2234,10 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return
         
         # Обновляем параметр
-        valid_params = ["title", "url", "rarity", "faction", "available"]  # ← ДОБАВИЛИ faction
+        valid_params = [
+            "title", "url", "rarity", "faction", "available",
+            "attack", "defense", "damage", "health", "speed"
+        ]
         if param not in valid_params:
             await update.message.reply_text(
                 f"⚠️ Неверный параметр! Доступные: {', '.join(valid_params)}"
@@ -2198,6 +2251,14 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if param == "available":
             new_value = new_value.lower() in ["true", "1", "yes", "вкл", "on"]
             card[param] = new_value
+        elif param in ["attack", "defense", "damage", "health", "speed"]:
+            # Числовые атрибуты
+            try:
+                new_value = int(new_value)
+                card[param] = new_value
+            except ValueError:
+                await update.message.reply_text(f"⚠️ {param} должно быть числом!")
+                return
         elif param == "rarity":
             if new_value not in RARITY_BONUSES:
                 await update.message.reply_text(
@@ -2230,6 +2291,24 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if card.get("faction"):
             response += f"\n⚔️ {card['faction']}"
         
+        # Добавляем атрибуты в ответ
+        if param in ["attack", "defense", "damage", "health", "speed"]:
+            emoji_map = {
+                "attack": "⚔️",
+                "defense": "🛡️",
+                "damage": "💥",
+                "health": "❤️",
+                "speed": "👟"
+            }
+            param_names = {
+                "attack": "Атака",
+                "defense": "Защита",
+                "damage": "Урон",
+                "health": "Здоровье",
+                "speed": "Скорость"
+            }
+            response += f"\n{emoji_map[param]} {param_names[param]}: {new_value}"
+        
         response += f"\n{'✅ Включена' if card.get('available') else '❌ Выключена'}"
         
         await update.message.reply_text(response, parse_mode="Markdown")
@@ -2250,8 +2329,8 @@ async def card_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         card_id = int(context.args[0])
         data = load_data()
-        
         card = find_card_by_id(card_id, data["cards"])
+        
         if not card:
             await update.message.reply_text(f"⚠️ Карта #{card_id} не найдена")
             return
@@ -2263,7 +2342,7 @@ async def card_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 players_count += 1
         
         info_text = (
-            f"📊 **Информация о карте #{card_id}**\n\n"
+            f"📊 **Информация о карте #{card_id}**\n"
             f"🏷 **Название:** {card.get('title')}\n"
             f"🌟 **Редкость:** {card.get('rarity')}\n"
         )
@@ -2272,10 +2351,24 @@ async def card_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if card.get("faction"):
             info_text += f"⚔️ **Фракция:** {card['faction']}\n"
         
+        # ⭐ ДОБАВЛЯЕМ АТРИБУТЫ ⭐
+        if card.get("attack") or card.get("defense") or card.get("damage") or card.get("health") or card.get("speed"):
+            info_text += "\n**Характеристики:**\n"
+            if card.get("attack"):
+                info_text += f"⚔️ {card['attack']}\n"
+            if card.get("defense"):
+                info_text += f"🛡️ {card['defense']}\n"
+            if card.get("damage"):
+                info_text += f"💥 {card['damage']}\n"
+            if card.get("health"):
+                info_text += f"❤️ {card['health']}\n"
+            if card.get("speed"):
+                info_text += f"👟 {card['speed']}\n"
+        
         info_text += (
             f"📺 **Тип:** {'Анимация' if card.get('media_type') == 'animation' else 'Фото'}\n"
             f"{'✅ **Статус:** Включена\n' if card.get('available') else '❌ **Статус:** Выключена\n'}"
-            f"🔗 **URL:** `{card.get('image_url')}`\n\n"
+            f"🔗 **URL:** `{card.get('image_url')}`\n"
             f"👥 **Есть у игроков:** {players_count}\n"
         )
         
