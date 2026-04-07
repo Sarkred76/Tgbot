@@ -7296,6 +7296,41 @@ def format_damage_display(damage_value) -> str:
         return str(damage_value)
 
 
+async def migrate_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Добавляет недостающие поля в старые карточки."""
+    try:
+        data = load_data()
+        if not is_admin(str(update.effective_user.id), data):
+            await update.message.reply_text("🚫 Только для администратора!")
+            return
+        
+        updated_count = 0
+        for card in data["cards"]:
+            # Добавляем фракцию если нет
+            if "faction" not in card:
+                card["faction"] = None
+            
+            # Добавляем атрибуты если нет
+            if "attack" not in card:
+                card["attack"] = 0
+            if "defense" not in card:
+                card["defense"] = 0
+            if "damage" not in card:
+                card["damage"] = 0
+            if "health" not in card:
+                card["health"] = 0
+            if "speed" not in card:
+                card["speed"] = 0
+            
+            updated_count += 1
+        
+        save_data(data)
+        await update.message.reply_text(f"✅ Обновлено {updated_count} карточек!")
+        
+    except Exception as e:
+        logger.error(f"Ошибка миграции: {e}")
+        await update.message.reply_text("❌ Ошибка при миграции")
+
 # ===== ЗАПУСК БОТА =====
 
 
@@ -7353,6 +7388,7 @@ def main() -> None:
             CommandHandler("mercenary_remove", mercenary_remove),
             CommandHandler("mercenary_list", mercenary_list),
             CommandHandler("mercenary_price", mercenary_update_price),
+            CommandHandler("migrate_cards", migrate_cards),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(handle_callback, pattern=r"^card_.*"),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_).*"),
