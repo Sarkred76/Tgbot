@@ -351,7 +351,6 @@ def generate_card_caption(
     
     # ⭐ ДОБАВЛЯЕМ АТРИБУТЫ ⭐
     if card.get("attack") or card.get("defense") or card.get("damage") or card.get("health") or card.get("speed"):
-        caption += "\n\n**Характеристики:**"
         if card.get("attack"):
             caption += f"\n⚔️ {card['attack']}"
         if card.get("defense"):
@@ -2223,14 +2222,18 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "• rarity - редкость (T1-T8, UpgradeT1-UpgradeT7)\n"
                 "• faction - фракция (текст)\n"
                 "• available - статус (true/false)\n"
+                "• attack - атака (число или диапазон, например: 15 или 10-20)\n"
+                "• defense - защита (число или диапазон)\n"
+                "• damage - урон (число или диапазон)\n"
+                "• health - здоровье (число или диапазон)\n"
+                "• speed - скорость (число или диапазон)\n"
                 "• stats - ВСЕ характеристики сразу (атака защита урон здоровье скорость)\n"
                 "**Примеры:**\n"
                 "/edit_card 45 title Новая карта\n"
-                "/edit_card 45 url https://example.com/img.jpg\n"
-                "/edit_card 45 rarity T3\n"
-                "/edit_card 45 faction Демоны\n"
-                "/edit_card 45 available false\n"
-                "/edit_card 45 stats 100 50 75 200 30 ← ВСЕ ХАРАКТЕРИСТИКИ",
+                "/edit_card 45 damage 15\n"
+                "/edit_card 45 damage 10-20\n"
+                "/edit_card 45 attack 100\n"
+                "/edit_card 45 stats 100 50 75 200 30",
                 parse_mode="Markdown",
             )
             return
@@ -2246,7 +2249,10 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return
         
         # Обновляем параметр
-        valid_params = ["title", "url", "rarity", "faction", "available", "stats"]
+        valid_params = [
+            "title", "url", "rarity", "faction", "available",
+            "attack", "defense", "damage", "health", "speed", "stats"
+        ]
         if param not in valid_params:
             await update.message.reply_text(
                 f"⚠️ Неверный параметр! Доступные: {', '.join(valid_params)}"
@@ -2258,31 +2264,34 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # ⭐ ОБРАБОТКА ВСЕХ ХАРАКТЕРИСТИК СРАЗУ ⭐
         if param == "stats":
-            # Ожидаем 5 чисел: атака защита урон здоровье скорость
+            # Ожидаем 5 чисел или диапазонов: атака защита урон здоровье скорость
             stats_parts = new_value.split()
             if len(stats_parts) != 5:
                 await update.message.reply_text(
                     "⚠️ **Неверный формат!**\n"
-                    "Нужно указать 5 чисел:\n"
+                    "Нужно указать 5 значений:\n"
                     "/edit_card [ID] stats [атака] [защита] [урон] [здоровье] [скорость]\n"
-                    "Пример: /edit_card 45 stats 100 50 75 200 30",
+                    "Пример: /edit_card 45 stats 100 50 10-20 200 30",
                     parse_mode="Markdown"
                 )
                 return
             
             try:
-                attack = int(stats_parts[0])
-                defense = int(stats_parts[1])
-                damage = int(stats_parts[2])
-                health = int(stats_parts[3])
-                speed = int(stats_parts[4])
-                
-                # Обновляем все характеристики
-                card["attack"] = attack
-                card["defense"] = defense
-                card["damage"] = damage
-                card["health"] = health
-                card["speed"] = speed
+                # Проверяем и сохраняем каждое значение (может быть числом или диапазоном)
+                for i, stat_name in enumerate(["attack", "defense", "damage", "health", "speed"]):
+                    value = stats_parts[i]
+                    # Проверяем, является ли диапазоном
+                    if "-" in value:
+                        parts = value.split("-")
+                        if len(parts) != 2:
+                            raise ValueError(f"Неверный формат диапазона: {value}")
+                        min_val, max_val = int(parts[0]), int(parts[1])
+                        if min_val > max_val:
+                            raise ValueError(f"Минимальное значение больше максимального: {value}")
+                        card[stat_name] = value  # Сохраняем как строку "10-20"
+                    else:
+                        # Обычное число
+                        card[stat_name] = int(value)
                 
                 old_value = (
                     f"⚔️{card.get('attack', 0)} 🛡️{card.get('defense', 0)} "
@@ -2290,21 +2299,43 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     f"👟{card.get('speed', 0)}"
                 )
                 new_value = (
-                    f"⚔️{attack} 🛡️{defense} 💥{damage} ❤️{health} 👟{speed}"
+                    f"⚔️{stats_parts[0]} 🛡️{stats_parts[1]} 💥{stats_parts[2]} "
+                    f"❤️{stats_parts[3]} 👟{stats_parts[4]}"
                 )
-            except ValueError:
-                await update.message.reply_text("⚠️ Все характеристики должны быть числами!")
+            except ValueError as e:
+                await update.message.reply_text(f"⚠️ Ошибка: {e}")
                 return
         
-        # ⭐ ОБРАБОТКА ОТДЕЛЬНЫХ ПАРАМЕТРОВ ⭐
+        # ⭐ ОБРАБОТКА ОТДЕЛЬНЫХ ХАРАКТЕРИСТИК ⭐
         elif param in ["attack", "defense", "damage", "health", "speed"]:
-            # Числовые атрибуты
-            try:
-                new_value = int(new_value)
-                card[param] = new_value
-            except ValueError:
-                await update.message.reply_text(f"⚠️ {param} должно быть числом!")
-                return
+            # Проверяем, является ли значение диапазоном
+            if "-" in new_value:
+                parts = new_value.split("-")
+                if len(parts) != 2:
+                    await update.message.reply_text(
+                        "⚠️ Неверный формат диапазона! Пример: 10-20"
+                    )
+                    return
+                try:
+                    min_val, max_val = int(parts[0]), int(parts[1])
+                    if min_val > max_val:
+                        await update.message.reply_text(
+                            "⚠️ Минимальное значение не может быть больше максимального!"
+                        )
+                        return
+                    card[param] = new_value  # Сохраняем как строку "10-20"
+                except ValueError:
+                    await update.message.reply_text("⚠️ Значение должно быть числом или диапазоном!")
+                    return
+            else:
+                # Обычное число
+                try:
+                    card[param] = int(new_value)
+                except ValueError:
+                    await update.message.reply_text(f"⚠️ {param} должно быть числом!")
+                    return
+        
+        # ⭐ ОБРАБОТКА ОСТАЛЬНЫХ ПАРАМЕТРОВ ⭐
         elif param == "available":
             new_value = new_value.lower() in ["true", "1", "yes", "вкл", "on"]
             card[param] = new_value
@@ -2357,7 +2388,6 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.error(f"Ошибка редактирования карты: {e}")
         await update.message.reply_text("❌ Ошибка при редактировании")
-
 
 async def card_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает подробную информацию о карте."""
