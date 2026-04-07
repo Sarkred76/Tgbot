@@ -343,11 +343,11 @@ def generate_card_caption(
         caption = f"⚔️ {card['title']}\n🌟 Редкость: {card['rarity']}"
     else:
         # Если есть данные пользователя — показываем полную информацию
-        caption = f"⚔️ Вы наняли существо\n{card['title']}\n Редкость: {card['rarity']}"
+        caption = f"⚔️ Вы наняли существо\n{card['title']}\nРедкость: {card['rarity']}"
     
     # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
     if card.get("faction"):
-        caption += f"\n Фракция: {card['faction']}"
+        caption += f"\nФракция: {card['faction']}"
     
     # ⭐ ДОБАВЛЯЕМ АТРИБУТЫ ⭐
     if card.get("attack") or card.get("defense") or card.get("damage") or card.get("health") or card.get("speed"):
@@ -375,8 +375,8 @@ def generate_card_caption(
     # ⭐ ДОБАВЛЯЕМ ОПЫТ ТОЛЬКО ЕСЛИ ЕСТЬ user_data ⭐
     if user_data is not None:
         caption += (
-            f"\n\n Опыта в этом сезоне: {user_data.get('season_points', 0)}"
-            f"\n Опыта за все время: {user_data.get('total_points', 0)}"
+            f"\n\nОпыта в этом сезоне: {user_data.get('season_points', 0)}"
+            f"\nОпыта за все время: {user_data.get('total_points', 0)}"
         )
     
     return caption
@@ -1832,24 +1832,21 @@ async def list_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         if not is_admin(str(update.effective_user.id), data):
             await update.message.reply_text("🚫 Только для администратора!")
             return
-        
         if not data["cards"]:
             await update.message.reply_text("📭 Нет добавленных карточек.")
             return
-        
         cards_list = []
         for card in data["cards"]:
             status = "✅" if card["available"] else "❌"
             faction_text = f"⚔️ {card.get('faction', '—')}" if card.get('faction') else "⚔️ —"
-            
-            # ⭐ ДОБАВЛЯЕМ АТРИБУТЫ ⭐
+            # ⭐ ИСПРАВЛЕНИЕ: добавляем все атрибуты ⭐
             attrs = []
             if card.get("attack"):
                 attrs.append(f"⚔️{card['attack']}")
             if card.get("defense"):
                 attrs.append(f"🛡️{card['defense']}")
             if card.get("damage"):
-                attrs.append(f"💥{format_damage_display(card['damage'])}")  # ← ФОРМАТИРОВАНИЕ
+                attrs.append(f"💥{card['damage']}")
             if card.get("health"):
                 attrs.append(f"❤️{card['health']}")
             if card.get("speed"):
@@ -1865,22 +1862,20 @@ async def list_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                 f"{faction_text}\n"
                 f"{attrs_text}\n" if attrs_text else ""
                 f"🔗 {card['image_url'][:30]}...\n"
+                "\n"  # Пустая строка между картами
             )
             cards_list.append(card_info)
-        
         # Разбиваем на сообщения по 4000 символов
         MAX_LENGTH = 4000
-        current_message = "📋 Все карточки:\n"
+        current_message = "📋 Все карточки:\n\n"
         for card_info in cards_list:
             if len(current_message) + len(card_info) + 2 > MAX_LENGTH:
-                await update.message.reply_text(current_message)
-                current_message = "📋 Все карточки (продолжение):\n" + card_info
+                await update.message.reply_text(current_message, parse_mode="Markdown")
+                current_message = "📋 Все карточки (продолжение):\n\n" + card_info
             else:
-                current_message += card_info + "\n"
-        
+                current_message += card_info
         if current_message.strip():
-            await update.message.reply_text(current_message)
-            
+            await update.message.reply_text(current_message, parse_mode="Markdown")
     except Exception as e:
         logger.error(f"Ошибка показа карточек: {e}")
         await update.message.reply_text("❌ Ошибка при получении списка")
