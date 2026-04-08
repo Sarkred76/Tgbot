@@ -792,16 +792,11 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Завершение выбора
 
         elif query.data == "trade_search_button":
-            # Проверим step ещё раз перед выполнением логики отправителя
-            if step != "select_cards":
-                 await query.answer("❌ Невозможно выполнить это действие.", show_alert=True)
-                 return
-            # КНОПКА ПОИСКА В ИНТЕРФЕЙСЕ ВЫБОРА КАРТ ОТПРАВИТЕЛЯ
+            # ⭐ КНОПКА ПОИСКА В ИНТЕРФЕЙСЕ ВЫБОРА КАРТ ОТПРАВИТЕЛЯ ⭐
             if user_id in context.user_data:
                 trade_info = context.user_data[user_id]
                 # СОХРАНЯЕМ ТЕКУЩИЙ ШАГ ПЕРЕД ПЕРЕХОДОМ К ПОИСКУ
-                # Для отправителя это "select_cards"
-                trade_info["previous_step_before_search"] = trade_info["step"] # "select_cards"
+                trade_info["previous_step_before_search"] = trade_info["step"]
                 trade_info["step"] = "search_mode"
                 await query.answer("🔍 Введите название существа для поиска", show_alert=False)
                 await query.message.reply_text(
@@ -812,7 +807,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     parse_mode="Markdown"
                 )
             # ВАЖНО: return здесь, чтобы не выполнялись другие проверки
-            return # <-- Добавлено
+            return
 
         
         elif query.data == "trade_finish_select":
