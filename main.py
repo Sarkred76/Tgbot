@@ -6471,13 +6471,12 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             keyboard = [[InlineKeyboardButton("🔙 Назад в алтарь", callback_data="sacrifice_back")]]
             
             await query.edit_message_text(
-                f"✅ **Жертвоприношение успешно!**\n\n"
+                f"✅ Жертвоприношение успешно!\n\n"
                 f"🩸 Вы пожертвовали: {card['title']}\n"
                 f"🌟 Редкость: {card['rarity']}\n\n"
-                f"🎁 **Награда:**\n"
+                f"🎁 Награда:\n"
                 f"{'\n'.join(reward_text)}",
                 reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
             )
             return
         
@@ -6583,28 +6582,28 @@ async def refugee_camp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # ⭐ ОТПРАВЛЯЕМ ФОТО ЛАГЕРЯ БЕЖЕНЦЕВ ⭐
         if not offered_card:
             caption = (
-                "🏕️ **Лагерь Беженцев**\n\n"
+                "🏕️ Лагерь Беженцев\n\n"
                 "❌ Сегодня нет доступных существ для покупки.\n"
                 "Заходите завтра после 00:00 МСК!"
             )
         elif purchased:
             caption = (
-                "🏕️ **Лагерь Беженцев**\n\n"
-                f"🃏 **Существо дня:** {offered_card['title']}\n"
-                f"🌟 **Редкость:** {offered_card['rarity']}\n"
-                f"💰 **Цена:** {price} золота\n\n"
-                f"✅ **Вы уже купили это существо сегодня!**\n"
+                "🏕️ Лагерь Беженцев\n\n"
+                f"🃏 Существо дня: {offered_card['title']}\n"
+                f"🌟 Редкость: {offered_card['rarity']}\n"
+                f"💰 Цена: {price} золота\n\n"
+                f"✅ Вы уже купили это существо сегодня!\n"
                 f"⏰ Следующее предложение завтра в 00:00 МСК"
             )
         else:
             caption = (
-                "🏕️ **Лагерь Беженцев**\n\n"
-                f"🃏 **Существо дня:** {offered_card['title']}\n"
-                f"🌟 **Редкость:** {offered_card['rarity']}\n"
-                f"💰 **Цена:** {price} золота (2x от награды за найм)\n\n"
-                f"⚠️ **Можно купить только 1 раз в день!**\n"
+                "🏕️ Лагерь Беженцев\n\n"
+                f"🃏 Существо дня: {offered_card['title']}\n"
+                f"🌟 Редкость: {offered_card['rarity']}\n"
+                f"💰 Цена: {price} золота (2x от награды за найм)\n\n"
+                f"⚠️ Можно купить только 1 раз в день!\n"
                 f"⏰ Обновляется в 00:00 МСК\n\n"
-                f"💳 **Ваш баланс:** {user_data.get('cents', 0)} золота"
+                f"💳 Ваш баланс: {user_data.get('cents', 0)} золота"
             )
         
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
@@ -6619,7 +6618,6 @@ async def refugee_camp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 photo=REFUGEE_CAMP_IMAGE_URL,  # ← Изображение Лагеря
                 caption=caption,
                 reply_markup=reply_markup,
-                parse_mode="Markdown"
             )
         else:
             await context.bot.send_photo(
@@ -6627,7 +6625,6 @@ async def refugee_camp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 photo=REFUGEE_CAMP_IMAGE_URL,  # ← Изображение Лагеря
                 caption=caption,
                 reply_markup=reply_markup,
-                parse_mode="Markdown"
             )
         
     except Exception as e:
@@ -6660,9 +6657,8 @@ async def buy_refugee_creature(update: Update, context: ContextTypes.DEFAULT_TYP
         # ⭐ ПРОВЕРЯЕМ, КУПИЛ ЛИ УЖЕ ⭐
         if user_data.get("refugee_camp_purchased", False):
             await update.message.reply_text(
-                "❌ **Вы уже купили существо сегодня!**\n"
+                "❌ Вы уже купили существо сегодня!\n"
                 "⏰ Следующее предложение завтра в 00:00 МСК",
-                parse_mode="Markdown"
             )
             return
         
@@ -6681,11 +6677,10 @@ async def buy_refugee_creature(update: Update, context: ContextTypes.DEFAULT_TYP
         # ⭐ ПРОВЕРЯЕМ БАЛАНС ⭐
         if user_data.get("cents", 0) < price:
             await update.message.reply_text(
-                f"❌ **Недостаточно золота!**\n"
+                f"❌ Недостаточно золота!\n"
                 f"💰 Нужно: {price} золота\n"
                 f"💳 У вас: {user_data.get('cents', 0)} золота\n\n"
                 f"Нанимайте существ и получайте больше наград!",
-                parse_mode="Markdown"
             )
             return
         
@@ -6704,10 +6699,10 @@ async def buy_refugee_creature(update: Update, context: ContextTypes.DEFAULT_TYP
         
         # ⭐ ОТПРАВЛЯЕМ КАРТУ ⭐
         caption = (
-            f"🏕️ **Покупка успешна!**\n\n"
-            f"🃏 **Вы получили:** {offered_card['title']}\n"
-            f"🌟 **Редкость:** {offered_card['rarity']}\n"
-            f"💰 **Списано:** {price} золота\n\n"
+            f"🏕️ Покупка успешна!\n\n"
+            f"🃏 Вы получили: {offered_card['title']}\n"
+            f"🌟 Редкость: {offered_card['rarity']}\n"
+            f"💰 Списано: {price} золота\n\n"
             f"⏰ Следующее предложение завтра в 00:00 МСК"
         )
         
@@ -6776,12 +6771,11 @@ async def mercenary_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         save_data(data)
         
         await update.message.reply_text(
-            f"✅ **Существо добавлено в Гильдию Наёмников!**\n\n"
-            f"🃏 **Карта:** {card['title']} (#{card_id})\n"
-            f"🌟 **Редкость:** {card['rarity']}\n"
-            f"💰 **Цена:** {price} золота\n"
-            f"📊 **Всего существ в Гильдии:** {len(guild['creatures'])}/{guild['max_slots']}",
-            parse_mode="Markdown"
+            f"✅ Существо добавлено в Гильдию Наёмников!\n\n"
+            f"🃏 Карта: {card['title']} (#{card_id})\n"
+            f"🌟 Редкость: {card['rarity']}\n"
+            f"💰 Цена: {price} золота\n"
+            f"📊 Всего существ в Гильдии: {len(guild['creatures'])}/{guild['max_slots']}",
         )
         
         logger.info(f"Админ добавил существо #{card_id} за {price} золота в Гильдию Наёмников")
@@ -6825,11 +6819,10 @@ async def mercenary_remove(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 card_name = card["title"] if card else f"#{card_id}"
                 
                 await update.message.reply_text(
-                    f"✅ **Существо удалено из Гильдии!**\n\n"
-                    f"🃏 **Карта:** {card_name}\n"
-                    f"💰 **Цена была:** {removed['price']} золота\n"
-                    f"📊 **Осталось существ:** {len(guild['creatures'])}/{guild['max_slots']}",
-                    parse_mode="Markdown"
+                    f"✅ Существо удалено из Гильдии!\n\n"
+                    f"🃏 Карта: {card_name}\n"
+                    f"💰 Цена была: {removed['price']} золота\n"
+                    f"📊 Осталось существ: {len(guild['creatures'])}/{guild['max_slots']}",
                 )
                 return
         
@@ -6854,9 +6847,8 @@ async def mercenary_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         if not guild["creatures"]:
             await update.message.reply_text(
-                "📭 **Гильдия Наёмников пуста!**\n\n"
+                "📭 Гильдия Наёмников пуста!\n\n"
                 "Добавьте существ командой /mercenary_add",
-                parse_mode="Markdown"
             )
             return
         
