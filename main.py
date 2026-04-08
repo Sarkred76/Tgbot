@@ -31,6 +31,8 @@ from trade_functions import (
     trade_callback,
     trade_button_callback,
     trade_offer_callback,
+    trade_accept,
+    trade_decline,
     trade_return_callback,
     trade_final_callback,
     trade_search_callback,
