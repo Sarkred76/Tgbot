@@ -242,7 +242,7 @@ async def process_partner_selection(update: Update, context: ContextTypes.DEFAUL
                              InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select"),
                          ],
                          [
-                             InlineKeyboardButton("🔍 Поиск", callback_data="trade_search_button"), # Кнопка поиска
+                             InlineKeyboardButton("🔍 Поиск", callback_data="trade_open_search"), # Кнопка поиска
                          ]
                      ]
                      await update.message.reply_photo(
@@ -735,7 +735,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         InlineKeyboardButton(">", callback_data=f"trade_next_{current_index}"),
                     ],
                     [InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select")],
-                    [InlineKeyboardButton("🔍 Поиск", callback_data="trade_search_button")],
+                    [InlineKeyboardButton("🔍 Поиск", callback_data="trade_open_search")],
                 ]
                 
                 media = InputMediaPhoto(media=card["image_url"], caption=caption)
@@ -783,7 +783,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         InlineKeyboardButton(">", callback_data=f"trade_next_{current_index}"),
                     ],
                     [InlineKeyboardButton("➡️ Далее", callback_data="trade_finish_select")],
-                    [InlineKeyboardButton("🔍 Поиск", callback_data="trade_search_button")],
+                    [InlineKeyboardButton("🔍 Поиск", callback_data="trade_open_search")],
                 ]
                 
                 media = InputMediaPhoto(media=card["image_url"], caption=caption)
@@ -791,7 +791,7 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         # Завершение выбора
 
-        elif query.data == "trade_search_button":
+        elif query.data == "trade_open_search":
             # ⭐ КНОПКА ПОИСКА В ИНТЕРФЕЙСЕ ВЫБОРА КАРТ ОТПРАВИТЕЛЯ ⭐
             if user_id in context.user_data:
                 trade_info = context.user_data[user_id]
