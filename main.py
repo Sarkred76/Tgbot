@@ -263,15 +263,12 @@ def check_casino_reset(user_data: Dict) -> None:
 
 def save_data(data: Dict[str, Any]) -> None:
     """Сохраняет данные в файл."""
-
     try:
-
         with open(DATA_FILE, "w", encoding="utf-8") as f:
-
             json.dump(data, f, ensure_ascii=False, indent=2)
-
+            f.flush()  # ⭐ СБРАСЫВАЕМ БУФЕР ⭐
+            os.fsync(f.fileno())  # ⭐ ГАРАНТИРУЕМ ЗАПИСЬ НА ДИСК ⭐
     except Exception as e:
-
         logger.error(f"Ошибка сохранения данных: {e}")
 
 
@@ -5087,9 +5084,11 @@ async def check_card_notifications(application: Application) -> None:
             await asyncio.sleep(60)  # Проверяем каждую минуту
             data = load_data()
             current_time = int(time.time())
-            COOLDOWN_SECONDS = 2 * 60 * 60  # ⭐ 2 ЧАСА (как в handle_message) ⭐
+            COOLDOWN_SECONDS = 2 * 60 * 60  # 2 часа
             notified_count = 0
             
+            # ⭐ СОБИРАЕМ СПИСОК ПОЛЬЗОВАТЕЛЕЙ ДЛЯ УВЕДОМЛЕНИЯ ⭐
+            users_to_notify = []
             for user_id, user_data in data["users"].items():
                 last_card_time = user_data.get("last_card_time", 0)
                 notification_sent = user_data.get("notification_sent", False)
@@ -5097,36 +5096,36 @@ async def check_card_notifications(application: Application) -> None:
                 # Проверяем: прошло ли 2 часа И уведомление ещё не отправлено
                 if last_card_time > 0 and not notification_sent:
                     time_passed = current_time - last_card_time
-                    
                     if time_passed >= COOLDOWN_SECONDS:
-                        try:
-                            await application.bot.send_message(
-                                chat_id=user_id,
-                                text=(
-                                    "🎉 **Вы снова можете нанять существо!**\n\n"
-                                    "⏰ Кулдаун завершился.\n"
-                                    "⚔️ Нажмите кнопку «⚔️ Нанять существо»"
-                                ),
-                                parse_mode="Markdown"
-                            )
-                            # Помечаем что уведомление отправлено
-                            user_data["notification_sent"] = True
-                            notified_count += 1
-                            logger.info(f"Уведомление отправлено пользователю {user_id}")
-                            
-                            # ⭐ ИСПРАВЛЕНИЕ: Сохраняем СРАЗУ ⭐
-                            save_data(data)
-                            
-                        except Exception as send_error:
-                            logger.error(f"Не удалось отправить уведомление {user_id}: {send_error}")
+                        users_to_notify.append(user_id)
             
+            # ⭐ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЯ ⭐
+            for user_id in users_to_notify:
+                try:
+                    await application.bot.send_message(
+                        chat_id=user_id,
+                        text=(
+                            "🎉 **Вы снова можете нанять существо!**\n\n"
+                            "⏰ Кулдаун завершился.\n"
+                            "⚔️ Нажмите кнопку «⚔️ Нанять существо»"
+                        ),
+                        parse_mode="Markdown"
+                    )
+                    # ⭐ ОБНОВЛЯЕМ ФЛАГ В ДАННЫХ ⭐
+                    data["users"][user_id]["notification_sent"] = True
+                    notified_count += 1
+                    logger.info(f"Уведомление отправлено пользователю {user_id}")
+                except Exception as send_error:
+                    logger.error(f"Не удалось отправить уведомление {user_id}: {send_error}")
+            
+            # ⭐ СОХРАНЯЕМ ДАННЫЕ ОДИН РАЗ ПОСЛЕ ВСЕХ УВЕДОМЛЕНИЙ ⭐
             if notified_count > 0:
-                logger.info(f"Отправлено {notified_count} уведомлений")
-                
+                save_data(data)
+                logger.info(f"Отправлено {notified_count} уведомлений, данные сохранены")
+            
         except Exception as e:
             logger.error(f"Ошибка в check_card_notifications: {e}")
             await asyncio.sleep(60)
-
 
 async def create_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Создание промокода на карту."""
