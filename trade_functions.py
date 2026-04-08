@@ -798,14 +798,14 @@ async def trade_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 # СОХРАНЯЕМ ТЕКУЩИЙ ШАГ ПЕРЕД ПЕРЕХОДОМ К ПОИСКУ
                 trade_info["previous_step_before_search"] = trade_info["step"]
                 trade_info["step"] = "search_mode"
-                await query.answer("🔍 Введите название существа для поиска", show_alert=False)
-                await query.message.reply_text(
-                    "🔍 **Поиск существ**\n"
-                    "Введите часть названия существа:\n"
-                    "Например: \"дракон\", \"демон\", \"огр\"\n"
-                    "❌ Для отмены: /cancel",
-                    parse_mode="Markdown"
-                )
+            await query.answer("🔍 Введите название существа для поиска", show_alert=False)
+            await query.message.reply_text(
+                "🔍 **Поиск существ**\n"
+                "Введите часть названия существа:\n"
+                "Например: \"дракон\", \"демон\", \"огр\"\n"
+                "❌ Для отмены: /cancel",
+                parse_mode="Markdown"
+            )
             # ВАЖНО: return здесь, чтобы не выполнялись другие проверки
             return
 
