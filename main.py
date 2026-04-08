@@ -24,6 +24,18 @@ from telegram.ext import (
     ContextTypes,
     CallbackQueryHandler,
 )
+from trade_functions import (
+    trade_menu,
+    select_trade_partner,
+    process_partner_selection,
+    trade_callback,
+    trade_button_callback,
+    trade_offer_callback,
+    trade_return_callback,
+    trade_final_callback,
+    trade_search_callback,
+    search_creatures_for_trade,
+)
 from telegram.error import NetworkError, TimedOut
 from dotenv import load_dotenv
 load_dotenv()
@@ -7399,16 +7411,18 @@ def main() -> None:
 
         logger.info("Запущена фоновая задача уведомлений") 
         application.run_polling(allowed_updates=Update.ALL_TYPES)
-        
 
     except Exception as e:
-
         logger.critical(f"Критическая ошибка: {e}")
-
         print(f"Ошибка запуска: {e}")
-
         input("Нажмите Enter для выхода...")
 
+__all__ = [
+'load_data',
+'save_data',
+'is_admin',
+'find_card_by_id',
+]    
 
 if __name__ == "__main__":
 
