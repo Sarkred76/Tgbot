@@ -5854,29 +5854,21 @@ async def my_army(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         for card_id, count in card_counts.items():
             card = find_card_by_id(card_id, data["cards"])
             if card:
-                # ⭐ ПРОВЕРКА 1: ТОЛЬКО АТАКА > 0 ⭐
-                if not has_stats(card):
-                    continue
-                
-                # ⭐ ПРОВЕРКА 2: ИСКЛЮЧАЕМ T8 ⭐
+                # ⭐ УБРАЛИ ПРОВЕРКУ has_stats() ⭐
                 rarity = card.get("rarity", "T1")
-                if rarity == "T8":
-                    continue
-                
                 if rarity not in rarity_groups:
                     rarity_groups[rarity] = []
                 rarity_groups[rarity].append((card_id, count, card))
         
         if not rarity_groups:
             await update.message.reply_text(
-                "❌ У вас нет существ с атакой!\n"
-                "Только существа с ⚔️ Атака > 0 могут быть в армии.",
+                "❌ У вас нет существ!",
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
             return
         
-        # ⭐ НОВАЯ СОРТИРОВКА: UpgradeT7, T7, ..., UpgradeT1, T1 (БЕЗ T8) ⭐
+        # ⭐ НОВАЯ СОРТИРОВКА: UpgradeT7, T7, ..., UpgradeT1, T1 ⭐
         rarity_order = [
             "UpgradeT7", "T7",
             "UpgradeT6", "T6",
@@ -5924,14 +5916,14 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
         # ⭐ ИСПРАВЛЕНИЕ: Конвертируем page в int СРАЗУ ⭐
         page = int(page)
         
-        # ⭐ СОБИРАЕМ ВСЕ СУЩЕСТВА С АТАКОЙ В СПИСОК ⭐
+        # ⭐ СОБИРАЕМ ВСЕ СУЩЕСТВА В СПИСОК ⭐
         all_creatures = []
         for rarity in sorted_rarities:
             for card_id, count, card in rarity_groups.get(rarity, []):
                 all_creatures.append((card_id, count, card, rarity))
         
         if not all_creatures:
-            await update.message.reply_text("❌ У вас нет существ с атакой!")
+            await update.message.reply_text("❌ У вас нет существ!")
             return
         
         # ⭐ НАВИГАЦИЯ ПО СТРАНИЦАМ ⭐
@@ -5955,24 +5947,12 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
         for card_id, count, card, rarity in page_creatures:
             is_selected = any(squad.get("card_id") == card_id for squad in selected_squads)
             
-            stats_text = []
-            if card.get("attack", 0) > 0:
-                stats_text.append(f"⚔️{card['attack']}")
-            if card.get("defense", 0) > 0:
-                stats_text.append(f"🛡️{card['defense']}")
-            if card.get("damage", 0) > 0:
-                stats_text.append(f"💥{card['damage']}")
-            if card.get("health", 0) > 0:
-                stats_text.append(f"❤️{card['health']}")
-            if card.get("speed", 0) > 0:
-                stats_text.append(f"👟{card['speed']}")
-            stats_display = " ".join(stats_text) if stats_text else "Без статов"
-            
+            # ⭐ УБРАЛИ ПРОВЕРКУ СТАТОВ ⭐
             if is_selected:
-                button_text = f"✅ {card['title']} ({stats_display})"
+                button_text = f"✅ {card['title']} - {count} шт."
                 callback_data = f"army_remove_{card_id}"
             else:
-                button_text = f"➕ {card['title']} ({stats_display}) - {count} шт."
+                button_text = f"➕ {card['title']} ({card['rarity']}) - {count} шт."
                 callback_data = f"army_add_{card_id}"
             
             inline_keyboard.append([
@@ -6249,10 +6229,6 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except Exception as e:
         logger.error(f"Ошибка army_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
-def has_stats(card: Dict) -> bool:
-    """Проверяет, есть ли у карты хотя бы атака > 0."""
-    return card.get("attack", 0) > 0  # ← ТОЛЬКО АТАКА
 
 # ===== ЗАПУСК БОТА =====
 
