@@ -5828,10 +5828,6 @@ def format_damage_display(damage_value) -> str:
 async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает меню Сражений."""
     try:
-        user_id = str(update.effective_user.id)
-        data = load_data()
-        user_data = data["users"].get(user_id)
-        
         # ⭐ КЛАВИАТУРА С КНОПКАМИ СРАЖЕНИЙ ⭐
         keyboard = [
             [KeyboardButton("🛡️ Моя Армия")],
@@ -5875,7 +5871,7 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
-
+        
 async def my_army(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает армию пользователя с сортировкой по редкостям."""
     try:
@@ -5923,7 +5919,7 @@ async def my_army(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
             return
         
-        # ⭐ НОВАЯ СОРТИРОВКА: UpgradeT7, T7, UpgradeT6, T6, ..., UpgradeT1, T1 ⭐
+        # ⭐ НОВАЯ СОРТИРОВКА: UpgradeT7, T7, ..., UpgradeT1, T1 ⭐
         rarity_order = [
             "UpgradeT7", "T7",
             "UpgradeT6", "T6",
@@ -5966,6 +5962,9 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
         rarity_groups = army_info.get("rarity_groups", {})
         sorted_rarities = army_info.get("sorted_rarities", [])
         selected_squads = army_info.get("selected_squads", [])
+        
+        # ⭐ ИСПРАВЛЕНИЕ: ПРЕОБРАЗУЕМ page В int ⭐
+        page = int(page)  # ← ДОБАВЬТЕ ЭТУ СТРОКУ!
         
         # ⭐ СОБИРАЕМ ВСЕ СУЩЕСТВА С АТАКОЙ В СПИСОК ⭐
         all_creatures = []
@@ -6114,7 +6113,7 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         
         # ⭐ НАВИГАЦИЯ ПО СТРАНИЦАМ ⭐
         if query.data.startswith("army_nav_"):
-            page = int(query.data.replace("army_nav_", ""))
+            page = int(query.data.replace("army_nav_", ""))  # ← Преобразуем в int
             await show_army_page(update, context, page)
             return
         
