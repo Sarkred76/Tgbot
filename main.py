@@ -1522,57 +1522,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         data = load_data()
         text = update.message.text
         
-        # ⭐ ПРОВЕРКА: если пользователь вводит количество для армии ⭐
-        if user_id in context.user_data:
-            army_info = context.user_data[user_id]
-            if army_info.get("step") == "army_wait_quantity":
-                # Пытаемся распарсить число
-                try:
-                    quantity = int(text.strip())
-                    pending = army_info.get("pending_add", {})
-                    
-                    if not pending:
-                        await update.message.reply_text("❌ Ошибка: нет выбранного существа!")
-                        return
-                    
-                    card_id = pending["card_id"]
-                    max_count = pending["max_count"]
-                    
-                    # Проверяем диапазон
-                    if quantity < 1 or quantity > max_count:
-                        await update.message.reply_text(
-                            f"❌ Неверное количество! Введите от 1 до {max_count}"
-                        )
-                        return
-                    
-                    # ⭐ ДОБАВЛЯЕМ В ОТРЯДЫ ⭐
-                    army_info["selected_squads"].append({
-                        "card_id": card_id,
-                        "count": quantity,
-                        "added_at": int(time.time()),
-                    })
-                    
-                    # ⭐ СОХРАНЯЕМ В ДАННЫЕ ПОЛЬЗОВАТЕЛЯ ⭐
-                    user_data["army_squads"] = army_info["selected_squads"]
-                    save_data(data)
-                    
-                    # ⭐ ОЧИЩАЕМ ВРЕМЕННОЕ ⭐
-                    army_info["pending_add"] = None
-                    army_info["step"] = "army_select"
-                    
-                    await update.message.reply_text(f"✅ Добавлено {quantity} шт. в отряд!")
-                    
-                    # ⭐ ВОЗВРАЩАЕМ К СПИСКУ ⭐
-                    keyboard = [[KeyboardButton("🔙 Назад в Сражения")]]
-                    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-                    await show_army_page(update, context, army_info.get("army_page", 0))
-                    
-                except ValueError:
-                    await update.message.reply_text(
-                        f"❌ Введите число от 1 до {army_info.get('pending_add', {}).get('max_count', 0)}"
-                    )
-                return
-        
         # ⭐ ПРОВЕРКА: если пользователь в шаге выбора партнёра для трейда ⭐
         if user_id in context.user_data:
             trade_info = context.user_data[user_id]
@@ -5963,12 +5912,6 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
         sorted_rarities = army_info.get("sorted_rarities", [])
         selected_squads = army_info.get("selected_squads", [])
         
-        # ⭐ ИСПРАВЛЕНИЕ: Конвертируем page в int ПЕРВОЙ СТРОКОЙ ⭐
-        try:
-            page = int(page)  # ← ДОЛЖНО БЫТЬ ПЕРЕД ЛЮБЫМИ СРАВНЕНИЯМИ!
-        except (ValueError, TypeError):
-            page = 0
-        
         # ⭐ СОБИРАЕМ ВСЕ СУЩЕСТВА С АТАКОЙ В СПИСОК ⭐
         all_creatures = []
         for rarity in sorted_rarities:
@@ -5980,9 +5923,12 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
             return
         
         # ⭐ НАВИГАЦИЯ ПО СТРАНИЦАМ ⭐
-        creatures_per_page = 5
+        creatures_per_page = 10
         total_pages = (len(all_creatures) + creatures_per_page - 1) // creatures_per_page
-        
+
+        if not isinstance(page, int):
+            page = 0
+
         # ⭐ ТЕПЕРЬ СРАВНЕНИЕ БЕЗОПАСНО ⭐
         if page < 0:
             page = 0
@@ -6114,7 +6060,7 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         
         # ⭐ НАВИГАЦИЯ ПО СТРАНИЦАМ ⭐
         if query.data.startswith("army_nav_"):
-            page = int(query.data.replace("army_nav_", ""))  # ← Преобразуем в int
+            page = int(query.data.replace("army_nav_", ""))
             await show_army_page(update, context, page)
             return
         
@@ -6163,6 +6109,30 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 await query.answer("❌ У вас нет этого существа!", show_alert=True)
                 return
             
+            # ⭐ СОЗДАЁМ КНОПКИ С КОЛИЧЕСТВОМ ⭐
+            keyboard = []
+            
+            # Кнопка "1 шт."
+            if max_count >= 1:
+                keyboard.append([InlineKeyboardButton("1 шт.", callback_data=f"army_qty_{card_id}_1")])
+            
+            # Кнопка "10 шт." (если есть 10+)
+            if max_count >= 10:
+                keyboard.append([InlineKeyboardButton("10 шт.", callback_data=f"army_qty_{card_id}_10")])
+            
+            # Кнопка "Половина" (с округлением вниз)
+            half_count = max_count // 2
+            if half_count >= 1:
+                keyboard.append([InlineKeyboardButton(f"Половина ({half_count} шт.)", 
+                                                     callback_data=f"army_qty_{card_id}_{half_count}")])
+            
+            # Кнопка "Все" (максимальное количество)
+            keyboard.append([InlineKeyboardButton(f"Все ({max_count} шт.)", 
+                                                 callback_data=f"army_qty_{card_id}_{max_count}")])
+            
+            # Кнопка отмены
+            keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data="army_cancel_add")])
+            
             # ⭐ СОХРАНЯЕМ ВРЕМЕННО ВЫБРАННУЮ КАРТУ ⭐
             army_info["pending_add"] = {
                 "card_id": card_id,
@@ -6170,22 +6140,65 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 "card_name": card["title"],
             }
             
-            # ⭐ ЗАПРОС КОЛИЧЕСТВА — ТЕПЕРЬ РУЧНОЙ ВВОД ⭐
             await query.edit_message_text(
                 f"➕ **Добавление в отряд**\n\n"
                 f"🃏 **Существо:** {card['title']}\n"
                 f"🌟 **Редкость:** {card['rarity']}\n"
                 f"📦 **Доступно:** {max_count} шт.\n\n"
-                f"⌨️ **Введите количество** (от 1 до {max_count}):\n"
-                f"Просто отправьте число в чат!",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("❌ Отмена", callback_data="army_cancel_add")
-                ]]),
+                f"Выберите количество для отряда:",
+                reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
+            return
+        
+        # ⭐ ВЫБОР КОЛИЧЕСТВА ⭐
+        if query.data.startswith("army_qty_"):
+            parts = query.data.replace("army_qty_", "").split("_")
+            card_id = int(parts[0])
+            quantity = int(parts[1])
             
-            # ⭐ УСТАНАВЛИВАЕМ ФЛАГ ОЖИДАНИЯ ВВОДА ⭐
-            army_info["step"] = "army_wait_quantity"
+            pending = army_info.get("pending_add", {})
+            
+            if not pending:
+                await query.answer("❌ Ошибка: нет выбранного существа!", show_alert=True)
+                return
+            
+            # Проверяем актуальное количество в коллекции
+            card_counts = Counter(user_data.get("cards", []))
+            current_count = card_counts.get(card_id, 0)
+            
+            # ⭐ СИНХРОНИЗАЦИЯ: если в коллекции меньше, чем выбрано ⭐
+            if quantity > current_count:
+                await query.answer(f"⚠️ У вас теперь только {current_count} шт.!", show_alert=True)
+                quantity = current_count  # Автоматически уменьшаем до актуального
+            
+            if quantity < 1:
+                await query.answer("❌ Недостаточно существ!", show_alert=True)
+                army_info["pending_add"] = None
+                army_info["step"] = "army_select"
+                await show_army_page(update, context, army_info.get("army_page", 0))
+                return
+            
+            # ⭐ ДОБАВЛЯЕМ В ОТРЯДЫ ⭐
+            selected_squads.append({
+                "card_id": card_id,
+                "count": quantity,
+                "added_at": int(time.time()),
+            })
+            
+            # ⭐ СОХРАНЯЕМ В ДАННЫЕ ПОЛЬЗОВАТЕЛЯ ⭐
+            user_data["army_squads"] = selected_squads
+            save_data(data)
+            
+            # ⭐ ОЧИЩАЕМ ВРЕМЕННОЕ ⭐
+            army_info["pending_add"] = None
+            army_info["step"] = "army_select"
+            army_info["selected_squads"] = selected_squads
+            
+            await query.answer(f"✅ Добавлено {quantity} шт. в отряд!", show_alert=False)
+            
+            # ⭐ ВОЗВРАЩАЕМ К СПИСКУ ⭐
+            await show_army_page(update, context, army_info.get("army_page", 0))
             return
         
         # ⭐ ОТМЕНА ДОБАВЛЕНИЯ ⭐
@@ -6214,6 +6227,27 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 await query.answer(f"❌ Выберите {MAX_ARMY_SQUADS} отрядов! Сейчас: {len(selected_squads)}", 
                                  show_alert=True)
                 return
+            
+            # ⭐ СИНХРОНИЗАЦИЯ ПЕРЕД СОХРАНЕНИЕМ ⭐
+            card_counts = Counter(user_data.get("cards", []))
+            squads_updated = False
+            
+            for squad in selected_squads:
+                card_id = squad["card_id"]
+                saved_count = squad["count"]
+                current_count = card_counts.get(card_id, 0)
+                
+                # ⭐ ЕСЛИ В КОЛЛЕКЦИИ МЕНЬШЕ, ЧЕМ В ОТРЯДЕ ⭐
+                if current_count < saved_count:
+                    squad["count"] = current_count
+                    squads_updated = True
+                    logger.info(f"Синхронизация отряда: карта #{card_id} {saved_count}→{current_count} шт.")
+            
+            # Сохраняем обновлённые отряды
+            if squads_updated:
+                user_data["army_squads"] = selected_squads
+                save_data(data)
+                await query.answer("⚠️ Количество существ синхронизировано!", show_alert=False)
             
             # ⭐ ФОРМИРУЕМ ОТЧЁТ ⭐
             report = "✅ **Армия сформирована!**\n\n"
@@ -6245,7 +6279,7 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except Exception as e:
         logger.error(f"Ошибка army_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
-
+        
 
 def has_stats(card: Dict) -> bool:
     """Проверяет, есть ли у карты хотя бы атака > 0."""
