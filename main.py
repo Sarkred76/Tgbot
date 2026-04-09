@@ -1522,6 +1522,57 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         data = load_data()
         text = update.message.text
         
+        # ⭐ ПРОВЕРКА: если пользователь вводит количество для армии ⭐
+        if user_id in context.user_data:
+            army_info = context.user_data[user_id]
+            if army_info.get("step") == "army_wait_quantity":
+                # Пытаемся распарсить число
+                try:
+                    quantity = int(text.strip())
+                    pending = army_info.get("pending_add", {})
+                    
+                    if not pending:
+                        await update.message.reply_text("❌ Ошибка: нет выбранного существа!")
+                        return
+                    
+                    card_id = pending["card_id"]
+                    max_count = pending["max_count"]
+                    
+                    # Проверяем диапазон
+                    if quantity < 1 or quantity > max_count:
+                        await update.message.reply_text(
+                            f"❌ Неверное количество! Введите от 1 до {max_count}"
+                        )
+                        return
+                    
+                    # ⭐ ДОБАВЛЯЕМ В ОТРЯДЫ ⭐
+                    army_info["selected_squads"].append({
+                        "card_id": card_id,
+                        "count": quantity,
+                        "added_at": int(time.time()),
+                    })
+                    
+                    # ⭐ СОХРАНЯЕМ В ДАННЫЕ ПОЛЬЗОВАТЕЛЯ ⭐
+                    user_data["army_squads"] = army_info["selected_squads"]
+                    save_data(data)
+                    
+                    # ⭐ ОЧИЩАЕМ ВРЕМЕННОЕ ⭐
+                    army_info["pending_add"] = None
+                    army_info["step"] = "army_select"
+                    
+                    await update.message.reply_text(f"✅ Добавлено {quantity} шт. в отряд!")
+                    
+                    # ⭐ ВОЗВРАЩАЕМ К СПИСКУ ⭐
+                    keyboard = [[KeyboardButton("🔙 Назад в Сражения")]]
+                    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+                    await show_army_page(update, context, army_info.get("army_page", 0))
+                    
+                except ValueError:
+                    await update.message.reply_text(
+                        f"❌ Введите число от 1 до {army_info.get('pending_add', {}).get('max_count', 0)}"
+                    )
+                return
+        
         # ⭐ ПРОВЕРКА: если пользователь в шаге выбора партнёра для трейда ⭐
         if user_id in context.user_data:
             trade_info = context.user_data[user_id]
@@ -1538,6 +1589,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 [KeyboardButton("🏰 Город")],
                 [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
                 [KeyboardButton("🦇 Подземелье")],
+                [KeyboardButton("⚔️ Сражения")],
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
@@ -5832,9 +5884,7 @@ async def my_army(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         user_data = data["users"].get(user_id)
         
         # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД ⭐
-        keyboard = [
-            [KeyboardButton("🔙 Назад в Сражения")],
-        ]
+        keyboard = [[KeyboardButton("🔙 Назад в Сражения")]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
         if not user_data or not user_data.get("cards"):
@@ -5855,17 +5905,35 @@ async def my_army(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         for card_id, count in card_counts.items():
             card = find_card_by_id(card_id, data["cards"])
             if card:
+                # ⭐ ПРОВЕРКА: ТОЛЬКО АТАКА > 0 ⭐
+                if not has_stats(card):
+                    continue  # ⭐ ПРОПУСКАЕМ СУЩЕСТВ БЕЗ АТАКИ ⭐
+                
                 rarity = card.get("rarity", "T1")
                 if rarity not in rarity_groups:
                     rarity_groups[rarity] = []
                 rarity_groups[rarity].append((card_id, count, card))
         
-        # ⭐ СОРТИРУЕМ РЕДКОСТИ ⭐
-        rarity_order = ["T8", "T7", "T6", "T5", "T4", "T3", "T2", "T1",
-                       "UpgradeT7", "UpgradeT6", "UpgradeT5", "UpgradeT4",
-                       "UpgradeT3", "UpgradeT2", "UpgradeT1"]
-        sorted_rarities = sorted(rarity_groups.keys(), 
-                                key=lambda x: rarity_order.index(x) if x in rarity_order else 99)
+        if not rarity_groups:
+            await update.message.reply_text(
+                "❌ У вас нет существ с атакой!\n\n"
+                "Только существа с ⚔️ Атака > 0 могут быть в армии.",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+            return
+        
+        # ⭐ НОВАЯ СОРТИРОВКА: UpgradeT7, T7, UpgradeT6, T6, ..., UpgradeT1, T1 ⭐
+        rarity_order = [
+            "UpgradeT7", "T7",
+            "UpgradeT6", "T6",
+            "UpgradeT5", "T5",
+            "UpgradeT4", "T4",
+            "UpgradeT3", "T3",
+            "UpgradeT2", "T2",
+            "UpgradeT1", "T1"
+        ]
+        sorted_rarities = [r for r in rarity_order if r in rarity_groups]
         
         # ⭐ СОХРАНЯЕМ ДАННЫЕ В context.user_data ⭐
         context.user_data[user_id] = {
@@ -5899,14 +5967,14 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
         sorted_rarities = army_info.get("sorted_rarities", [])
         selected_squads = army_info.get("selected_squads", [])
         
-        # ⭐ СОБИРАЕМ ВСЕ СУЩЕСТВА В СПИСОК ⭐
+        # ⭐ СОБИРАЕМ ВСЕ СУЩЕСТВА С АТАКОЙ В СПИСОК ⭐
         all_creatures = []
         for rarity in sorted_rarities:
             for card_id, count, card in rarity_groups.get(rarity, []):
                 all_creatures.append((card_id, count, card, rarity))
         
         if not all_creatures:
-            await update.message.reply_text("❌ У вас нет существ!")
+            await update.message.reply_text("❌ У вас нет существ с атакой!")
             return
         
         # ⭐ НАВИГАЦИЯ ПО СТРАНИЦАМ ⭐
@@ -5931,11 +5999,25 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
             # Проверяем, не выбрано ли уже это существо в отряды
             is_selected = any(squad.get("card_id") == card_id for squad in selected_squads)
             
+            # ⭐ ПОКАЗЫВАЕМ СТАТЫ ⭐
+            stats_text = []
+            if card.get("attack", 0) > 0:
+                stats_text.append(f"⚔️{card['attack']}")
+            if card.get("defense", 0) > 0:
+                stats_text.append(f"🛡️{card['defense']}")
+            if card.get("damage", 0) > 0:
+                stats_text.append(f"💥{card['damage']}")
+            if card.get("health", 0) > 0:
+                stats_text.append(f"❤️{card['health']}")
+            if card.get("speed", 0) > 0:
+                stats_text.append(f"👟{card['speed']}")
+            stats_display = " ".join(stats_text) if stats_text else "Без статов"
+            
             if is_selected:
-                button_text = f"✅ {card['title']} ({count} шт.) - В отряде"
+                button_text = f"✅ {card['title']} ({stats_display})"
                 callback_data = f"army_remove_{card_id}"
             else:
-                button_text = f"➕ {card['title']} ({card['rarity']}) - {count} шт."
+                button_text = f"➕ {card['title']} ({stats_display}) - {count} шт."
                 callback_data = f"army_add_{card_id}"
             
             inline_keyboard.append([
@@ -6014,7 +6096,6 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
         logger.error(f"Ошибка show_army_page: {e}")
         await update.message.reply_text("❌ Произошла ошибка")
 
-
 async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопок армии."""
     try:
@@ -6089,66 +6170,28 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 "card_name": card["title"],
             }
             
-            # ⭐ ЗАПРОС КОЛИЧЕСТВА ⭐
-            keyboard = []
-            for count in range(1, min(max_count + 1, 11)):  # Показываем до 10
-                keyboard.append([
-                    InlineKeyboardButton(f"{count} шт.", callback_data=f"army_count_{count}")
-                ])
-            if max_count > 10:
-                keyboard.append([
-                    InlineKeyboardButton(f"Все ({max_count} шт.)", callback_data=f"army_count_{max_count}")
-                ])
-            keyboard.append([
-                InlineKeyboardButton("❌ Отмена", callback_data="army_cancel_add")
-            ])
-            
+            # ⭐ ЗАПРОС КОЛИЧЕСТВА — ТЕПЕРЬ РУЧНОЙ ВВОД ⭐
             await query.edit_message_text(
                 f"➕ **Добавление в отряд**\n\n"
                 f"🃏 **Существо:** {card['title']}\n"
                 f"🌟 **Редкость:** {card['rarity']}\n"
                 f"📦 **Доступно:** {max_count} шт.\n\n"
-                f"Выберите количество для отряда:",
-                reply_markup=InlineKeyboardMarkup(keyboard),
+                f"⌨️ **Введите количество** (от 1 до {max_count}):\n"
+                f"Просто отправьте число в чат!",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("❌ Отмена", callback_data="army_cancel_add")
+                ]]),
                 parse_mode="Markdown"
             )
-            return
-        
-        # ⭐ ВЫБОР КОЛИЧЕСТВА ⭐
-        if query.data.startswith("army_count_"):
-            count = int(query.data.replace("army_count_", ""))
-            pending = army_info.get("pending_add", {})
             
-            if not pending:
-                await query.answer("❌ Ошибка: нет выбранного существа!", show_alert=True)
-                return
-            
-            card_id = pending["card_id"]
-            
-            # ⭐ ДОБАВЛЯЕМ В ОТРЯДЫ ⭐
-            selected_squads.append({
-                "card_id": card_id,
-                "count": count,
-                "added_at": int(time.time()),
-            })
-            
-            # ⭐ СОХРАНЯЕМ В ДАННЫЕ ПОЛЬЗОВАТЕЛЯ ⭐
-            user_data["army_squads"] = selected_squads
-            save_data(data)
-            
-            # ⭐ ОЧИЩАЕМ ВРЕМЕННОЕ ⭐
-            army_info["pending_add"] = None
-            army_info["selected_squads"] = selected_squads
-            
-            await query.answer(f"✅ Добавлено {count} шт. в отряд!", show_alert=False)
-            
-            # ⭐ ВОЗВРАЩАЕМ К СПИСКУ ⭐
-            await show_army_page(update, context, army_info.get("army_page", 0))
+            # ⭐ УСТАНАВЛИВАЕМ ФЛАГ ОЖИДАНИЯ ВВОДА ⭐
+            army_info["step"] = "army_wait_quantity"
             return
         
         # ⭐ ОТМЕНА ДОБАВЛЕНИЯ ⭐
         if query.data == "army_cancel_add":
             army_info["pending_add"] = None
+            army_info["step"] = "army_select"
             await show_army_page(update, context, army_info.get("army_page", 0))
             return
         
@@ -6202,6 +6245,11 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except Exception as e:
         logger.error(f"Ошибка army_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
+
+
+def has_stats(card: Dict) -> bool:
+    """Проверяет, есть ли у карты хотя бы атака > 0."""
+    return card.get("attack", 0) > 0  # ← ТОЛЬКО АТАКА
 
 # ===== ЗАПУСК БОТА =====
 
