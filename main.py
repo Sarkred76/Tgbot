@@ -5947,7 +5947,7 @@ async def my_army(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Ошибка в my_army: {e}")
         await update.message.reply_text("❌ Ошибка при показе армии")
 
-async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int) -> None:
+async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page) -> None:
     """Показывает страницу существ для выбора в отряд."""
     try:
         user_id = str(update.effective_user.id)
@@ -5963,8 +5963,11 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
         sorted_rarities = army_info.get("sorted_rarities", [])
         selected_squads = army_info.get("selected_squads", [])
         
-        # ⭐ ИСПРАВЛЕНИЕ: Конвертируем page в int СРАЗУ ⭐
-        page = int(page)  # ← ЭТА СТРОКА КРИТИЧНА!
+        # ⭐ ИСПРАВЛЕНИЕ: Конвертируем page в int ПЕРВОЙ СТРОКОЙ ⭐
+        try:
+            page = int(page)  # ← ДОЛЖНО БЫТЬ ПЕРЕД ЛЮБЫМИ СРАВНЕНИЯМИ!
+        except (ValueError, TypeError):
+            page = 0
         
         # ⭐ СОБИРАЕМ ВСЕ СУЩЕСТВА С АТАКОЙ В СПИСОК ⭐
         all_creatures = []
@@ -5980,6 +5983,7 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
         creatures_per_page = 5
         total_pages = (len(all_creatures) + creatures_per_page - 1) // creatures_per_page
         
+        # ⭐ ТЕПЕРЬ СРАВНЕНИЕ БЕЗОПАСНО ⭐
         if page < 0:
             page = 0
         elif page >= total_pages:
