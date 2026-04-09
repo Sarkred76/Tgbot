@@ -62,6 +62,7 @@ ALTAR_IMAGE_URL = "https://files.catbox.moe/oonjfr.jpg"
 REFUGEE_CAMP_IMAGE_URL = "https://files.catbox.moe/eplmfl.jpg"
 MERCENARY_GUILD_IMAGE_URL = "https://files.catbox.moe/k7gzi0.jpg"
 FREE_ROLLS_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
+BATTLES_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
 
 FREE_ROLLS_PACKAGE = {
     "id": "free_rolls_package",
@@ -70,6 +71,7 @@ FREE_ROLLS_PACKAGE = {
     "rolls": 15,
 }
 
+MAX_ARMY_SQUADS = 5
 
 SACRIFICE_REWARDS = {
     "UpgradeT1": {"cents": 100, "free_rolls": 0},  # 200/2 = 100
@@ -195,6 +197,10 @@ def load_data() -> Dict[str, Any]:
                     user_data["refugee_camp_offered_card"] = None
                 if "refugee_camp_purchased" not in user_data:
                     user_data["refugee_camp_purchased"] = False
+                if "army_squads" not in user_data:
+                    user_data["army_squads"] = []  # Список из 5 отрядов
+                if "army_page" not in user_data:
+                    user_data["army_page"] = 0
             
             return data
             
@@ -453,7 +459,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("⚔️ Нанять существо")],
             [KeyboardButton("🏰 Город")],
             [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
-            [KeyboardButton("🦇 Подземелье")], 
+            [KeyboardButton("🦇 Подземелье")],
+            [KeyboardButton("⚔️ Сражения")], 
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
@@ -1569,8 +1576,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await mercenary_guild(update, context)
             return
 
+        elif text == "⚔️ Сражения":
+            await battles_menu(update, context)
+            return
+
+        elif text == "🛡️ Моя Армия":
+            await my_army(update, context)
+            return
+
         elif text == "🔙 Назад в Подземелье":
             await dungeon_menu(update, context)
+            return
+
+        elif text == "🔙 Назад в Сражения":
+            await battles_menu(update, context)
             return
 
         # ⭐ КНОПКА "🔙 НАЗАД В ТАВЕРНУ" ⭐
@@ -5754,6 +5773,435 @@ def format_damage_display(damage_value) -> str:
     else:
         return str(damage_value)
 
+async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает меню Сражений."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        # ⭐ КЛАВИАТУРА С КНОПКАМИ СРАЖЕНИЙ ⭐
+        keyboard = [
+            [KeyboardButton("🛡️ Моя Армия")],
+            [KeyboardButton("🔙 Назад в меню")],
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
+        caption = "⚔️ **Сражения**\n\nУправляйте своей армией и сражайтесь с другими героями!"
+        
+        # ⭐ ПРОВЕРКА: callback или сообщение ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                await query.message.delete()
+            except:
+                pass
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=BATTLES_IMAGE_URL,
+                caption=caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        else:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=BATTLES_IMAGE_URL,
+                caption=caption,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        logger.error(f"Ошибка в battles_menu: {e}")
+        keyboard = [
+            [KeyboardButton("🛡️ Моя Армия")],
+            [KeyboardButton("🔙 Назад в меню")],
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text(
+            "⚔️ **Сражения**\n\nУправляйте своей армией!",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
+
+async def my_army(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает армию пользователя с сортировкой по редкостям."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        # ⭐ КЛАВИАТУРА С КНОПКОЙ НАЗАД ⭐
+        keyboard = [
+            [KeyboardButton("🔙 Назад в Сражения")],
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
+        if not user_data or not user_data.get("cards"):
+            await update.message.reply_text(
+                "❌ У вас нет существ в армии!\n\n"
+                "Нанимайте существ, чтобы создать свою армию.",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+            return
+        
+        # ⭐ СЧИТАЕМ СУЩЕСТВ ПО РЕДКОСТЯМ ⭐
+        user_card_ids = user_data["cards"]
+        card_counts = Counter(user_card_ids)
+        
+        # ⭐ ГРУППИРУЕМ ПО РЕДКОСТЯМ ⭐
+        rarity_groups = {}
+        for card_id, count in card_counts.items():
+            card = find_card_by_id(card_id, data["cards"])
+            if card:
+                rarity = card.get("rarity", "T1")
+                if rarity not in rarity_groups:
+                    rarity_groups[rarity] = []
+                rarity_groups[rarity].append((card_id, count, card))
+        
+        # ⭐ СОРТИРУЕМ РЕДКОСТИ ⭐
+        rarity_order = ["T8", "T7", "T6", "T5", "T4", "T3", "T2", "T1",
+                       "UpgradeT7", "UpgradeT6", "UpgradeT5", "UpgradeT4",
+                       "UpgradeT3", "UpgradeT2", "UpgradeT1"]
+        sorted_rarities = sorted(rarity_groups.keys(), 
+                                key=lambda x: rarity_order.index(x) if x in rarity_order else 99)
+        
+        # ⭐ СОХРАНЯЕМ ДАННЫЕ В context.user_data ⭐
+        context.user_data[user_id] = {
+            "step": "army_select",
+            "rarity_groups": rarity_groups,
+            "sorted_rarities": sorted_rarities,
+            "army_page": 0,
+            "selected_squads": user_data.get("army_squads", []).copy(),
+        }
+        
+        # ⭐ ОТПРАВЛЯЕМ ПЕРВУЮ СТРАНИЦУ ⭐
+        await show_army_page(update, context, 0)
+        
+    except Exception as e:
+        logger.error(f"Ошибка в my_army: {e}")
+        await update.message.reply_text("❌ Ошибка при показе армии")
+
+async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int) -> None:
+    """Показывает страницу существ для выбора в отряд."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if user_id not in context.user_data:
+            await update.message.reply_text("❌ Сессия армии истекла!")
+            return
+        
+        army_info = context.user_data[user_id]
+        rarity_groups = army_info.get("rarity_groups", {})
+        sorted_rarities = army_info.get("sorted_rarities", [])
+        selected_squads = army_info.get("selected_squads", [])
+        
+        # ⭐ СОБИРАЕМ ВСЕ СУЩЕСТВА В СПИСОК ⭐
+        all_creatures = []
+        for rarity in sorted_rarities:
+            for card_id, count, card in rarity_groups.get(rarity, []):
+                all_creatures.append((card_id, count, card, rarity))
+        
+        if not all_creatures:
+            await update.message.reply_text("❌ У вас нет существ!")
+            return
+        
+        # ⭐ НАВИГАЦИЯ ПО СТРАНИЦАМ ⭐
+        creatures_per_page = 5
+        total_pages = (len(all_creatures) + creatures_per_page - 1) // creatures_per_page
+        
+        if page < 0:
+            page = 0
+        elif page >= total_pages:
+            page = total_pages - 1
+        
+        context.user_data[user_id]["army_page"] = page
+        
+        # ⭐ ПОЛУЧАЕМ СУЩЕСТВА ДЛЯ ТЕКУЩЕЙ СТРАНИЦЫ ⭐
+        start_index = page * creatures_per_page
+        end_index = min(start_index + creatures_per_page, len(all_creatures))
+        page_creatures = all_creatures[start_index:end_index]
+        
+        # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ ⭐
+        inline_keyboard = []
+        for card_id, count, card, rarity in page_creatures:
+            # Проверяем, не выбрано ли уже это существо в отряды
+            is_selected = any(squad.get("card_id") == card_id for squad in selected_squads)
+            
+            if is_selected:
+                button_text = f"✅ {card['title']} ({count} шт.) - В отряде"
+                callback_data = f"army_remove_{card_id}"
+            else:
+                button_text = f"➕ {card['title']} ({card['rarity']}) - {count} шт."
+                callback_data = f"army_add_{card_id}"
+            
+            inline_keyboard.append([
+                InlineKeyboardButton(button_text, callback_data=callback_data)
+            ])
+        
+        # ⭐ КНОПКИ НАВИГАЦИИ ⭐
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"army_nav_{page - 1}"))
+        
+        nav_buttons.append(InlineKeyboardButton(f"{page + 1}/{total_pages}", callback_data="army_info"))
+        
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"army_nav_{page + 1}"))
+        
+        inline_keyboard.append(nav_buttons)
+        
+        # ⭐ КНОПКА ЗАВЕРШЕНИЯ ⭐
+        if len(selected_squads) >= MAX_ARMY_SQUADS:
+            inline_keyboard.append([
+                InlineKeyboardButton("✅ Завершить формирование армии", callback_data="army_finish")
+            ])
+        else:
+            inline_keyboard.append([
+                InlineKeyboardButton(f"📋 Отряды: {len(selected_squads)}/{MAX_ARMY_SQUADS}", 
+                                   callback_data="army_squads_info")
+            ])
+        
+        # ⭐ КНОПКА НАЗАД ⭐
+        inline_keyboard.append([
+            InlineKeyboardButton("🔙 Назад в Сражения", callback_data="army_back")
+        ])
+        
+        # ⭐ ФОРМИРУЕМ CAPTION ⭐
+        caption = (
+            f"🛡️ **Моя Армия**\n\n"
+            f"📊 **Выберите существ для отрядов:**\n"
+            f"📄 Страница {page + 1}/{total_pages}\n\n"
+            f"📋 **Текущие отряды:** {len(selected_squads)}/{MAX_ARMY_SQUADS}\n"
+        )
+        
+        # ⭐ ДОБАВЛЯЕМ СПИСОК ОТРЯДОВ ⭐
+        if selected_squads:
+            caption += "\n**Ваши отряды:**\n"
+            for i, squad in enumerate(selected_squads, 1):
+                card = find_card_by_id(squad["card_id"], data["cards"])
+                if card:
+                    caption += f"{i}. {card['title']} - {squad['count']} шт.\n"
+        
+        # ⭐ ОТПРАВЛЯЕМ СООБЩЕНИЕ ⭐
+        if hasattr(update, 'callback_query') and update.callback_query:
+            query = update.callback_query
+            try:
+                await query.edit_message_text(
+                    caption,
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                    parse_mode="Markdown"
+                )
+            except Exception as edit_error:
+                logger.error(f"Ошибка редактирования: {edit_error}")
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=caption,
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                    parse_mode="Markdown"
+                )
+        else:
+            await update.message.reply_text(
+                caption,
+                reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                parse_mode="Markdown"
+            )
+        
+    except Exception as e:
+        logger.error(f"Ошибка show_army_page: {e}")
+        await update.message.reply_text("❌ Произошла ошибка")
+
+
+async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок армии."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        
+        if user_id not in context.user_data:
+            await query.edit_message_text("❌ Сессия армии истекла!")
+            return
+        
+        army_info = context.user_data[user_id]
+        selected_squads = army_info.get("selected_squads", [])
+        
+        # ⭐ НАВИГАЦИЯ ПО СТРАНИЦАМ ⭐
+        if query.data.startswith("army_nav_"):
+            page = int(query.data.replace("army_nav_", ""))
+            await show_army_page(update, context, page)
+            return
+        
+        # ⭐ ИНФОРМАЦИЯ ⭐
+        if query.data == "army_info":
+            await query.answer("📄 Используйте ◀️ и ▶️ для навигации", show_alert=False)
+            return
+        
+        # ⭐ ИНФОРМАЦИЯ ОБ ОТРЯДАХ ⭐
+        if query.data == "army_squads_info":
+            squads_text = "\n".join([f"{i}. {s['card_id']}: {s['count']} шт." 
+                                    for i, s in enumerate(selected_squads, 1)])
+            await query.answer(f"📋 Ваши отряды:\n{squads_text}", show_alert=True)
+            return
+        
+        # ⭐ НАЗАД ⭐
+        if query.data == "army_back":
+            await battles_menu(update, context)
+            return
+        
+        # ⭐ ДОБАВИТЬ В ОТРЯД ⭐
+        if query.data.startswith("army_add_"):
+            card_id = int(query.data.replace("army_add_", ""))
+            
+            # Проверяем, не выбрано ли уже
+            if any(squad.get("card_id") == card_id for squad in selected_squads):
+                await query.answer("❌ Это существо уже в отряде!", show_alert=True)
+                return
+            
+            # Проверяем, не заполнены ли все отряды
+            if len(selected_squads) >= MAX_ARMY_SQUADS:
+                await query.answer(f"❌ Максимум {MAX_ARMY_SQUADS} отрядов!", show_alert=True)
+                return
+            
+            # Получаем информацию о карте
+            card = find_card_by_id(card_id, data["cards"])
+            if not card:
+                await query.answer("❌ Существо не найдено!", show_alert=True)
+                return
+            
+            # Считаем количество у игрока
+            card_counts = Counter(user_data.get("cards", []))
+            max_count = card_counts.get(card_id, 0)
+            
+            if max_count <= 0:
+                await query.answer("❌ У вас нет этого существа!", show_alert=True)
+                return
+            
+            # ⭐ СОХРАНЯЕМ ВРЕМЕННО ВЫБРАННУЮ КАРТУ ⭐
+            army_info["pending_add"] = {
+                "card_id": card_id,
+                "max_count": max_count,
+                "card_name": card["title"],
+            }
+            
+            # ⭐ ЗАПРОС КОЛИЧЕСТВА ⭐
+            keyboard = []
+            for count in range(1, min(max_count + 1, 11)):  # Показываем до 10
+                keyboard.append([
+                    InlineKeyboardButton(f"{count} шт.", callback_data=f"army_count_{count}")
+                ])
+            if max_count > 10:
+                keyboard.append([
+                    InlineKeyboardButton(f"Все ({max_count} шт.)", callback_data=f"army_count_{max_count}")
+                ])
+            keyboard.append([
+                InlineKeyboardButton("❌ Отмена", callback_data="army_cancel_add")
+            ])
+            
+            await query.edit_message_text(
+                f"➕ **Добавление в отряд**\n\n"
+                f"🃏 **Существо:** {card['title']}\n"
+                f"🌟 **Редкость:** {card['rarity']}\n"
+                f"📦 **Доступно:** {max_count} шт.\n\n"
+                f"Выберите количество для отряда:",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+            return
+        
+        # ⭐ ВЫБОР КОЛИЧЕСТВА ⭐
+        if query.data.startswith("army_count_"):
+            count = int(query.data.replace("army_count_", ""))
+            pending = army_info.get("pending_add", {})
+            
+            if not pending:
+                await query.answer("❌ Ошибка: нет выбранного существа!", show_alert=True)
+                return
+            
+            card_id = pending["card_id"]
+            
+            # ⭐ ДОБАВЛЯЕМ В ОТРЯДЫ ⭐
+            selected_squads.append({
+                "card_id": card_id,
+                "count": count,
+                "added_at": int(time.time()),
+            })
+            
+            # ⭐ СОХРАНЯЕМ В ДАННЫЕ ПОЛЬЗОВАТЕЛЯ ⭐
+            user_data["army_squads"] = selected_squads
+            save_data(data)
+            
+            # ⭐ ОЧИЩАЕМ ВРЕМЕННОЕ ⭐
+            army_info["pending_add"] = None
+            army_info["selected_squads"] = selected_squads
+            
+            await query.answer(f"✅ Добавлено {count} шт. в отряд!", show_alert=False)
+            
+            # ⭐ ВОЗВРАЩАЕМ К СПИСКУ ⭐
+            await show_army_page(update, context, army_info.get("army_page", 0))
+            return
+        
+        # ⭐ ОТМЕНА ДОБАВЛЕНИЯ ⭐
+        if query.data == "army_cancel_add":
+            army_info["pending_add"] = None
+            await show_army_page(update, context, army_info.get("army_page", 0))
+            return
+        
+        # ⭐ УДАЛИТЬ ИЗ ОТРЯДА ⭐
+        if query.data.startswith("army_remove_"):
+            card_id = int(query.data.replace("army_remove_", ""))
+            
+            # Находим и удаляем отряд
+            army_info["selected_squads"] = [s for s in selected_squads if s.get("card_id") != card_id]
+            user_data["army_squads"] = army_info["selected_squads"]
+            save_data(data)
+            
+            await query.answer("✅ Отряд удалён!", show_alert=False)
+            await show_army_page(update, context, army_info.get("army_page", 0))
+            return
+        
+        # ⭐ ЗАВЕРШИТЬ ФОРМИРОВАНИЕ ⭐
+        if query.data == "army_finish":
+            if len(selected_squads) < MAX_ARMY_SQUADS:
+                await query.answer(f"❌ Выберите {MAX_ARMY_SQUADS} отрядов! Сейчас: {len(selected_squads)}", 
+                                 show_alert=True)
+                return
+            
+            # ⭐ ФОРМИРУЕМ ОТЧЁТ ⭐
+            report = "✅ **Армия сформирована!**\n\n"
+            report += f"📋 **Ваши {MAX_ARMY_SQUADS} отрядов:**\n\n"
+            
+            for i, squad in enumerate(selected_squads, 1):
+                card = find_card_by_id(squad["card_id"], data["cards"])
+                if card:
+                    report += f"{i}. **{card['title']}** ({card['rarity']})\n"
+                    report += f"   👥 Количество: {squad['count']} шт.\n\n"
+            
+            keyboard = [[
+                InlineKeyboardButton("🔙 Назад в Сражения", callback_data="army_back")
+            ]]
+            
+            await query.edit_message_text(
+                report,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+            
+            # ⭐ СОХРАНЯЕМ ВРЕМЯ ФОРМИРОВАНИЯ ⭐
+            user_data["army_last_formed"] = int(time.time())
+            save_data(data)
+            
+            logger.info(f"Игрок {user_id} сформировал армию из {len(selected_squads)} отрядов")
+            return
+        
+    except Exception as e:
+        logger.error(f"Ошибка army_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
 
 # ===== ЗАПУСК БОТА =====
 
@@ -5829,6 +6277,7 @@ def main() -> None:
             CallbackQueryHandler(dungeon_callback, pattern=r"^dungeon_.*"),
             CallbackQueryHandler(sacrifice_callback, pattern=r"^sacrifice_.*"),
             CallbackQueryHandler(mercenary_callback, pattern=r"^mercenary_.*"),
+            CallbackQueryHandler(army_callback, pattern=r"^army_.*"),
         ]
 
         for handler in handlers:
