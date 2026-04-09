@@ -160,6 +160,9 @@ def load_data() -> Dict[str, Any]:
                     "max_slots": 4    # Максимум 4 существа
                 }
 
+            if "pending_battles" not in data:
+                data["pending_battles"] = {}
+
             # Добавьте в load_data() после загрузки данных:
             for card in data.get("cards", []):
                 if "attack" not in card:
@@ -201,6 +204,8 @@ def load_data() -> Dict[str, Any]:
                     user_data["army_squads"] = []  # Список из 5 отрядов
                 if "army_page" not in user_data:
                     user_data["army_page"] = 0
+
+            
             
             return data
             
@@ -1606,6 +1611,128 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await craft(update, context)
             return
 
+        elif text == "🔍 Найти противника":
+            # Проверяем, есть ли у игрока армия
+            if not user_data or not user_data.get("army_squads"):
+                await update.message.reply_text(
+                    "❌ У вас нет сформированной армии!\n"
+                    "Сначала создайте армию в разделе 🛡️ Моя Армия",
+                    reply_markup=ReplyKeyboardMarkup([[KeyboardButton("🔙 Назад в Сражения")]], resize_keyboard=True)
+                )
+                return
+    
+            # Запрашиваем @никнейм
+            context.user_data[user_id] = {
+                "step": "battle_find_opponent",
+                "battle_type": "find"
+            }
+            await update.message.reply_text(
+                "🔍 **Введите @никнейм противника**\n"
+                "Пример: `@username`\n"
+                "❌ Для отмены: /cancel",
+                parse_mode="Markdown",
+                reply_markup=ReplyKeyboardMarkup([[KeyboardButton("🔙 Назад в Сражения")]], resize_keyboard=True)
+            )
+            return
+
+        # ⭐ ОБРАБОТКА @НИКНЕЙМА ДЛЯ ПОИСКА ПРОТИВНИКА ⭐
+        if user_id in context.user_data:
+            battle_info = context.user_data[user_id]
+    
+            # Если пользователь в шаге поиска противника
+            if battle_info.get("step") == "battle_find_opponent":
+                if text.lower() == "/cancel":
+                    del context.user_data[user_id]
+                    await update.message.reply_text("❌ Поиск отменён", reply_markup=ReplyKeyboardMarkup([[KeyboardButton("🔙 Назад в Сражения")]], resize_keyboard=True))
+                    return
+        
+                if text.startswith("@"):
+                    username = text[1:].strip()
+                    # Ищем игрока по @никнейму
+                    opponent_id = None
+                    for uid, udata in data["users"].items():
+                        if udata.get("username") and udata["username"].lower() == username.lower():
+                            opponent_id = uid
+                            break
+            
+                    if not opponent_id:
+                        await update.message.reply_text("⚠️ Игрок с таким @никнеймом не найден!")
+                        return
+            
+                    if opponent_id == user_id:
+                        await update.message.reply_text("⚠️ Нельзя сражаться с самим собой!")
+                        return
+            
+                    # Проверяем, есть ли у противника армия
+                    opponent_data = data["users"].get(opponent_id)
+                    if not opponent_data or not opponent_data.get("army_squads"):
+                        await update.message.reply_text("⚠️ У этого игрока нет сформированной армии!")
+                        return
+            
+                    # ⭐ ОТПРАВЛЯЕМ ЗАПРОС ПРОТИВНИКУ ⭐
+                    my_army_text = format_army_for_opponent(user_data.get("army_squads", []), data)
+            
+                    # Создаём инлайн-кнопки для противника
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("✅ Принять вызов", callback_data=f"battle_accept_{user_id}"),
+                            InlineKeyboardButton("❌ Отклонить", callback_data=f"battle_decline_{user_id}")
+                        ]
+                    ]
+            
+                    sender_name = user_data.get("first_name", "Герой")
+                    if user_data.get("username"):
+                        sender_name = f"@{user_data['username']}"
+            
+                    # Отправляем запрос противнику
+                    try:
+                        await context.bot.send_message(
+                            chat_id=opponent_id,
+                            text=(
+                                f"⚔️ **Вам бросили вызов!**\n\n"
+                                f"👤 От: {sender_name}\n\n"
+                                f"🛡️ **Армия противника:**\n"
+                                f"{my_army_text}\n\n"
+                                f"⚠️ Количество существ показано в диапазонах!\n"
+                                f"Выберите действие:"
+                            ),
+                            reply_markup=InlineKeyboardMarkup(keyboard),
+                            parse_mode="Markdown"
+                        )
+                
+                        # Сохраняем ожидающий запрос
+                        if "pending_battles" not in data:
+                            data["pending_battles"] = {}
+                
+                        data["pending_battles"][opponent_id] = {
+                            "from_user": user_id,
+                            "type": "incoming",
+                            "timestamp": int(time.time())
+                        }
+                        save_data(data)
+                
+                        # Сохраняем состояние для отправителя
+                        context.user_data[user_id] = {
+                            "step": "battle_waiting_response",
+                            "opponent_id": opponent_id,
+                            "battle_type": "challenge_sent"
+                        }
+                
+                        await update.message.reply_text(
+                            f"✅ Вызов отправлен игроку @{username}!\n"
+                            f"⏳ Ожидайте ответа...",
+                            reply_markup=ReplyKeyboardMarkup([[KeyboardButton("🔙 Назад в Сражения")]], resize_keyboard=True)
+                        )
+                
+                    except Exception as send_error:
+                        logger.error(f"Не удалось отправить вызов: {send_error}")
+                        await update.message.reply_text("❌ Не удалось отправить вызов!")
+            
+                    return
+                else:
+                    await update.message.reply_text("⚠️ Введите корректный @никнейм (начинается с @)!")
+                    return
+        
         user_data = None
 
         if text == "⚔️ Нанять существо":
@@ -5784,6 +5911,7 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # ⭐ КЛАВИАТУРА С КНОПКАМИ СРАЖЕНИЙ ⭐
         keyboard = [
             [KeyboardButton("🛡️ Моя Армия")],
+            [KeyboardButton("🔍 Найти противника")],
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -5816,6 +5944,7 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         logger.error(f"Ошибка в battles_menu: {e}")
         keyboard = [
             [KeyboardButton("🛡️ Моя Армия")],
+            [KeyboardButton("🔍 Найти противника")],
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -6230,6 +6359,177 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         logger.error(f"Ошибка army_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
+
+def get_army_range(count: int) -> str:
+    """Преобразует точное количество в диапазон для показа противнику."""
+    if count <= 4:
+        return "1-4"
+    elif count <= 9:
+        return "5-9"
+    elif count <= 19:
+        return "10-19"
+    elif count <= 49:
+        return "20-49"
+    elif count <= 99:
+        return "50-99"
+    else:
+        return "100+"
+
+
+def format_army_for_opponent(squads: List[Dict], data: Dict) -> str:
+    """Форматирует отображение армии для противника с диапазонами."""
+    if not squads:
+        return "❌ Армия пуста"
+    
+    result = []
+    for squad in squads:
+        card = find_card_by_id(squad["card_id"], data["cards"])
+        if card:
+            exact_count = squad.get("count", 0)
+            range_display = get_army_range(exact_count)
+            result.append(f"• {card['title']} ({card['rarity']}): {range_display} шт.")
+    
+    return "\n".join(result) if result else "❌ Нет существ в армии"
+
+async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик кнопок сражений."""
+    try:
+        query = update.callback_query
+        await query.answer()
+        user_id = str(query.from_user.id)
+        data = load_data()
+        
+        # ⭐ ПРОТИВНИК ПРИНИМАЕТ ВЫЗОВ ⭐
+        if query.data.startswith("battle_accept_"):
+            sender_id = query.data.replace("battle_accept_", "")
+            
+            # Проверяем, есть ли у отправителя ещё армия
+            sender_data = data["users"].get(sender_id)
+            if not sender_data or not sender_data.get("army_squads"):
+                await query.edit_message_text("❌ У отправителя больше нет армии!")
+                return
+            
+            # ⭐ ОТПРАВЛЯЕМ ВСТРЕЧНЫЙ ЗАПРОС ОТПРАВИТЕЛЮ ⭐
+            opponent_army_text = format_army_for_opponent(
+                data["users"].get(user_id, {}).get("army_squads", []), 
+                data
+            )
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("⚔️ Начать сражение", callback_data=f"battle_start_{user_id}"),
+                    InlineKeyboardButton("❌ Отклонить", callback_data=f"battle_cancel_{user_id}")
+                ]
+            ]
+            
+            opponent_name = data["users"].get(user_id, {}).get("first_name", "Герой")
+            if data["users"].get(user_id, {}).get("username"):
+                opponent_name = f"@{data['users'][user_id]['username']}"
+            
+            await context.bot.send_message(
+                chat_id=sender_id,
+                text=(
+                    f"⚔️ **Противник принял вызов!**\n\n"
+                    f"👤 Противник: {opponent_name}\n\n"
+                    f"🛡️ **Армия противника:**\n"
+                    f"{opponent_army_text}\n\n"
+                    f"⚠️ Количество существ показано в диапазонах!\n"
+                    f"Выберите действие:"
+                ),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+            
+            # Обновляем состояние
+            if "pending_battles" not in data:
+                data["pending_battles"] = {}
+            data["pending_battles"][sender_id] = {
+                "from_user": user_id,
+                "type": "counter_request",
+                "timestamp": int(time.time())
+            }
+            save_data(data)
+            
+            await query.edit_message_text("✅ Вы приняли вызов! Ожидайте подтверждения от противника...")
+            return
+        
+        # ⭐ ПРОТИВНИК ОТКЛОНЯЕТ ВЫЗОВ ⭐
+        if query.data.startswith("battle_decline_"):
+            sender_id = query.data.replace("battle_decline_", "")
+            
+            # Уведомляем отправителя
+            try:
+                await context.bot.send_message(
+                    chat_id=sender_id,
+                    text="❌ Ваш вызов был отклонён!"
+                )
+            except:
+                pass
+            
+            # Очищаем ожидающий запрос
+            if "pending_battles" in data and user_id in data["pending_battles"]:
+                del data["pending_battles"][user_id]
+                save_data(data)
+            
+            await query.edit_message_text("❌ Вы отклонили вызов")
+            return
+        
+        # ⭐ ОТПРАВИТЕЛЬ ПОДТВЕРЖДАЕТ СРАЖЕНИЕ ⭐
+        if query.data.startswith("battle_start_"):
+            opponent_id = query.data.replace("battle_start_", "")
+            
+            # ⭐ НАЧИНАЕМ СРАЖЕНИЕ ⭐
+            await query.edit_message_text("✅ **Сражение началось!** ⚔️")
+            
+            # Уведомляем противника
+            try:
+                await context.bot.send_message(
+                    chat_id=opponent_id,
+                    text="✅ **Сражение началось!** ⚔️"
+                )
+            except:
+                pass
+            
+            # Очищаем ожидающие запросы
+            if "pending_battles" in data:
+                if user_id in data["pending_battles"]:
+                    del data["pending_battles"][user_id]
+                if opponent_id in data["pending_battles"]:
+                    del data["pending_battles"][opponent_id]
+                save_data(data)
+            
+            # Здесь можно добавить логику самого сражения
+            logger.info(f"Сражение началось: {user_id} vs {opponent_id}")
+            return
+        
+        # ⭐ ОТПРАВИТЕЛЬ ОТМЕНЯЕТ СРАЖЕНИЕ ⭐
+        if query.data.startswith("battle_cancel_"):
+            opponent_id = query.data.replace("battle_cancel_", "")
+            
+            # Уведомляем противника
+            try:
+                await context.bot.send_message(
+                    chat_id=opponent_id,
+                    text="❌ Противник отменил сражение!"
+                )
+            except:
+                pass
+            
+            # Очищаем ожидающие запросы
+            if "pending_battles" in data:
+                if user_id in data["pending_battles"]:
+                    del data["pending_battles"][user_id]
+                if opponent_id in data["pending_battles"]:
+                    del data["pending_battles"][opponent_id]
+                save_data(data)
+            
+            await query.edit_message_text("❌ Сражение отменено")
+            return
+        
+    except Exception as e:
+        logger.error(f"Ошибка battle_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
+
 # ===== ЗАПУСК БОТА =====
 
 
@@ -6305,6 +6605,7 @@ def main() -> None:
             CallbackQueryHandler(sacrifice_callback, pattern=r"^sacrifice_.*"),
             CallbackQueryHandler(mercenary_callback, pattern=r"^mercenary_.*"),
             CallbackQueryHandler(army_callback, pattern=r"^army_.*"),
+            CallbackQueryHandler(battle_callback, pattern=r"^battle_.*"),
         ]
 
         for handler in handlers:
