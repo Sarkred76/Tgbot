@@ -1611,16 +1611,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await craft(update, context)
             return
 
+        # ⭐ КНОПКА "🔍 НАЙТИ ПРОТИВНИКА" ⭐
         elif text == "🔍 Найти противника":
+            # ⭐ ПОЛУЧАЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ ⭐
+            user_data = data["users"].get(user_id)
+    
             # Проверяем, есть ли у игрока армия
             if not user_data or not user_data.get("army_squads"):
                 await update.message.reply_text(
                     "❌ У вас нет сформированной армии!\n"
                     "Сначала создайте армию в разделе 🛡️ Моя Армия",
-                    reply_markup=ReplyKeyboardMarkup([[KeyboardButton("🔙 Назад в Сражения")]], resize_keyboard=True)
+                    reply_markup=ReplyKeyboardMarkup(
+                        [[KeyboardButton("🔙 Назад в Сражения")]], 
+                        resize_keyboard=True
+                    )
                 )
                 return
-    
             # Запрашиваем @никнейм
             context.user_data[user_id] = {
                 "step": "battle_find_opponent",
@@ -1631,7 +1637,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 "Пример: `@username`\n"
                 "❌ Для отмены: /cancel",
                 parse_mode="Markdown",
-                reply_markup=ReplyKeyboardMarkup([[KeyboardButton("🔙 Назад в Сражения")]], resize_keyboard=True)
+                reply_markup=ReplyKeyboardMarkup(
+                    [[KeyboardButton("🔙 Назад в Сражения")]], 
+                    resize_keyboard=True
+                )
             )
             return
 
