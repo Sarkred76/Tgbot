@@ -5963,8 +5963,8 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
         sorted_rarities = army_info.get("sorted_rarities", [])
         selected_squads = army_info.get("selected_squads", [])
         
-        # ⭐ ИСПРАВЛЕНИЕ: ПРЕОБРАЗУЕМ page В int ⭐
-        page = int(page)  # ← ДОБАВЬТЕ ЭТУ СТРОКУ!
+        # ⭐ ИСПРАВЛЕНИЕ: Конвертируем page в int СРАЗУ ⭐
+        page = int(page)  # ← ЭТА СТРОКА КРИТИЧНА!
         
         # ⭐ СОБИРАЕМ ВСЕ СУЩЕСТВА С АТАКОЙ В СПИСОК ⭐
         all_creatures = []
@@ -5995,10 +5995,8 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
         # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ ⭐
         inline_keyboard = []
         for card_id, count, card, rarity in page_creatures:
-            # Проверяем, не выбрано ли уже это существо в отряды
             is_selected = any(squad.get("card_id") == card_id for squad in selected_squads)
             
-            # ⭐ ПОКАЗЫВАЕМ СТАТЫ ⭐
             stats_text = []
             if card.get("attack", 0) > 0:
                 stats_text.append(f"⚔️{card['attack']}")
@@ -6059,7 +6057,6 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
             f"📋 **Текущие отряды:** {len(selected_squads)}/{MAX_ARMY_SQUADS}\n"
         )
         
-        # ⭐ ДОБАВЛЯЕМ СПИСОК ОТРЯДОВ ⭐
         if selected_squads:
             caption += "\n**Ваши отряды:**\n"
             for i, squad in enumerate(selected_squads, 1):
