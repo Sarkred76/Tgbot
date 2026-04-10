@@ -6594,6 +6594,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 "red_squads": red_squads,
                 "blue_squads": blue_squads,
                 "initiative_list": initiative_list,
+                "current_turn_index": 0,
                 "started_at": int(time.time()),
                 "status": "active"
             }
@@ -6627,7 +6628,172 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 save_data(data)
     
             logger.info(f"Сражение началось: {user_id} (🟥) vs {opponent_id} (🟦)")
-            return        
+            return
+
+        if query.data.startswith("battle_attack_"):
+            target_index = int(query.data.replace("battle_attack_", ""))
+            
+            # Находим активную битву
+            battle_key = None
+            for key, battle in data.get("active_battles", {}).items():
+                if user_id in [battle.get("red_player"), battle.get("blue_player")]:
+                    battle_key = key
+                    break
+            
+            if not battle_key:
+                await query.answer("❌ Активная битва не найдена!", show_alert=True)
+                return
+            
+            battle_data = data["active_battles"][battle_key]
+            initiative_list = battle_data.get("initiative_list", [])
+            current_turn_index = battle_data.get("current_turn_index", 0)
+            
+            # Проверяем чей сейчас ход
+            if current_turn_index >= len(initiative_list):
+                await query.answer("❌ Битва завершена!", show_alert=True)
+                return
+            
+            current_turn = initiative_list[current_turn_index]
+            
+            # Проверяем что игрок может действовать
+            if user_id not in [battle_data.get("red_player"), battle_data.get("blue_player")]:
+                await query.answer("❌ Вы не участник этой битвы!", show_alert=True)
+                return
+            
+            if current_turn["owner"] == "red" and user_id != battle_data.get("red_player"):
+                await query.answer("🚫 Сейчас ходит не ваш отряд!", show_alert=True)
+                return
+            
+            if current_turn["owner"] == "blue" and user_id != battle_data.get("blue_player"):
+                await query.answer("🚫 Сейчас ходит не ваш отряд!", show_alert=True)
+                return
+            
+            # Проверяем что не атакует свой отряд
+            if target_index == current_turn_index:
+                await query.answer("🚫 Нельзя атаковать союзный отряд!", show_alert=True)
+                return
+            
+            if target_index >= len(initiative_list):
+                await query.answer("❌ Неверный индекс цели!", show_alert=True)
+                return
+            
+            target_squad = initiative_list[target_index]
+            
+            # Проверяем что цель не свой игрок
+            if target_squad["owner"] == current_turn["owner"]:
+                await query.answer("🚫 Нельзя атаковать союзный отряд!", show_alert=True)
+                return
+            
+            # ⭐ РАСЧЁТ УРОНА ⭐
+            final_damage, killed_count, remaining_damage = calculate_battle_damage(
+                current_turn, target_squad, data
+            )
+            
+            # ⭐ НАНОСИМ УРОН ⭐
+            target_squad["count"] -= killed_count
+            
+            # ⭐ СООБЩЕНИЕ ОБ АТАКЕ ⭐
+            attacker_color = "🟥" if current_turn["owner"] == "red" else "🟦"
+            defender_color = "🟦" if target_squad["owner"] == "blue" else "🟥"
+            
+            attack_message = (
+                f"{attacker_color} {current_turn['card_name']} нанёс {final_damage} урона!\n"
+                f"{defender_color} {killed_count} {target_squad['card_name']} убито!"
+            )
+            
+            # Отправляем сообщение обоим игрокам
+            for player_id in [battle_data.get("red_player"), battle_data.get("blue_player")]:
+                try:
+                    await context.bot.send_message(
+                        chat_id=player_id,
+                        text=attack_message
+                    )
+                except:
+                    pass
+            
+            # ⭐ ПРОВЕРЯЕМ УНИЧТОЖЕНИЕ ОТРЯДА ⭐
+            if target_squad["count"] <= 0:
+                # Удаляем отряд из инициативы
+                initiative_list.pop(target_index)
+                # Корректируем индекс хода если нужно
+                if current_turn_index >= len(initiative_list):
+                    current_turn_index = 0
+            
+            # ⭐ ПРОВЕРЯЕМ ОКОНЧАНИЕ БИТВЫ ⭐
+            red_squads = [u for u in initiative_list if u["owner"] == "red"]
+            blue_squads = [u for u in initiative_list if u["owner"] == "blue"]
+            
+            if not red_squads and not blue_squads:
+                # Ничья
+                for player_id in [battle_data.get("red_player"), battle_data.get("blue_player")]:
+                    try:
+                        await context.bot.send_message(
+                            chat_id=player_id,
+                            text="🤝 **Битва завершена вничью!**"
+                        )
+                    except:
+                        pass
+                del data["active_battles"][battle_key]
+                save_data(data)
+                return
+            
+            if not red_squads:
+                # Синий победил
+                winner = battle_data.get("blue_player")
+                loser = battle_data.get("red_player")
+                for player_id in [winner, loser]:
+                    try:
+                        result = "🏆 **Вы победили!**" if player_id == winner else "💀 **Вы проиграли!**"
+                        await context.bot.send_message(chat_id=player_id, text=result)
+                    except:
+                        pass
+                del data["active_battles"][battle_key]
+                save_data(data)
+                return
+            
+            if not blue_squads:
+                # Красный победил
+                winner = battle_data.get("red_player")
+                loser = battle_data.get("blue_player")
+                for player_id in [winner, loser]:
+                    try:
+                        result = "🏆 **Вы победили!**" if player_id == winner else "💀 **Вы проиграли!**"
+                        await context.bot.send_message(chat_id=player_id, text=result)
+                    except:
+                        pass
+                del data["active_battles"][battle_key]
+                save_data(data)
+                return
+            
+            # ⭐ СЛЕДУЮЩИЙ ХОД ⭐
+            current_turn_index = (current_turn_index + 1) % len(initiative_list)
+            battle_data["current_turn_index"] = current_turn_index
+            battle_data["initiative_list"] = initiative_list
+            save_data(data)
+            
+            # ⭐ ОБНОВЛЯЕМ МЕНЮ ⭐
+            await show_battle_menu(update, context, battle_data, current_turn_index)
+            return
+
+        # ⭐ ЗАВЕРШИТЬ БИТВУ ⭐
+        if query.data == "battle_end":
+            # Находим активную битву
+            battle_key = None
+            for key, battle in data.get("active_battles", {}).items():
+                if user_id in [battle.get("red_player"), battle.get("blue_player")]:
+                    battle_key = key
+                    break
+            
+            if not battle_key:
+                await query.answer("❌ Активная битва не найдена!", show_alert=True)
+                return
+            
+            del data["active_battles"][battle_key]
+            save_data(data)
+            
+            await query.edit_message_text("✅ **Битва завершена!**\nДанные о сражении очищены.")
+            return
+        
         # ⭐ ОТПРАВИТЕЛЬ ОТМЕНЯЕТ СРАЖЕНИЕ ⭐
         if query.data.startswith("battle_cancel_"):
             opponent_id = query.data.replace("battle_cancel_", "")
@@ -6711,32 +6877,62 @@ async def show_battle_menu(
         if not initiative_list:
             await context.bot.send_message(chat_id=chat_id, text="❌ Ошибка: список инициативы пуст!")
             return
+
+        current_turn = initiative_list[current_turn_index] if current_turn_index < len(initiative_list) else None
+        
+        if not current_turn:
+            await update.message.reply_text("❌ Битва завершена!")
+            return
         
         # Создаём inline-клавиатуру
         inline_keyboard = []
         for i, unit in enumerate(initiative_list[:10]):
-            color_emoji = "🟥" if unit["owner"] == "red" else "🟦"
+            # Определяем цвет и эмодзи
+            if unit["owner"] == "red":
+                color_emoji = "🟥"
+            else:
+                color_emoji = "🟦"
+            
+            # Показываем количество существ
             button_text = f"{color_emoji} {unit['card_name']} {unit['count']}шт."
-            callback_data = f"battle_unit_{i}"
-            inline_keyboard.append([InlineKeyboardButton(button_text, callback_data=callback_data)])
+            
+            # Callback для атаки
+            callback_data = f"battle_attack_{i}"
+            
+            inline_keyboard.append([
+                InlineKeyboardButton(button_text, callback_data=callback_data)
+            ])
         
+        # Кнопка завершения битвы
+        inline_keyboard.append([
+            InlineKeyboardButton("⏹️ Завершить битву", callback_data="battle_end")
+        ])
         # Отправляем меню
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=(
-                f"⚔️ **БИТВА НАЧАЛАСЬ!**\n"
-                f"🟥 **Красный игрок:** {red_player}\n"
-                f"🟦 **Синий игрок:** {blue_player}\n"
-                f"📋 **Порядок инициативы:**\n"
-                f"Отряды расположены в порядке скорости (сверху — самые быстрые)\n"
-                f"Выберите отряд для действия:"
-            ),
-            reply_markup=InlineKeyboardMarkup(inline_keyboard),
-            parse_mode="Markdown"
+        caption = (
+            f"⚔️ **БИТВА!**\n\n"
+            f"🟥 **Красный игрок:** {red_player}\n"
+            f"🟦 **Синий игрок:** {blue_player}\n\n"
+            f"📋 **Порядок инициативы:**\n"
+            f"Отряды расположены в порядке скорости (сверху — самые быстрые)\n\n"
+            f"🎯 **Сейчас ходит:** {color_emoji} {current_turn['card_name']}\n\n"
+            f"Выберите отряд противника для атаки:"
         )
+        
+        # Отправляем обоим игрокам
+        for player_id in [red_player, blue_player]:
+            try:
+                await context.bot.send_message(
+                    chat_id=player_id,
+                    text=caption,
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
+                    parse_mode="Markdown"
+                )
+            except Exception as e:
+                logger.error(f"Не удалось отправить меню битвы игроку {player_id}: {e}")
+        
     except Exception as e:
         logger.error(f"Ошибка show_battle_menu: {e}")
-        await context.bot.send_message(chat_id=chat_id, text="❌ Ошибка при показе меню битвы")
+        await update.message.reply_text("❌ Ошибка при показе меню битвы")
 
 
 async def end_battle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -6774,6 +6970,54 @@ async def end_battle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     except Exception as e:
         logger.error(f"Ошибка end_battle: {e}")
         await update.message.reply_text("❌ Ошибка при завершении битвы")
+
+def calculate_battle_damage(attacker_squad, defender_squad, data):
+    """
+    Расчёт урона в бою.
+    Возвращает: (итоговый_урон, количество_убитых, сообщение)
+    """
+    # Получаем данные существ
+    attacker_card = find_card_by_id(attacker_squad["card_id"], data["cards"])
+    defender_card = find_card_by_id(defender_squad["card_id"], data["cards"])
+    
+    if not attacker_card or not defender_card:
+        return 0, 0, "❌ Ошибка: существо не найдено!"
+    
+    # 1. Урон существа × количество в отряде
+    base_damage = get_damage_from_range(attacker_card.get("damage", 0))
+    total_damage = base_damage * attacker_squad["count"]
+    
+    # 2. Итоговая атака = атака атакующего - защита защищающегося
+    final_attack = attacker_card.get("attack", 0) - defender_card.get("defense", 0)
+    
+    # 3. Модификация урона
+    if final_attack > 0:
+        # Увеличение на 5% за каждую единицу
+        damage_multiplier = 1 + (final_attack * 0.05)
+    elif final_attack < 0:
+        # Уменьшение на 2.5% за каждую единицу
+        damage_multiplier = 1 + (final_attack * 0.025)
+    else:
+        damage_multiplier = 1
+    
+    # Итоговый урон (округление вниз)
+    final_damage = int(total_damage * damage_multiplier)
+    
+    # 4. Расчёт убитых существ
+    defender_health = defender_card.get("health", 10)
+    # Сначала наносим урон по здоровью, потом считаем убитых
+    damage_to_kill = defender_health  # Урон needed to kill one creature
+    
+    # Если в отряде уже есть полученный урон (можно добавить в future)
+    killed_count = final_damage // defender_health
+    remaining_damage = final_damage % defender_health
+    
+    # Не может убить больше чем есть в отряде
+    killed_count = min(killed_count, defender_squad["count"])
+    
+    return final_damage, killed_count, remaining_damage
+
+
 
 # ===== ЗАПУСК БОТА =====
 
