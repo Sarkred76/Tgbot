@@ -6547,31 +6547,41 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             return
         
         # ⭐ ОТПРАВИТЕЛЬ ПОДТВЕРЖДАЕТ СРАЖЕНИЕ ⭐
+        # ⭐ ОТПРАВИТЕЛЬ ПОДТВЕРЖДАЕТ СРАЖЕНИЕ ⭐
         if query.data.startswith("battle_start_"):
             opponent_id = query.data.replace("battle_start_", "")
-            
-            # ⭐ НАЧИНАЕМ СРАЖЕНИЕ ⭐
+    
+    # ⭐ НАЧИНАЕМ СРАЖЕНИЕ ⭐
             await query.edit_message_text("✅ **Сражение началось!** ⚔️")
-            
-            # Уведомляем противника
+    
+    # ⭐ ОТПРАВЛЯЕМ СООБЩЕНИЯ О ЦВЕТЕ ИГРОКА ⭐
             try:
+        # Отправителю вызова (кто нажал кнопку) - КРАСНЫЙ игрок
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text="Вы 🟥 **красный игрок**",
+                    parse_mode="Markdown"
+                )
+        
+        # Противнику (кто принял вызов) - СИНИЙ игрок
                 await context.bot.send_message(
                     chat_id=opponent_id,
-                    text="✅ **Сражение началось!** ⚔️"
+                    text="Вы 🟦 **синий игрок**",
+                    parse_mode="Markdown"
                 )
-            except:
-                pass
-            
-            # Очищаем ожидающие запросы
+            except Exception as send_error:
+                logger.error(f"Не удалось отправить сообщения о цвете: {send_error}")
+    
+    # Очищаем ожидающие запросы
             if "pending_battles" in data:
                 if user_id in data["pending_battles"]:
                     del data["pending_battles"][user_id]
                 if opponent_id in data["pending_battles"]:
                     del data["pending_battles"][opponent_id]
                 save_data(data)
-            
-            # Здесь можно добавить логику самого сражения
-            logger.info(f"Сражение началось: {user_id} vs {opponent_id}")
+    
+    # Здесь можно добавить логику самого сражения
+            logger.info(f"Сражение началось: {user_id} (🟥) vs {opponent_id} (🟦)")
             return
         
         # ⭐ ОТПРАВИТЕЛЬ ОТМЕНЯЕТ СРАЖЕНИЕ ⭐
