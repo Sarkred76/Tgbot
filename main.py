@@ -6690,6 +6690,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ⭐ НАНОСИМ УРОН ⭐
             target_squad["count"] -= killed_count
             target_squad["damage_taken"] = target_squad.get("damage_taken", 0) + final_damage
+            battle_data["initiative_list"] = initiative_list
             
             # ⭐ СООБЩЕНИЕ ОБ АТАКЕ ⭐
             attacker_color = "🟥" if current_turn["owner"] == "red" else "🟦"
@@ -6837,6 +6838,7 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "card_id": squad["card_id"],
                 "card_name": card["title"],
                 "count": squad["count"],
+                "initial_count": squad["count"],
                 "max_health": card.get("health", 10),  # ← Максимум здоровья одного существа
                 "speed": card.get("speed", 0),
                 "owner": "red",
@@ -6852,6 +6854,7 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "card_id": squad["card_id"],
                 "card_name": card["title"],
                 "count": squad["count"],
+                "initial_count": squad["count"],
                 "max_health": card.get("health", 10),
                 "speed": card.get("speed", 0),
                 "owner": "blue",
@@ -6897,23 +6900,19 @@ async def show_battle_menu(
                 color_emoji = "🟦"
             
             # ⭐ РАССЧИТЫВАЕМ ТЕКУЩЕЕ ЗДОРОВЬЕ ⭐
+            alive_count = unit["count"]
             max_health = unit.get("max_health", 10)
             damage_taken = unit.get("damage_taken", 0)
-            total_health = max_health * unit["count"]  # Общее здоровье отряда
-            remaining_health = max(0, total_health - damage_taken)
+            initial_count = unit.get("initial_count", alive_count)
             
-            # ⭐ СЧИТАЕМ ЖИВЫХ СУЩЕСТВ ⭐
-            # Если урон больше чем здоровье всех существ - все мертвы
-            if damage_taken >= total_health:
-                alive_count = 0
-                current_hp = 0
+            if alive_count > 0:
+                # Урон, который пошёл на убитых существ
+                damage_to_dead = (initial_count - alive_count) * max_health
+                # Остаточный урон по текущим живым
+                remainder = damage_taken - damage_to_dead
+                current_hp = max(0, max_health - remainder)
             else:
-                # Сколько полных существ погибло
-                killed = damage_taken // max_health
-                alive_count = unit["count"] - killed
-                # Остаток урона для последнего существа
-                remainder = damage_taken % max_health
-                current_hp = max_health - remainder if alive_count > 0 else 0
+                current_hp = 0
             
             # Показываем количество живых существ и здоровье одного
             button_text = f"{color_emoji} {unit['card_name']} {alive_count}шт {current_hp}/{max_health}❤️"
