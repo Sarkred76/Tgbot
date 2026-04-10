@@ -6770,7 +6770,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             save_data(data)
             
             # ⭐ ОБНОВЛЯЕМ МЕНЮ ⭐
-            await show_battle_menu(update, context, battle_data, current_turn_index)
+            await show_battle_menu(context, battle_data)
             return
 
         # ⭐ ЗАВЕРШИТЬ БИТВУ ⭐
@@ -6870,7 +6870,7 @@ async def show_battle_menu(
         red_player = battle_data.get("red_player")
         blue_player = battle_data.get("blue_player")
         initiative_list = battle_data.get("initiative_list", [])
-        current_turn_index = battle_data.get("current_turn_index", 0)  # ← БЕРЁМ ИЗ battle_data
+        current_turn_index = battle_data.get("current_turn_index", 0)
         
         if not initiative_list:
             logger.error("Список инициативы пуст!")
@@ -6878,7 +6878,6 @@ async def show_battle_menu(
         
         # Определяем чей сейчас ход
         current_turn = initiative_list[current_turn_index] if current_turn_index < len(initiative_list) else None
-        
         if not current_turn:
             logger.error("Текущий ход не определён!")
             return
