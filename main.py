@@ -163,6 +163,9 @@ def load_data() -> Dict[str, Any]:
             if "pending_battles" not in data:
                 data["pending_battles"] = {}
 
+            if "active_battles" not in data:
+                data["active_battles"] = {}
+
             # Добавьте в load_data() после загрузки данных:
             for card in data.get("cards", []):
                 if "attack" not in card:
@@ -1738,6 +1741,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         elif text == "🎰 Казино":
 
             await open_casino_from_button(update, context)
+
+        elif text == "⏹️ Завершить битву":
+            await end_battle(update, context)
+            return
 
         elif text == "👑 Мой герой":
 
@@ -5795,12 +5802,25 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         data = load_data()
         user_data = data["users"].get(user_id)
         
+        # ⭐ ПРОВЕРЯЕМ, ЕСТЬ ЛИ АКТИВНАЯ БИТВА ⭐
+        has_active_battle = False
+        for battle in data.get("active_battles", {}).values():
+            if battle.get("red_player") == user_id or battle.get("blue_player") == user_id:
+                has_active_battle = True
+                break
+        
         # ⭐ КЛАВИАТУРА С КНОПКАМИ СРАЖЕНИЙ ⭐
         keyboard = [
             [KeyboardButton("🛡️ Моя Армия")],
             [KeyboardButton("🔍 Найти противника")],
-            [KeyboardButton("🔙 Назад в меню")],
         ]
+        
+        # ⭐ ДОБАВЛЯЕМ КНОПКУ "ЗАВЕРШИТЬ БИТВУ" ЕСЛИ ЕСТЬ АКТИВНАЯ ⭐
+        if has_active_battle:
+            keyboard.append([KeyboardButton("⏹️ Завершить битву")])
+        
+        keyboard.append([KeyboardButton("🔙 Назад в меню")])
+        
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
         caption = "⚔️ **Сражения**\n\nУправляйте своей армией и сражайтесь с другими героями!"
@@ -5832,6 +5852,7 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         keyboard = [
             [KeyboardButton("🛡️ Моя Армия")],
             [KeyboardButton("🔍 Найти противника")],
+            [KeyboardButton("⏹️ Завершить битву")],
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -5840,7 +5861,6 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
-
 async def my_army(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает армию пользователя с сортировкой по редкостям."""
     try:
@@ -6551,28 +6571,64 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if query.data.startswith("battle_start_"):
             opponent_id = query.data.replace("battle_start_", "")
     
-    # ⭐ НАЧИНАЕМ СРАЖЕНИЕ ⭐
-            await query.edit_message_text("✅ **Сражение началось!** ⚔️")
+            # ⭐ ПОЛУЧАЕМ ДАННЫЕ О СРАЖЕНИИ ⭐
+            data = load_data()
     
-    # ⭐ ОТПРАВЛЯЕМ СООБЩЕНИЯ О ЦВЕТЕ ИГРОКА ⭐
+            # Получаем армии обоих игроков
+            sender_data = data["users"].get(user_id, {})
+            opponent_data = data["users"].get(opponent_id, {})
+    
+            red_squads = sender_data.get("army_squads", [])
+            blue_squads = opponent_data.get("army_squads", [])
+    
+            # ⭐ СОЗДАЁМ СПИСОК ИНИЦИАТИВЫ ⭐
+            initiative_list = create_initiative_list(red_squads, blue_squads, data)
+    
+            # ⭐ СОХРАНЯЕМ ДАННЫЕ О СРАЖЕНИИ В ФАЙЛ ⭐
+            if "active_battles" not in data:
+                data["active_battles"] = {}
+    
+            battle_key = f"{user_id}_{opponent_id}"
+            data["active_battles"][battle_key] = {
+                "red_player": user_id,
+                "blue_player": opponent_id,
+                "red_squads": red_squads,
+                "blue_squads": blue_squads,
+                "initiative_list": initiative_list,
+                "started_at": int(time.time()),
+                "status": "active"
+            }
+            save_data(data)
+    
+            # ⭐ СООБЩЕНИЕ О ЦВЕТЕ ИГРОКАМ ⭐
+            await query.edit_message_text("✅ **Сражение началось!** ⚔️\n\nВы 🟥 **красный игрок**")
+    
+            # Уведомляем противника
             try:
-        # Отправителю вызова (кто нажал кнопку) - КРАСНЫЙ игрок
-                await context.bot.send_message(
-                    chat_id=user_id,
-                    text="Вы 🟥 **красный игрок**",
-                    parse_mode="Markdown"
-                )
-        
-        # Противнику (кто принял вызов) - СИНИЙ игрок
                 await context.bot.send_message(
                     chat_id=opponent_id,
-                    text="Вы 🟦 **синий игрок**",
-                    parse_mode="Markdown"
+                    text="✅ **Сражение началось!** ⚔️\n\nВы 🟦 **синий игрок**"
                 )
-            except Exception as send_error:
-                logger.error(f"Не удалось отправить сообщения о цвете: {send_error}")
+        
+                # ⭐ ПОКАЗЫВАЕМ МЕНЮ БИТВЫ ОБОИМ ИГРОКАМ ⭐
+                battle_data = data["active_battles"][battle_key]
+        
+                # Красному игроку
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=f"🟥 **Ваша армия готова к бою!**"
+                )
+        
+                # Синему игроку
+                await context.bot.send_message(
+                    chat_id=opponent_id,
+                    text=f"🟦 **Ваша армия готова к бою!**"
+                )
+        
+            except Exception as notify_error:
+                logger.error(f"Не удалось уведомить игроков: {notify_error}")
     
-    # Очищаем ожидающие запросы
+            # Очищаем ожидающие запросы
             if "pending_battles" in data:
                 if user_id in data["pending_battles"]:
                     del data["pending_battles"][user_id]
@@ -6580,10 +6636,8 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     del data["pending_battles"][opponent_id]
                 save_data(data)
     
-    # Здесь можно добавить логику самого сражения
             logger.info(f"Сражение началось: {user_id} (🟥) vs {opponent_id} (🟦)")
-            return
-        
+            return        
         # ⭐ ОТПРАВИТЕЛЬ ОТМЕНЯЕТ СРАЖЕНИЕ ⭐
         if query.data.startswith("battle_cancel_"):
             opponent_id = query.data.replace("battle_cancel_", "")
@@ -6612,6 +6666,131 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         logger.error(f"Ошибка battle_callback: {e}")
         await query.answer("❌ Произошла ошибка", show_alert=True)
 
+
+def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict) -> List[Dict]:
+    """
+    Создаёт список инициативы существ для сражения.
+    Сортирует по скорости (убывание), при равной скорости — рандом.
+    """
+    initiative_list = []
+    
+    # Добавляем отряды первого игрока (🟥 Красный)
+    for squad in squads1:
+        card = find_card_by_id(squad["card_id"], data["cards"])
+        if card:
+            initiative_list.append({
+                "card_id": squad["card_id"],
+                "card_name": card["title"],
+                "count": squad["count"],
+                "speed": card.get("speed", 0),
+                "owner": "red",  # 🟥 Красный игрок
+                "random_factor": random.random()  # Для рандома при равной скорости
+            })
+    
+    # Добавляем отряды второго игрока (🟦 Синий)
+    for squad in squads2:
+        card = find_card_by_id(squad["card_id"], data["cards"])
+        if card:
+            initiative_list.append({
+                "card_id": squad["card_id"],
+                "card_name": card["title"],
+                "count": squad["count"],
+                "speed": card.get("speed", 0),
+                "owner": "blue",  # 🟦 Синий игрок
+                "random_factor": random.random()  # Для рандома при равной скорости
+            })
+    
+    # ⭐ СОРТИРОВКА: сначала по скорости (убывание), потом по рандому ⭐
+    initiative_list.sort(key=lambda x: (x["speed"], x["random_factor"]), reverse=True)
+    
+    return initiative_list
+
+
+async def show_battle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, battle_data: Dict) -> None:
+    """Показывает меню битвы с отрядами обоих игроков."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        # Получаем данные о сражении
+        red_player = battle_data.get("red_player")
+        blue_player = battle_data.get("blue_player")
+        initiative_list = battle_data.get("initiative_list", [])
+        
+        if not initiative_list:
+            await update.message.reply_text("❌ Ошибка: список инициативы пуст!")
+            return
+        
+        # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ С ОТРЯДАМИ ⭐
+        inline_keyboard = []
+        
+        # Добавляем кнопки в порядке инициативы
+        for i, unit in enumerate(initiative_list[:10]):  # Максимум 10 отрядов
+            # Определяем цвет и эмодзи
+            if unit["owner"] == "red":
+                color_emoji = "🟥"
+            else:
+                color_emoji = "🟦"
+            
+            button_text = f"{color_emoji} {unit['card_name']} {unit['count']}шт."
+            callback_data = f"battle_unit_{i}"  # Пока ничего не делает
+            
+            inline_keyboard.append([
+                InlineKeyboardButton(button_text, callback_data=callback_data)
+            ])
+        
+        # ⭐ ОТПРАВЛЯЕМ МЕНЮ ⭐
+        await update.message.reply_text(
+            f"⚔️ **БИТВА НАЧАЛАСЬ!**\n\n"
+            f"🟥 **Красный игрок:** {red_player}\n"
+            f"🟦 **Синий игрок:** {blue_player}\n\n"
+            f"📋 **Порядок инициативы:**\n"
+            f"Отряды расположены в порядке скорости (сверху — самые быстрые)\n\n"
+            f"Выберите отряд для действия:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard),
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка show_battle_menu: {e}")
+        await update.message.reply_text("❌ Ошибка при показе меню битвы")
+
+
+async def end_battle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Завершает текущую битву и очищает данные."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        
+        # Ищем активную битву с участием игрока
+        battle_key = None
+        for key, battle in data.get("active_battles", {}).items():
+            if battle.get("red_player") == user_id or battle.get("blue_player") == user_id:
+                battle_key = key
+                break
+        
+        if not battle_key:
+            await update.message.reply_text("❌ У вас нет активной битвы!")
+            return
+        
+        # ⭐ УДАЛЯЕМ ДАННЫЕ О БИТВЕ ⭐
+        del data["active_battles"][battle_key]
+        save_data(data)
+        
+        await update.message.reply_text(
+            "✅ **Битва завершена!**\n\n"
+            "Данные о сражении очищены.\n"
+            "Вы можете начать новое сражение.",
+            reply_markup=ReplyKeyboardMarkup(
+                [[KeyboardButton("🔙 Назад в Сражения")]],
+                resize_keyboard=True
+            ),
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка end_battle: {e}")
+        await update.message.reply_text("❌ Ошибка при завершении битвы")
 
 # ===== ЗАПУСК БОТА =====
 
