@@ -6567,7 +6567,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             return
         
         # ⭐ ОТПРАВИТЕЛЬ ПОДТВЕРЖДАЕТ СРАЖЕНИЕ ⭐
-        # ⭐ ОТПРАВИТЕЛЬ ПОДТВЕРЖДАЕТ СРАЖЕНИЕ ⭐
         if query.data.startswith("battle_start_"):
             opponent_id = query.data.replace("battle_start_", "")
     
@@ -6613,17 +6612,8 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 # ⭐ ПОКАЗЫВАЕМ МЕНЮ БИТВЫ ОБОИМ ИГРОКАМ ⭐
                 battle_data = data["active_battles"][battle_key]
         
-                # Красному игроку
-                await context.bot.send_message(
-                    chat_id=user_id,
-                    text=f"🟥 **Ваша армия готова к бою!**"
-                )
-        
-                # Синему игроку
-                await context.bot.send_message(
-                    chat_id=opponent_id,
-                    text=f"🟦 **Ваша армия готова к бою!**"
-                )
+                await show_battle_menu(context, user_id, battle_data)
+                await show_battle_menu(context, opponent_id, battle_data)
         
             except Exception as notify_error:
                 logger.error(f"Не удалось уведомить игроков: {notify_error}")
@@ -6706,54 +6696,47 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
     return initiative_list
 
 
-async def show_battle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, battle_data: Dict) -> None:
+async def show_battle_menu(
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    battle_data: Dict
+) -> None:
     """Показывает меню битвы с отрядами обоих игроков."""
     try:
-        user_id = str(update.effective_user.id)
         data = load_data()
-        
-        # Получаем данные о сражении
         red_player = battle_data.get("red_player")
         blue_player = battle_data.get("blue_player")
         initiative_list = battle_data.get("initiative_list", [])
         
         if not initiative_list:
-            await update.message.reply_text("❌ Ошибка: список инициативы пуст!")
+            await context.bot.send_message(chat_id=chat_id, text="❌ Ошибка: список инициативы пуст!")
             return
         
-        # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ С ОТРЯДАМИ ⭐
+        # Создаём inline-клавиатуру
         inline_keyboard = []
-        
-        # Добавляем кнопки в порядке инициативы
-        for i, unit in enumerate(initiative_list[:10]):  # Максимум 10 отрядов
-            # Определяем цвет и эмодзи
-            if unit["owner"] == "red":
-                color_emoji = "🟥"
-            else:
-                color_emoji = "🟦"
-            
+        for i, unit in enumerate(initiative_list[:10]):
+            color_emoji = "🟥" if unit["owner"] == "red" else "🟦"
             button_text = f"{color_emoji} {unit['card_name']} {unit['count']}шт."
-            callback_data = f"battle_unit_{i}"  # Пока ничего не делает
-            
-            inline_keyboard.append([
-                InlineKeyboardButton(button_text, callback_data=callback_data)
-            ])
+            callback_data = f"battle_unit_{i}"
+            inline_keyboard.append([InlineKeyboardButton(button_text, callback_data=callback_data)])
         
-        # ⭐ ОТПРАВЛЯЕМ МЕНЮ ⭐
-        await update.message.reply_text(
-            f"⚔️ **БИТВА НАЧАЛАСЬ!**\n\n"
-            f"🟥 **Красный игрок:** {red_player}\n"
-            f"🟦 **Синий игрок:** {blue_player}\n\n"
-            f"📋 **Порядок инициативы:**\n"
-            f"Отряды расположены в порядке скорости (сверху — самые быстрые)\n\n"
-            f"Выберите отряд для действия:",
+        # Отправляем меню
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                f"⚔️ **БИТВА НАЧАЛАСЬ!**\n"
+                f"🟥 **Красный игрок:** {red_player}\n"
+                f"🟦 **Синий игрок:** {blue_player}\n"
+                f"📋 **Порядок инициативы:**\n"
+                f"Отряды расположены в порядке скорости (сверху — самые быстрые)\n"
+                f"Выберите отряд для действия:"
+            ),
             reply_markup=InlineKeyboardMarkup(inline_keyboard),
             parse_mode="Markdown"
         )
-        
     except Exception as e:
         logger.error(f"Ошибка show_battle_menu: {e}")
-        await update.message.reply_text("❌ Ошибка при показе меню битвы")
+        await context.bot.send_message(chat_id=chat_id, text="❌ Ошибка при показе меню битвы")
 
 
 async def end_battle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
