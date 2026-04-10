@@ -6689,6 +6689,8 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             
             # ⭐ НАНОСИМ УРОН ⭐
             target_squad["count"] -= killed_count
+            target_squad["damage_taken"] = target_squad.get("damage_taken", 0) + final_damage
+            battle_data["initiative_list"] = initiative_list
             
             # ⭐ СООБЩЕНИЕ ОБ АТАКЕ ⭐
             attacker_color = "🟥" if current_turn["owner"] == "red" else "🟦"
@@ -6714,7 +6716,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 # Удаляем отряд из инициативы
                 was_current_turn = (target_index == current_turn_index)
                 initiative_list.pop(target_index)
-                
                 # Корректируем индекс хода если нужно
                 if not initiative_list:
                     # Битва закончилась — все отряды уничтожены
@@ -6728,11 +6729,14 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             red_squads = [u for u in initiative_list if u["owner"] == "red"]
             blue_squads = [u for u in initiative_list if u["owner"] == "blue"]
             
-            if not initiative_list or (not red_squads and not blue_squads):
+            if not red_squads and not blue_squads:
                 # Ничья
                 for player_id in [battle_data.get("red_player"), battle_data.get("blue_player")]:
                     try:
-                        await context.bot.send_message(chat_id=player_id, text="🤝 **Битва завершена вничью!**")
+                        await context.bot.send_message(
+                            chat_id=player_id,
+                            text="🤝 **Битва завершена вничью!**"
+                        )
                     except:
                         pass
                 del data["active_battles"][battle_key]
@@ -6770,7 +6774,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ⭐ СЛЕДУЮЩИЙ ХОД ⭐
             if initiative_list and current_turn_index >= 0:
                 current_turn_index = (current_turn_index + 1) % len(initiative_list)
-
             battle_data["current_turn_index"] = current_turn_index
             battle_data["initiative_list"] = initiative_list
             save_data(data)
