@@ -6612,9 +6612,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         
                 # ⭐ ПОКАЗЫВАЕМ МЕНЮ БИТВЫ ОБОИМ ИГРОКАМ ⭐
                 battle_data = data["active_battles"][battle_key]
-        
-                await show_battle_menu(context, user_id, battle_data)
-                await show_battle_menu(context, opponent_id, battle_data)
+                await show_battle_menu(context, battle_data)
         
             except Exception as notify_error:
                 logger.error(f"Не удалось уведомить игроков: {notify_error}")
@@ -6864,7 +6862,6 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
 
 async def show_battle_menu(
     context: ContextTypes.DEFAULT_TYPE,
-    chat_id: int,
     battle_data: Dict
 ) -> None:
     """Показывает меню битвы с отрядами обоих игроков."""
@@ -6873,18 +6870,20 @@ async def show_battle_menu(
         red_player = battle_data.get("red_player")
         blue_player = battle_data.get("blue_player")
         initiative_list = battle_data.get("initiative_list", [])
+        current_turn_index = battle_data.get("current_turn_index", 0)  # ← БЕРЁМ ИЗ battle_data
         
         if not initiative_list:
-            await context.bot.send_message(chat_id=chat_id, text="❌ Ошибка: список инициативы пуст!")
+            logger.error("Список инициативы пуст!")
             return
-
+        
+        # Определяем чей сейчас ход
         current_turn = initiative_list[current_turn_index] if current_turn_index < len(initiative_list) else None
         
         if not current_turn:
-            await update.message.reply_text("❌ Битва завершена!")
+            logger.error("Текущий ход не определён!")
             return
         
-        # Создаём inline-клавиатуру
+        # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ ⭐
         inline_keyboard = []
         for i, unit in enumerate(initiative_list[:10]):
             # Определяем цвет и эмодзи
@@ -6895,10 +6894,8 @@ async def show_battle_menu(
             
             # Показываем количество существ
             button_text = f"{color_emoji} {unit['card_name']} {unit['count']}шт."
-            
             # Callback для атаки
             callback_data = f"battle_attack_{i}"
-            
             inline_keyboard.append([
                 InlineKeyboardButton(button_text, callback_data=callback_data)
             ])
@@ -6907,7 +6904,8 @@ async def show_battle_menu(
         inline_keyboard.append([
             InlineKeyboardButton("⏹️ Завершить битву", callback_data="battle_end")
         ])
-        # Отправляем меню
+        
+        # ⭐ ФОРМИРУЕМ CAPTION ⭐
         caption = (
             f"⚔️ **БИТВА!**\n\n"
             f"🟥 **Красный игрок:** {red_player}\n"
@@ -6918,7 +6916,7 @@ async def show_battle_menu(
             f"Выберите отряд противника для атаки:"
         )
         
-        # Отправляем обоим игрокам
+        # ⭐ ОТПРАВЛЯЕМ МЕНЮ ОБОИМ ИГРОКАМ ⭐
         for player_id in [red_player, blue_player]:
             try:
                 await context.bot.send_message(
@@ -6927,12 +6925,12 @@ async def show_battle_menu(
                     reply_markup=InlineKeyboardMarkup(inline_keyboard),
                     parse_mode="Markdown"
                 )
+                logger.info(f"Меню битвы отправлено игроку {player_id}")
             except Exception as e:
                 logger.error(f"Не удалось отправить меню битвы игроку {player_id}: {e}")
-        
+                
     except Exception as e:
         logger.error(f"Ошибка show_battle_menu: {e}")
-        await update.message.reply_text("❌ Ошибка при показе меню битвы")
 
 
 async def end_battle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
