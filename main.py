@@ -6689,6 +6689,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             
             # ⭐ НАНОСИМ УРОН ⭐
             target_squad["count"] -= killed_count
+            target_squad["damage_taken"] = target_squad.get("damage_taken", 0) + final_damage
             
             # ⭐ СООБЩЕНИЕ ОБ АТАКЕ ⭐
             attacker_color = "🟥" if current_turn["owner"] == "red" else "🟦"
@@ -6836,9 +6837,11 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "card_id": squad["card_id"],
                 "card_name": card["title"],
                 "count": squad["count"],
+                "max_health": card.get("health", 10),  # ← Максимум здоровья одного существа
                 "speed": card.get("speed", 0),
-                "owner": "red",  # 🟥 Красный игрок
-                "random_factor": random.random()  # Для рандома при равной скорости
+                "owner": "red",
+                "random_factor": random.random(),
+                "damage_taken": 0  # ← Полученный урон
             })
     
     # Добавляем отряды второго игрока (🟦 Синий)
@@ -6849,9 +6852,11 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "card_id": squad["card_id"],
                 "card_name": card["title"],
                 "count": squad["count"],
+                "max_health": card.get("health", 10),
                 "speed": card.get("speed", 0),
-                "owner": "blue",  # 🟦 Синий игрок
-                "random_factor": random.random()  # Для рандома при равной скорости
+                "owner": "blue",
+                "random_factor": random.random(),
+                "damage_taken": 0
             })
     
     # ⭐ СОРТИРОВКА: сначала по скорости (убывание), потом по рандому ⭐
@@ -6891,8 +6896,28 @@ async def show_battle_menu(
             else:
                 color_emoji = "🟦"
             
-            # Показываем количество существ
-            button_text = f"{color_emoji} {unit['card_name']} {unit['count']}шт."
+            # ⭐ РАССЧИТЫВАЕМ ТЕКУЩЕЕ ЗДОРОВЬЕ ⭐
+            max_health = unit.get("max_health", 10)
+            damage_taken = unit.get("damage_taken", 0)
+            total_health = max_health * unit["count"]  # Общее здоровье отряда
+            remaining_health = max(0, total_health - damage_taken)
+            
+            # ⭐ СЧИТАЕМ ЖИВЫХ СУЩЕСТВ ⭐
+            # Если урон больше чем здоровье всех существ - все мертвы
+            if damage_taken >= total_health:
+                alive_count = 0
+                current_hp = 0
+            else:
+                # Сколько полных существ погибло
+                killed = damage_taken // max_health
+                alive_count = unit["count"] - killed
+                # Остаток урона для последнего существа
+                remainder = damage_taken % max_health
+                current_hp = max_health - remainder if alive_count > 0 else 0
+            
+            # Показываем количество живых существ и здоровье одного
+            button_text = f"{color_emoji} {unit['card_name']} {alive_count}шт {current_hp}/{max_health}❤️"
+            
             # Callback для атаки
             callback_data = f"battle_attack_{i}"
             inline_keyboard.append([
@@ -6906,12 +6931,12 @@ async def show_battle_menu(
         
         # ⭐ ФОРМИРУЕМ CAPTION ⭐
         caption = (
-            f"⚔️ **БИТВА!**\n\n"
+            f"⚔️ **БИТВА!**\n"
             f"🟥 **Красный игрок:** {red_player}\n"
-            f"🟦 **Синий игрок:** {blue_player}\n\n"
+            f"🟦 **Синий игрок:** {blue_player}\n"
             f"📋 **Порядок инициативы:**\n"
-            f"Отряды расположены в порядке скорости (сверху — самые быстрые)\n\n"
-            f"🎯 **Сейчас ходит:** {color_emoji} {current_turn['card_name']}\n\n"
+            f"Отряды расположены в порядке скорости (сверху — самые быстрые)\n"
+            f"🎯 **Сейчас ходит:** {color_emoji} {current_turn['card_name']}\n"
             f"Выберите отряд противника для атаки:"
         )
         
@@ -6930,7 +6955,6 @@ async def show_battle_menu(
                 
     except Exception as e:
         logger.error(f"Ошибка show_battle_menu: {e}")
-
 
 async def end_battle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Завершает текущую битву и очищает данные."""
