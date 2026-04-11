@@ -7217,7 +7217,7 @@ def remove_dead_creatures_from_barracks(user_id: str, dead_creatures: Dict[int, 
             if card_id in user_cards:
                 user_cards.remove(card_id)
     
-    save_data(data)
+    save_data(data) #чекнем
 
 
 # ===== ЗАПУСК БОТА =====
