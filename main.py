@@ -6741,8 +6741,26 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             
             # ⭐ НАНОСИМ УРОН ⭐
             target_squad["count"] -= killed_count
+
+            if "dead_creatures" not in battle_data:
+                battle_data["dead_creatures"] = {
+                    "red_player": {},  # {card_id: count}
+                    "blue_player": {}
+                }
+
+            # Добавляем погибших к соответствующему игроку
+            target_owner = target_squad["owner"]
+            card_id = target_squad["card_id"]
+
+            if card_id not in battle_data["dead_creatures"][f"{target_owner}_player"]:
+                battle_data["dead_creatures"][f"{target_owner}_player"][card_id] = 0
+
+            battle_data["dead_creatures"][f"{target_owner}_player"][card_id] += killed_count
+                
             target_squad["damage_taken"] = target_squad.get("damage_taken", 0) + final_damage
             battle_data["initiative_list"] = initiative_list
+            
+            
             
             # ⭐ СООБЩЕНИЕ ОБ АТАКЕ ⭐
             attacker_color = "🟥" if current_turn["owner"] == "red" else "🟦"
@@ -6781,48 +6799,70 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             red_squads = [u for u in initiative_list if u["owner"] == "red"]
             blue_squads = [u for u in initiative_list if u["owner"] == "blue"]
             
+            def process_battle_end():
+                # Удаляем погибших существ из казарм обоих игроков
+                if "dead_creatures" in battle_data:
+                    # Красный игрок
+                    if battle_data["red_player"] in data["users"]:
+                        remove_dead_creatures_from_barracks(
+                            battle_data["red_player"],
+                            battle_data["dead_creatures"].get("red_player", {}),
+                            data
+                        )
+                    # Синий игрок
+                    if battle_data["blue_player"] in data["users"]:
+                        remove_dead_creatures_from_barracks(
+                            battle_data["blue_player"],
+                            battle_data["dead_creatures"].get("blue_player", {}),
+                            data
+                        )
+    
+                # Удаляем данные о битве
+                del data["active_battles"][battle_key]
+                save_data(data)
+
             if not red_squads and not blue_squads:
                 # Ничья
                 for player_id in [battle_data.get("red_player"), battle_data.get("blue_player")]:
                     try:
                         await context.bot.send_message(
                             chat_id=player_id,
-                            text="🤝 **Битва завершена вничью!**"
+                            text="🤝 **Битва завершена вничью!**\n\n"
+                                 "⚠️ Погибшие существа были удалены из вашей казармы."
                         )
                     except:
                         pass
-                del data["active_battles"][battle_key]
-                save_data(data)
+                process_battle_end()
                 return
-            
+
             if not red_squads:
                 # Синий победил
                 winner = battle_data.get("blue_player")
                 loser = battle_data.get("red_player")
                 for player_id in [winner, loser]:
                     try:
-                        result = "🏆 **Вы победили!**" if player_id == winner else "💀 **Вы проиграли!**"
+                        result = "🏆 **Вы победили!**\n\n" if player_id == winner else "💀 **Вы проиграли!**\n\n"
+                        result += "⚠️ Погибшие существа были удалены из вашей казармы."
                         await context.bot.send_message(chat_id=player_id, text=result)
                     except:
                         pass
-                del data["active_battles"][battle_key]
-                save_data(data)
+                process_battle_end()
                 return
-            
+
             if not blue_squads:
                 # Красный победил
                 winner = battle_data.get("red_player")
                 loser = battle_data.get("blue_player")
                 for player_id in [winner, loser]:
                     try:
-                        result = "🏆 **Вы победили!**" if player_id == winner else "💀 **Вы проиграли!**"
+                        result = "🏆 **Вы победили!**\n\n" if player_id == winner else "💀 **Вы проиграли!**\n\n"
+                        result += "⚠️ Погибшие существа были удалены из вашей казармы."
                         await context.bot.send_message(chat_id=player_id, text=result)
                     except:
                         pass
-                del data["active_battles"][battle_key]
-                save_data(data)
+                process_battle_end()
                 return
-            
+                
             # ⭐ СЛЕДУЮЩИЙ ХОД ⭐
             if initiative_list and current_turn_index >= 0:
                 current_turn_index = (current_turn_index + 1) % len(initiative_list)
@@ -6842,15 +6882,21 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 if user_id in [battle.get("red_player"), battle.get("blue_player")]:
                     battle_key = key
                     break
-            
+    
             if not battle_key:
                 await query.answer("❌ Активная битва не найдена!", show_alert=True)
                 return
-            
+    
+            # ⭐ ПРИ РУЧНОМ ЗАВЕРШЕНИИ - СУЩЕСТВА НЕ ПОГИБАЮТ ⭐
+            # Просто удаляем битву без удаления существ
             del data["active_battles"][battle_key]
             save_data(data)
-            
-            await query.edit_message_text("✅ **Битва завершена!**\nДанные о сражении очищены.")
+    
+            await query.edit_message_text(
+                "✅ **Битва завершена!**\n\n"
+                "Данные о сражении очищены.\n"
+                "Все существа остались в вашей казарме."
+            )
             return
         
         # ⭐ ОТПРАВИТЕЛЬ ОТМЕНЯЕТ СРАЖЕНИЕ ⭐
@@ -7154,6 +7200,24 @@ async def notify_army_rebuild_needed(update: Update, context: ContextTypes.DEFAU
         logger.error(f"Ошибка notify_army_rebuild_needed: {e}")
 
 
+def remove_dead_creatures_from_barracks(user_id: str, dead_creatures: Dict[int, int], data: Dict) -> None:
+    """
+    Удаляет погибших существ из казармы игрока после боя.
+    dead_creatures: {card_id: количество_погибших}
+    """
+    user_data = data["users"].get(user_id)
+    if not user_data:
+        return
+    
+    user_cards = user_data.get("cards", [])
+    
+    # Удаляем погибших существ по одному
+    for card_id, dead_count in dead_creatures.items():
+        for _ in range(dead_count):
+            if card_id in user_cards:
+                user_cards.remove(card_id)
+    
+    save_data(data)
 
 
 # ===== ЗАПУСК БОТА =====
