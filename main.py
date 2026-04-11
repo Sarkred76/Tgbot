@@ -6923,6 +6923,11 @@ async def show_battle_menu(
                 # Остаточный урон по текущим живым
                 remainder = damage_taken - damage_to_dead
                 current_hp = max(0, max_health - remainder)
+                # ⭐ ПРОВЕРКА: если HP = 0, но есть живые существа ⭐
+                if current_hp == 0 and alive_count > 0:
+                    # Уменьшаем количество на 1 и восстанавливаем HP
+                    alive_count -= 1
+                    current_hp = max_health
             else:
                 current_hp = 0
             
