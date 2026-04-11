@@ -6912,17 +6912,21 @@ async def show_battle_menu(
                 color_emoji = "🟦"
             
             # ⭐ РАССЧИТЫВАЕМ ТЕКУЩЕЕ ЗДОРОВЬЕ ⭐
-            alive_count = unit["count"]
             max_health = unit.get("max_health", 10)
             damage_taken = unit.get("damage_taken", 0)
             initial_count = unit.get("initial_count", alive_count)
+             # Сколько существ погибло
+            killed_count = damage_taken // max_health
             
+            # Сколько осталось живых
+            alive_count = max(0, initial_count - killed_count)
+            
+            # Остаточный урон по последнему живому
+            remainder_damage = damage_taken % max_health
+            
+            # Текущее ХП последнего живого существа
             if alive_count > 0:
-                # Урон, который пошёл на убитых существ
-                damage_to_dead = (initial_count - alive_count) * max_health
-                # Остаточный урон по текущим живым
-                remainder = damage_taken - damage_to_dead
-                current_hp = max(0, max_health - remainder)
+                current_hp = max_health - remainder_damage
             else:
                 current_hp = 0
             
