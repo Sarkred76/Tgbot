@@ -6017,6 +6017,11 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
                 InlineKeyboardButton(f"📋 Отряды: {len(selected_squads)}/{MAX_ARMY_SQUADS}", 
                                    callback_data="army_squads_info")
             ])
+
+        if selected_squads:  # Показываем только если есть выбранные отряды
+            inline_keyboard.append([
+                InlineKeyboardButton("🗑️ Сбросить текущую армию", callback_data="army_reset")
+            ])
         
         # ⭐ КНОПКА НАЗАД ⭐
         inline_keyboard.append([
@@ -6104,6 +6109,17 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         # ⭐ НАЗАД ⭐
         if query.data == "army_back":
             await battles_menu(update, context)
+            return
+
+        # ⭐ НОВАЯ КНОПКА СБРОСА АРМИИ ⭐
+        if query.data == "army_reset":
+            # Очищаем все выбранные отряды
+            army_info["selected_squads"] = []
+            user_data["army_squads"] = []
+            save_data(data)
+    
+            await query.answer("🗑️ Армия сброшена!", show_alert=False)
+            await show_army_page(update, context, army_info.get("army_page", 0))
             return
         
         # ⭐ ДОБАВИТЬ В ОТРЯД ⭐
