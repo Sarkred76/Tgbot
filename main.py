@@ -6304,6 +6304,11 @@ async def select_battle_opponent(update: Update, context: ContextTypes.DEFAULT_T
         user_id = str(update.effective_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
+
+        is_valid, missing_cards = validate_army(user_id, data)
+        if not is_valid:
+            await notify_army_rebuild_needed(update, context, missing_cards)
+            return
         
         # Проверяем, есть ли у игрока армия
         if not user_data or not user_data.get("army_squads"):
@@ -6494,10 +6499,27 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if query.data.startswith("battle_accept_"):
             sender_id = query.data.replace("battle_accept_", "")
             
+            is_valid, missing_cards = validate_army(user_id, data)
+            if not is_valid:
+                await query.edit_message_text(
+                    "⚠️ **Ваша армия требует пересборки!**\n\n"
+                    "Некоторые существа из вашей армии больше не доступны.\n"
+                    "Пожалуйста, пересоберите армию в разделе 🛡️ Моя Армия."
+                )
+                return
+            
             # Проверяем, есть ли у отправителя ещё армия
             sender_data = data["users"].get(sender_id)
             if not sender_data or not sender_data.get("army_squads"):
                 await query.edit_message_text("❌ У отправителя больше нет армии!")
+                return
+
+            is_valid_sender, _ = validate_army(sender_id, data)
+            if not is_valid_sender:
+                await query.edit_message_text(
+                    "⚠️ **Армия отправителя требует пересборки!**\n\n"
+                    "Отправитель должен пересобрать свою армию."
+                )
                 return
             
             # ⭐ ОТПРАВЛЯЕМ ВСТРЕЧНЫЙ ЗАПРОС ОТПРАВИТЕЛЮ ⭐
@@ -6569,6 +6591,20 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # ⭐ ОТПРАВИТЕЛЬ ПОДТВЕРЖДАЕТ СРАЖЕНИЕ ⭐
         if query.data.startswith("battle_start_"):
             opponent_id = query.data.replace("battle_start_", "")
+
+            is_valid, missing_cards = validate_army(user_id, data)
+            if not is_valid:
+                await notify_army_rebuild_needed(update, context, missing_cards)
+                return
+            
+            # ⭐ ПРОВЕРКА: валидация армии противника ⭐
+            is_valid_opponent, _ = validate_army(opponent_id, data)
+            if not is_valid_opponent:
+                await query.edit_message_text(
+                    "⚠️ **Армия противника требует пересборки!**\n\n"
+                    "Противник должен пересобрать свою армию."
+                )
+                return
     
             # ⭐ ПОЛУЧАЕМ ДАННЫЕ О СРАЖЕНИИ ⭐
             data = load_data()
@@ -7053,6 +7089,54 @@ def calculate_battle_damage(attacker_squad, defender_squad, data):
     killed_count = min(killed_count, defender_squad["count"])
     
     return final_damage, killed_count, remaining_damage
+
+def validate_army(user_id: str, data: Dict) -> tuple[bool, List[int]]:
+    """
+    Проверяет, все ли существа в армии всё ещё есть в казарме.
+    Возвращает: (valid, missing_card_ids)
+    """
+    user_data = data["users"].get(user_id, {})
+    army_squads = user_data.get("army_squads", [])
+    user_cards = user_data.get("cards", [])
+    
+    # Считаем доступные карты
+    card_counts = Counter(user_cards)
+    
+    missing_cards = []
+    for squad in army_squads:
+        card_id = squad.get("card_id")
+        required_count = squad.get("count", 0)
+        available_count = card_counts.get(card_id, 0)
+        
+        if available_count < required_count:
+            missing_cards.append(card_id)
+    
+    return len(missing_cards) == 0, missing_cards
+
+async def notify_army_rebuild_needed(update: Update, context: ContextTypes.DEFAULT_TYPE, missing_cards: List[int]) -> None:
+    """Отправляет уведомление о необходимости пересобрать армию."""
+    try:
+        data = load_data()
+        missing_names = []
+        for card_id in missing_cards:
+            card = find_card_by_id(card_id, data["cards"])
+            if card:
+                missing_names.append(card["title"])
+        
+        missing_text = "\n".join([f"• {name}" for name in missing_names[:5]])
+        if len(missing_cards) > 5:
+            missing_text += f"\n• ... и ещё {len(missing_cards) - 5} существ"
+        
+        await update.message.reply_text(
+            f"⚠️ **Ваша армия требует пересборки!**\n\n"
+            f"Некоторые существа из вашей армии больше не доступны:\n"
+            f"{missing_text}\n\n"
+            f"Пожалуйста, зайдите в 🛡️ **Моя Армия** и пересоберите её.",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка notify_army_rebuild_needed: {e}")
+
 
 
 
