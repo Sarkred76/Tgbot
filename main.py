@@ -6896,6 +6896,11 @@ async def show_battle_menu(
         if not current_turn:
             logger.error("Текущий ход не определён!")
             return
+
+        if current_turn["owner"] == "red":
+            current_turn_color = "🟥"
+        else:
+            current_turn_color = "🟦"
         
         # ⭐ СОЗДАЁМ INLINE КЛАВИАТУРУ ⭐
         inline_keyboard = []
@@ -6942,7 +6947,7 @@ async def show_battle_menu(
             f"🟦 **Синий игрок:** {blue_player}\n"
             f"📋 **Порядок инициативы:**\n"
             f"Отряды расположены в порядке скорости (сверху — самые быстрые)\n"
-            f"🎯 **Сейчас ходит:** {color_emoji} {current_turn['card_name']}\n"
+            f"🎯 **Сейчас ходит:** {current_turn_color} {current_turn['card_name']}\n"
             f"Выберите отряд противника для атаки:"
         )
         
