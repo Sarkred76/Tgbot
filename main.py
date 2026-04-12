@@ -6784,16 +6784,11 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ⭐ ПРОВЕРЯЕМ УНИЧТОЖЕНИЕ ОТРЯДА ⭐
             if target_squad["count"] <= 0:
                 # Удаляем отряд из инициативы
-                was_current_turn = (target_index == current_turn_index)
                 initiative_list.pop(target_index)
                 # Корректируем индекс хода если нужно
-                if not initiative_list:
-                    # Битва закончилась — все отряды уничтожены
-                    current_turn_index = -1
-                elif was_current_turn or target_index < current_turn_index:
-                    # Если удалили текущий отряд или отряд ДО текущего хода — индекс сдвигается
-                    current_turn_index = current_turn_index % len(initiative_list)
-                # else: индекс остаётся как есть
+                skip_increment = True
+            else:
+                skip_increment = False
             
             # ⭐ ПРОВЕРЯЕМ ОКОНЧАНИЕ БИТВЫ ⭐
             red_squads = [u for u in initiative_list if u["owner"] == "red"]
@@ -6849,7 +6844,8 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 
             # ⭐ СЛЕДУЮЩИЙ ХОД ⭐
             if initiative_list and current_turn_index >= 0:
-                current_turn_index = (current_turn_index + 1) % len(initiative_list)
+                if not skip_increment:
+                    current_turn_index = (current_turn_index + 1) % len(initiative_list)
             battle_data["current_turn_index"] = current_turn_index
             battle_data["initiative_list"] = initiative_list
             save_data(data)
