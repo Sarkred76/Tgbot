@@ -23,6 +23,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
     CallbackQueryHandler,
+    JobQueue,
 )
 from trade_functions import (
     trade_menu,
@@ -7260,14 +7261,11 @@ def main() -> None:
             print("Создан новый файл данных")
 
         # Регистрируем обработчики
-        application = Application.builder().token(BOT_TOKEN).build()
-
-        # ⭐ ДОБАВЬТЕ JOB QUEUE ДЛЯ УВЕДОМЛЕНИЙ ⭐
-        application.job_queue.run_repeating(
-            check_card_notifications_job,
-            interval=60,  # Каждую минуту
-            first=60,
-            name="card_notifications"
+        application = (
+            Application.builder()
+            .token(BOT_TOKEN)
+            .job_queue(JobQueue())  # ← ДОБАВЬТЕ ЭТУ СТРОКУ
+            .build()
         )
 
         handlers = [
@@ -7330,6 +7328,14 @@ def main() -> None:
         
         print("Бот успешно запущен! Ctrl+C для остановки")
         logger.info("Бот запущен")
+
+        # ⭐ ДОБАВЬТЕ JOB QUEUE ДЛЯ УВЕДОМЛЕНИЙ ⭐
+        application.job_queue.run_repeating(
+            check_card_notifications_job,
+            interval=60,  # Каждую минуту
+            first=60,
+            name="card_notifications"
+        )
 
         logger.info("Запущена фоновая задача уведомлений") 
         application.run_polling(allowed_updates=Update.ALL_TYPES)
