@@ -107,6 +107,7 @@ RARITY_BONUSES = {
     "T3 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
     "T5 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
     "T7 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
+    "T8 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
     "T4 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
 }
 
