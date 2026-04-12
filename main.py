@@ -23,7 +23,6 @@ from telegram.ext import (
     filters,
     ContextTypes,
     CallbackQueryHandler,
-    JobQueue,
 )
 from trade_functions import (
     trade_menu,
@@ -3961,48 +3960,55 @@ async def set_achievement_cards(update: Update, context: ContextTypes.DEFAULT_TY
     except Exception as e:
         logger.error(f"Ошибка в send_card_notifications: {e}")
 
-# ⭐ НОВАЯ ФУНКЦИЯ ДЛЯ JOB QUEUE ⭐
-async def check_card_notifications_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+async def check_card_notifications(application: Application) -> None:
     """Фоновая проверка уведомлений каждую минуту."""
-    try:
-        data = load_data()
-        current_time = int(time.time())
-        COOLDOWN_SECONDS = 2 * 60 * 60  # 2 часа
-        notified_count = 0
-        
-        users_to_notify = []
-        for user_id, user_data in data["users"].items():
-            last_card_time = user_data.get("last_card_time", 0)
-            notification_sent = user_data.get("notification_sent", False)
+    while True:
+        try:
+            await asyncio.sleep(60)  # Проверяем каждую минуту
+            data = load_data()
+            current_time = int(time.time())
+            COOLDOWN_SECONDS = 2 * 60 * 60  # 2 часа
+            notified_count = 0
             
-            if last_card_time > 0 and not notification_sent:
-                time_passed = current_time - last_card_time
-                if time_passed >= COOLDOWN_SECONDS:
-                    users_to_notify.append(user_id)
-        
-        for user_id in users_to_notify:
-            try:
-                await context.bot.send_message(
-                    chat_id=user_id,
-                    text=(
-                        "🎉 **Вы снова можете нанять существо!**\n"
-                        "⏰ Кулдаун завершился.\n"
-                        "⚔️ Нажмите кнопку «⚔️ Нанять существо»"
-                    ),
-                    parse_mode="Markdown"
-                )
-                data["users"][user_id]["notification_sent"] = True
-                notified_count += 1
-                logger.info(f"Уведомление отправлено пользователю {user_id}")
-            except Exception as send_error:
-                logger.error(f"Не удалось отправить уведомление {user_id}: {send_error}")
-        
-        if notified_count > 0:
-            save_data(data)
-            logger.info(f"Отправлено {notified_count} уведомлений, данные сохранены")
+            # ⭐ СОБИРАЕМ СПИСОК ПОЛЬЗОВАТЕЛЕЙ ДЛЯ УВЕДОМЛЕНИЯ ⭐
+            users_to_notify = []
+            for user_id, user_data in data["users"].items():
+                last_card_time = user_data.get("last_card_time", 0)
+                notification_sent = user_data.get("notification_sent", False)
+                
+                # Проверяем: прошло ли 2 часа И уведомление ещё не отправлено
+                if last_card_time > 0 and not notification_sent:
+                    time_passed = current_time - last_card_time
+                    if time_passed >= COOLDOWN_SECONDS:
+                        users_to_notify.append(user_id)
             
-    except Exception as e:
-        logger.error(f"Ошибка в check_card_notifications_job: {e}")
+            # ⭐ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЯ ⭐
+            for user_id in users_to_notify:
+                try:
+                    await application.bot.send_message(
+                        chat_id=user_id,
+                        text=(
+                            "🎉 **Вы снова можете нанять существо!**\n\n"
+                            "⏰ Кулдаун завершился.\n"
+                            "⚔️ Нажмите кнопку «⚔️ Нанять существо»"
+                        ),
+                        parse_mode="Markdown"
+                    )
+                    # ⭐ ОБНОВЛЯЕМ ФЛАГ В ДАННЫХ ⭐
+                    data["users"][user_id]["notification_sent"] = True
+                    notified_count += 1
+                    logger.info(f"Уведомление отправлено пользователю {user_id}")
+                except Exception as send_error:
+                    logger.error(f"Не удалось отправить уведомление {user_id}: {send_error}")
+            
+            # ⭐ СОХРАНЯЕМ ДАННЫЕ ОДИН РАЗ ПОСЛЕ ВСЕХ УВЕДОМЛЕНИЙ ⭐
+            if notified_count > 0:
+                save_data(data)
+                logger.info(f"Отправлено {notified_count} уведомлений, данные сохранены")
+            
+        except Exception as e:
+            logger.error(f"Ошибка в check_card_notifications: {e}")
+            await asyncio.sleep(60)
 
 async def create_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Создание промокода на карту."""
@@ -7261,12 +7267,7 @@ def main() -> None:
             print("Создан новый файл данных")
 
         # Регистрируем обработчики
-        application = (
-            Application.builder()
-            .token(BOT_TOKEN)
-            .job_queue(JobQueue())  # ← ДОБАВЬТЕ ЭТУ СТРОКУ
-            .build()
-        )
+        application = Application.builder().token(BOT_TOKEN).build()
 
         handlers = [
             CommandHandler("start", start),
@@ -7329,13 +7330,12 @@ def main() -> None:
         print("Бот успешно запущен! Ctrl+C для остановки")
         logger.info("Бот запущен")
 
-        # ⭐ ДОБАВЬТЕ JOB QUEUE ДЛЯ УВЕДОМЛЕНИЙ ⭐
-        application.job_queue.run_repeating(
-            check_card_notifications_job,
-            interval=60,  # Каждую минуту
-            first=60,
-            name="card_notifications"
+        import threading
+        notification_thread = threading.Thread(
+            target=lambda: asyncio.run(check_card_notifications(application)), 
+            daemon=True
         )
+        notification_thread.start()
 
         logger.info("Запущена фоновая задача уведомлений") 
         application.run_polling(allowed_updates=Update.ALL_TYPES)
