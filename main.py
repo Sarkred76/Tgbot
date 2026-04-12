@@ -6960,6 +6960,9 @@ async def show_battle_menu(
         blue_player = battle_data.get("blue_player")
         initiative_list = battle_data.get("initiative_list", [])
         current_turn_index = battle_data.get("current_turn_index", 0)
+
+        initiative_list = [unit for unit in initiative_list if unit.get("count", 0) > 0]
+        battle_data["initiative_list"] = initiative_list  # Сохраняем обновлённый список
         
         if not initiative_list:
             logger.error("Список инициативы пуст!")
