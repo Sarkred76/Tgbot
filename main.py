@@ -63,6 +63,7 @@ REFUGEE_CAMP_IMAGE_URL = "https://files.catbox.moe/eplmfl.jpg"
 MERCENARY_GUILD_IMAGE_URL = "https://files.catbox.moe/k7gzi0.jpg"
 FREE_ROLLS_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
 BATTLES_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
+KING_DRAGON_IMAGE_URL = "https://ibb.co/JwGKn7Ld"
 
 FREE_ROLLS_PACKAGE = {
     "id": "free_rolls_package",
@@ -3826,17 +3827,16 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="profile_back")])
         
         await query.edit_message_text(
-            "🏆 **Достижения**\n\n"
+            "🏆 Достижения\n\n"
             "Соберите всех существ отдельной фракции или редкости,\n"
             "чтобы получить награду!\n\n"
-            "🎁 **Награда за фракционное достижение:**\n"
+            "🎁 Награда за фракционное достижение:\n"
             "• 30 бесплатных наймов\n"
             "• 30000 золота\n"
-            "🎁 **Награда за достижение T8:**\n"
+            "🎁 Награда за достижение T8:\n"
             "• special существо\n"
             "Выберите достижение:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         
     except Exception as e:
@@ -3941,29 +3941,30 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         save_data(data)
 
         if achievement == "Могущество царя драконов":
-            await query.edit_message_text(
-                f"🎉 **Достижение получено!**\n"
+            caption = (
+                f"🎉 Достижение получено!\n"
                 f"🏆 {achievement_num}. {achievement}\n"
-                f"🎁 **Награда:**\n"
-                f"• 🃏 Special-карта дракона\n"
-                f"Поздравляем!",
+                f"🎁 Награда:\n"
+            )
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=KING_DRAGON_IMAGE_URL,
+                caption=caption,
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
-                ]]),
-                parse_mode="Markdown"
+                ]])
             )
         else:
             await query.edit_message_text(
-                f"🎉 **Достижение получено!**\n"
+                f"🎉 Достижение получено!\n"
                 f"🏆 {achievement_num}. {achievement}\n"
-                f"🎁 **Награда:**\n"
+                f"🎁 Награда:\n"
                 f"• 🎲 +30 бесплатных наймов\n"
                 f"• 💰 +30000 золота\n"
                 f"Поздравляем!",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
                 ]]),
-                parse_mode="Markdown"
             )
         
         logger.info(f"Пользователь {user_id} получил достижение: {achievement}")
