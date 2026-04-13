@@ -63,7 +63,6 @@ REFUGEE_CAMP_IMAGE_URL = "https://files.catbox.moe/eplmfl.jpg"
 MERCENARY_GUILD_IMAGE_URL = "https://files.catbox.moe/k7gzi0.jpg"
 FREE_ROLLS_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
 BATTLES_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
-KING_DRAGON_IMAGE_URL = "https://ibb.co/JwGKn7Ld"
 
 FREE_ROLLS_PACKAGE = {
     "id": "free_rolls_package",
@@ -82,7 +81,7 @@ SACRIFICE_REWARDS = {
     "UpgradeT5": {"cents": 0, "free_rolls": 3},
     "UpgradeT6": {"cents": 0, "free_rolls": 7},
     "UpgradeT7": {"cents": 0, "free_rolls": 15},
-    "T8": {"cents": 0, "free_rolls": 25},
+    "T8": {"cents": 0, "free_rolls": 25}
 }
 
 # Бонусы по редкостям
@@ -155,7 +154,6 @@ def load_data() -> Dict[str, Any]:
                     "Цитадель": {"cards": [], "reward_claimed": False},
                     "Крепость": {"cards": [], "reward_claimed": False},
                     "Сопряжение": {"cards": [], "reward_claimed": False},
-                    "Могущество царя драконов": {"cards": [], "reward_claimed": False, "type": "dragons"}
                 }
 
             if "mercenary_guild" not in data:
@@ -3765,46 +3763,17 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             "Замок", "Оплот", "Башня", "Инферно",
             "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение"
         ]
-
-        achievements_list = factions + ["Могущество царя драконов"]
         
         # Создаём клавиатуру
         keyboard = []
-        for i, achievement in enumerate(achievements_list, 1):
-            faction_data = data["achievements"].get(achievement, {"cards": []})
+        for i, faction in enumerate(factions, 1):
+            faction_data = data["achievements"].get(faction, {"cards": []})
             total_cards = len(faction_data.get("cards", []))
-
-            if achievement == "Могущественные драконы":
-                # Считаем всех T8 драконов у игрока
-                dragon_cards = set()
-                for card_id in user_card_ids:
-                    card = find_card_by_id(card_id, data["cards"])
-                    if card and card.get("rarity") == "T8" and "дракон" in card.get("title", "").lower():
-                        dragon_cards.add(card_id)
-        
-                # Получаем список всех T8 драконов в системе
-                all_dragons = set()
-                for card in data["cards"]:
-                    if card.get("rarity") == "T8" and "дракон" in card.get("title", "").lower():
-                        all_dragons.add(card["id"])
-        
-                total_cards = len(all_dragons)
-                user_cards_count = len(dragon_cards)
-            else:
-                # Обычная логика для фракций
-                faction_cards = {}
-                for card_id in user_card_ids:
-                    card = find_card_by_id(card_id, data["cards"])
-                    if card and card.get("faction"):
-                        faction = card["faction"]
-                        if faction not in faction_cards:
-                            faction_cards[faction] = set()
-                        faction_cards[faction].add(card_id)
-                user_cards_count = len(faction_cards.get(achievement, set()))
+            user_cards_count = len(faction_cards.get(faction, set()))
             
-             # Проверяем, собрано ли достижение
+            # Проверяем, собрано ли достижение
             is_complete = user_cards_count >= total_cards and total_cards > 0
-            is_claimed = achievement in claimed_achievements
+            is_claimed = faction in claimed_achievements
             
             if is_complete and not is_claimed:
                 status = "🎁 ЗАБРАТЬ"
@@ -3818,7 +3787,7 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             
             keyboard.append([
                 InlineKeyboardButton(
-                    f"{i}. {achievement} - {status}",
+                    f"{i}. {faction} - {status}",
                     callback_data=callback
                 )
             ])
@@ -3827,16 +3796,15 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="profile_back")])
         
         await query.edit_message_text(
-            "🏆 Достижения\n\n"
-            "Соберите всех существ отдельной фракции или редкости,\n"
+            "🏆 **Достижения**\n\n"
+            "Соберите всех существ отдельной фракции,\n"
             "чтобы получить награду!\n\n"
-            "🎁 Награда за фракционное достижение:\n"
+            "🎁 **Награда за достижение:**\n"
             "• 30 бесплатных наймов\n"
             "• 30000 золота\n"
-            "🎁 Награда за достижение T8:\n"
-            "• special существо\n"
             "Выберите достижение:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
         )
         
     except Exception as e:
@@ -3855,8 +3823,6 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if not user_data:
             await query.edit_message_text("❌ Вы ещё не начали игру!")
             return
-
-        user_card_ids = user_data.get("cards", [])
         
         # Получаем номер достижения из callback_data
         achievement_num = int(query.data.split("_")[-1])
@@ -3865,109 +3831,63 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             "Замок", "Оплот", "Башня", "Инферно",
             "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение"
         ]
-
-        achievements_list = factions + ["Могущество царя драконов"]
         
         if achievement_num < 1 or achievement_num > len(factions):
             await query.edit_message_text("❌ Неверное достижение!")
             return
         
-        achievement = achievements_list[achievement_num - 1]
+        faction = factions[achievement_num - 1]
         claimed_achievements = user_data.get("claimed_achievements", [])
         
         # Проверяем, не получена ли уже награда
-        if achievement in claimed_achievements:
+        if faction in claimed_achievements:
             await query.edit_message_text("❌ Вы уже получили награду за это достижение!")
             return
         
-        if achievement == "Могущество царя драконов":
-            # Считаем всех T8 драконов у игрока
-            dragon_cards = set()
-            for card_id in user_card_ids:
-                card = find_card_by_id(card_id, data["cards"])
-                if card and card.get("rarity") == "T8" and "дракон" in card.get("title", "").lower():
-                    dragon_cards.add(card_id)
-    
-            # Получаем список всех T8 драконов в системе
-            all_dragons = set()
-            for card in data["cards"]:
-                if card.get("rarity") == "T8" and "дракон" in card.get("title", "").lower():
-                    all_dragons.add(card["id"])
-    
-            total_cards = len(all_dragons)
-            user_cards_count = len(dragon_cards)
-    
-            if len(dragon_cards) < total_cards or total_cards == 0:
-                await query.edit_message_text(
-                    f"❌ Достижение не завершено!\n"
-                    f"📊 Собрано: {len(dragon_cards)}/{total_cards}\n"
-                    f"🏷 Найдите всех T8 драконов!"
-                )
-                return
-    
-            # ⭐ ВЫДАЁМ SPECIAL-КАРТУ ⭐
-            # Здесь можно добавить логику выдачи специальной карты
-            # Например, добавить специальную карту в коллекцию
-            special_card_id = 173  # ID специальной карты (нужно создать в базе)
-            user_data["cards"].append(special_card_id)
-    
-        else:
-            # Обычная логика для фракций
-            if achievement in factions:
-                faction_cards = set()
-                for card_id in user_card_ids:
-                    card = find_card_by_id(card_id, data["cards"])
-                    if card and card.get("faction") == achievement:
-                        faction_cards.add(card_id)
+        # Получаем карты пользователя
+        user_card_ids = user_data.get("cards", [])
         
-                faction_data = data["achievements"].get(achievement, {"cards": []})
-                total_cards = len(faction_data.get("cards", []))
+        # Считаем карты по фракциям
+        faction_cards = set()
+        for card_id in user_card_ids:
+            card = find_card_by_id(card_id, data["cards"])
+            if card and card.get("faction") == faction:
+                faction_cards.add(card_id)
         
-                if len(faction_cards) < total_cards or total_cards == 0:
-                    await query.edit_message_text(
-                        f"❌ Достижение не завершено!\n"
-                        f"📊 Собрано: {len(faction_cards)}/{total_cards}\n"
-                        f"🏷 Фракция: {achievement}"
-                    )
-                    return
+        # Проверяем, собрано ли достижение
+        faction_data = data["achievements"].get(faction, {"cards": []})
+        total_cards = len(faction_data.get("cards", []))
         
-                # ⭐ ВЫДАЁМ НАГРАДУ ⭐
-                user_data["free_rolls"] = user_data.get("free_rolls", 0) + 30
-                user_data["cents"] = user_data.get("cents", 0) + 30000
-
-        # ⭐ ОБЩИЙ ФИНАЛ ⭐
-        claimed_achievements.append(achievement)
-        user_data["claimed_achievements"] = claimed_achievements
-        save_data(data)
-
-        if achievement == "Могущество царя драконов":
-            caption = (
-                f"🎉 Достижение получено!\n"
-                f"🏆 {achievement_num}. {achievement}\n"
-                f"🎁 Награда:\n"
-            )
-            await context.bot.send_photo(
-                chat_id=query.message.chat_id,
-                photo=KING_DRAGON_IMAGE_URL,
-                caption=caption,
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
-                ]])
-            )
-        else:
+        if len(faction_cards) < total_cards or total_cards == 0:
             await query.edit_message_text(
-                f"🎉 Достижение получено!\n"
-                f"🏆 {achievement_num}. {achievement}\n"
-                f"🎁 Награда:\n"
-                f"• 🎲 +30 бесплатных наймов\n"
-                f"• 💰 +30000 золота\n"
-                f"Поздравляем!",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
-                ]]),
+                f"❌ Достижение не завершено!\n\n"
+                f"📊 Собрано: {len(faction_cards)}/{total_cards}\n"
+                f"🏷 Фракция: {faction}"
             )
+            return
         
-        logger.info(f"Пользователь {user_id} получил достижение: {achievement}")
+        # ⭐ ВЫДАЁМ НАГРАДУ ⭐
+        user_data["free_rolls"] = user_data.get("free_rolls", 0) + 30
+        user_data["cents"] = user_data.get("cents", 0) + 30000
+        claimed_achievements.append(faction)
+        user_data["claimed_achievements"] = claimed_achievements
+        
+        save_data(data)
+        
+        await query.edit_message_text(
+            f"🎉 **Достижение получено!**\n\n"
+            f"🏆 {achievement_num}. {faction}\n\n"
+            f"🎁 **Награда:**\n"
+            f"• 🎲 +30 бесплатных наймов\n"
+            f"• 💰 +30000 золота\n"
+            f"Поздравляем!",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
+            ]]),
+            parse_mode="Markdown"
+        )
+        
+        logger.info(f"Пользователь {user_id} получил достижение: {faction}")
         
     except Exception as e:
         logger.error(f"Ошибка claim_achievement: {e}")
@@ -4697,27 +4617,26 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 chat_id=query.message.chat_id,
                 photo=ALTAR_IMAGE_URL,
                 caption=(
-                    "🩸 **Жертвенный алтарь**\n\n"
+                    "🩸 Жертвенный алтарь\n\n"
                     "Пожертвуйте существо и получите награду!\n\n"
-                    "💰 **Награды:**\n"
+                    "💰 Награды:\n"
                     "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
                     "• UpgradeT5: 3 бесплатных найма\n"
                     "• UpgradeT6: 7 бесплатных наймов\n"
-                    "• UpgradeT7: 15 бесплатных наймов\n\n"
+                    "• UpgradeT7: 15 бесплатных наймов\n"
                     "• T8: 25 бесплатных наймов\n\n"
                     "Выберите способ просмотра:"
                 ),
-                reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                parse_mode="Markdown"
+                reply_markup=InlineKeyboardMarkup(inline_keyboard)
             )
         else:
             await context.bot.send_photo(
                 chat_id=update.effective_chat.id,
                 photo=ALTAR_IMAGE_URL,
                 caption=(
-                    "🩸 **Жертвенный алтарь**\n\n"
+                    "🩸 Жертвенный алтарь\n\n"
                     "Пожертвуйте существо и получите награду!\n\n"
-                    "💰 **Награды:**\n"
+                    "💰 Награды:\n"
                     "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
                     "• UpgradeT5: 3 бесплатных найма\n"
                     "• UpgradeT6: 7 бесплатных наймов\n"
@@ -4725,8 +4644,7 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     "• T8: 25 бесплатных наймов\n\n"
                     "Выберите способ просмотра:"
                 ),
-                reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                parse_mode="Markdown"
+                reply_markup=InlineKeyboardMarkup(inline_keyboard)
             )
         
     except Exception as e:
@@ -4790,9 +4708,8 @@ async def sacrifice_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TY
         
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text="🩸 **Выберите редкость для жертвоприношения:**",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
+            text="🩸 Выберите редкость для жертвоприношения:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         
     except Exception as e:
@@ -4858,9 +4775,8 @@ async def sacrifice_show_rarity(update: Update, context: ContextTypes.DEFAULT_TY
         
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text=f"🩸 **Существа редкости {rarity}:**\nВыберите существо для жертвоприношения:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
+            text=f"🩸 Существа редкости {rarity}:\nВыберите существо для жертвоприношения:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         
     except Exception as e:
@@ -4927,9 +4843,8 @@ async def sacrifice_all_creatures(update: Update, context: ContextTypes.DEFAULT_
         
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text="🩸 **Все существа для жертвоприношения:**\nВыберите существо:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
+            text="🩸 Все существа для жертвоприношения:\nВыберите существо:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         
     except Exception as e:
@@ -4998,14 +4913,13 @@ async def sacrifice_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             ]
             
             await query.edit_message_text(
-                f"❓ **Вы уверены, что хотите пожертвовать {card['title']}?**\n\n"
+                f"❓ Вы уверены, что хотите пожертвовать {card['title']}?\n\n"
                 f"🌟 Редкость: {card['rarity']}\n"
                 f"📦 В коллекции: {count} шт.\n"
-                f"🎁 **Награда:**\n"
+                f"🎁 Награда:\n"
                 f"{'\n'.join(reward_text)}\n\n"
                 f"⚠️ Существо будет удалено из коллекции!",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
             return
         
@@ -6868,16 +6782,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ⭐ ПРОВЕРЯЕМ УНИЧТОЖЕНИЕ ОТРЯДА ⭐
             if target_squad["count"] <= 0:
                 # Удаляем отряд из инициативы
-                was_current_turn = (target_index == current_turn_index)
                 initiative_list.pop(target_index)
-                # Корректируем индекс хода если нужно
-                if not initiative_list:
-                    # Битва закончилась — все отряды уничтожены
-                    current_turn_index = -1
-                elif was_current_turn or target_index < current_turn_index:
-                    # Если удалили текущий отряд или отряд ДО текущего хода — индекс сдвигается
-                    current_turn_index = current_turn_index % len(initiative_list)
-                # else: индекс остаётся как есть
             
             # ⭐ ПРОВЕРЯЕМ ОКОНЧАНИЕ БИТВЫ ⭐
             red_squads = [u for u in initiative_list if u["owner"] == "red"]
@@ -6932,8 +6837,10 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 return
                 
             # ⭐ СЛЕДУЮЩИЙ ХОД ⭐
-            if initiative_list and current_turn_index >= 0:
+            if initiative_list and len(initiative_list) > 0:
                 current_turn_index = (current_turn_index + 1) % len(initiative_list)
+            else:
+                current_turn_index = 0
             battle_data["current_turn_index"] = current_turn_index
             battle_data["initiative_list"] = initiative_list
             save_data(data)
@@ -7051,6 +6958,9 @@ async def show_battle_menu(
         blue_player = battle_data.get("blue_player")
         initiative_list = battle_data.get("initiative_list", [])
         current_turn_index = battle_data.get("current_turn_index", 0)
+
+        initiative_list = [unit for unit in initiative_list if unit.get("count", 0) > 0]
+        battle_data["initiative_list"] = initiative_list  # Сохраняем обновлённый список
         
         if not initiative_list:
             logger.error("Список инициативы пуст!")
