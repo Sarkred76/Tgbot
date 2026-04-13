@@ -6978,6 +6978,166 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 "Все существа остались в вашей казарме."
             )
             return
+
+        # ⭐ СДАТЬСЯ ⭐
+        if query.data == "battle_surrender":
+            # Находим активную битву
+            battle_key = None
+            for key, battle in data.get("active_battles", {}).items():
+                if user_id in [battle.get("red_player"), battle.get("blue_player")]:
+                    battle_key = key
+                    break
+    
+            if not battle_key:
+                await query.answer("❌ Активная битва не найдена!", show_alert=True)
+                return
+    
+            battle_data = data["active_battles"][battle_key]
+    
+            # Считаем погибших существ для обоих игроков
+            red_squads = battle_data.get("red_squads", [])
+            blue_squads = battle_data.get("blue_squads", [])
+            initiative_list = battle_data.get("initiative_list", [])
+    
+            # Считаем сколько существ каждого типа осталось
+            remaining_red = {}
+            remaining_blue = {}
+            for squad in initiative_list:
+                card_id = squad["card_id"]
+                count = squad["count"]
+                if squad["owner"] == "red":
+                    remaining_red[card_id] = remaining_red.get(card_id, 0) + count
+                else:
+                    remaining_blue[card_id] = remaining_blue.get(card_id, 0) + count
+    
+            # Считаем сколько было до битвы
+            initial_red = {}
+            initial_blue = {}
+            for squad in red_squads:
+                card_id = squad["card_id"]
+                count = squad["count"]
+                initial_red[card_id] = initial_red.get(card_id, 0) + count
+            for squad in blue_squads:
+                card_id = squad["card_id"]
+                count = squad["count"]
+                initial_blue[card_id] = initial_blue.get(card_id, 0) + count
+    
+            # Считаем погибших
+            dead_red = sum(initial_red.get(cid, 0) - remaining_red.get(cid, 0) for cid in initial_red)
+            dead_blue = sum(initial_blue.get(cid, 0) - remaining_blue.get(cid, 0) for cid in initial_blue)
+    
+            # Считаем стоимость капитуляции (7 × суммарное здоровье оставшихся существ)
+            surrender_cost = 0
+            for squad in initiative_list:
+                max_health = squad.get("max_health", 10)
+                surrender_cost += squad["count"] * max_health
+            surrender_cost *= 7
+    
+            # Кнопки подтверждения
+            keyboard = [
+                [
+                    InlineKeyboardButton("✅ Подтвердить", callback_data=f"battle_surrender_confirm_{battle_key}"),
+                    InlineKeyboardButton("❌ Отмена", callback_data="battle_surrender_cancel")
+                ]
+            ]
+    
+            await query.edit_message_text(
+                f"🏳️ **Вы уверены, что хотите сдаться?**\n\n"
+                f"💀 **Погибшие существа:**\n"
+                f"• Ваши потери: {dead_red} существ\n"
+                f"• Потери противника: {dead_blue} существ\n\n"
+                f"💰 **Стоимость капитуляции:** {surrender_cost} золота\n"
+                f"(7 × суммарное здоровье оставшихся существ)\n\n"
+                f"⚠️ Погибшие существа будут удалены из казарм ОБОИХ игроков!\n"
+                f"Золото будет списано с вас и передано противнику.",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+            return
+
+        # ⭐ ПОДТВЕРЖДЕНИЕ КАПИТУЛЯЦИИ ⭐
+        if query.data.startswith("battle_surrender_confirm_"):
+            battle_key = query.data.replace("battle_surrender_confirm_", "")
+    
+            if battle_key not in data.get("active_battles", {}):
+                await query.answer("❌ Битва не найдена!", show_alert=True)
+                return
+    
+            battle_data = data["active_battles"][battle_key]
+    
+            # Определяем кто сдался и кто победил
+            surrendering_player = user_id
+            winner_id = battle_data.get("blue_player") if user_id == battle_data.get("red_player") else battle_data.get("red_player")
+    
+            # Считаем стоимость капитуляции
+            surrender_cost = 0
+            for squad in battle_data.get("initiative_list", []):
+                max_health = squad.get("max_health", 10)
+                surrender_cost += squad["count"] * max_health
+            surrender_cost *= 7
+    
+            # Списываем золото у сдавшегося
+            if user_id in data["users"]:
+                data["users"][user_id]["cents"] = max(0, data["users"][user_id].get("cents", 0) - surrender_cost)
+    
+            # Добавляем золото победителю
+            if winner_id in data["users"]:
+                data["users"][winner_id]["cents"] = data["users"][winner_id].get("cents", 0) + surrender_cost
+    
+            # ⭐ УДАЛЯЕМ ПОГИБШИХ СУЩЕСТВ ИЗ КАЗАРМ ОБОИХ ИГРОКОВ ⭐
+            remove_dead_creatures_from_barracks(battle_data, data)
+    
+            # Удаляем битву
+            del data["active_battles"][battle_key]
+            save_data(data)
+    
+            # Уведомляем обоих игроков
+            try:
+                await context.bot.send_message(
+                    chat_id=surrendering_player,
+                    text=(
+                        f"🏳️ **Вы сдались!**\n\n"
+                        f"💸 С вашего баланса списано {surrender_cost} золота.\n"
+                        f"💰 Противник получил {surrender_cost} золота.\n\n"
+                        f"⚰️ Погибшие существа удалены из казарм ОБОИХ игроков."
+                    ),
+                    parse_mode="Markdown"
+                )
+            except:
+                pass
+    
+            try:
+                await context.bot.send_message(
+                    chat_id=winner_id,
+                    text=(
+                        f"🏆 **Противник сдался!**\n\n"
+                        f"🏆 **Вы победили!**\n"
+                        f"💰 Вы получили {surrender_cost} золота.\n\n"
+                        f"⚰️ Погибшие существа удалены из вашей казармы."
+                    ),
+                    parse_mode="Markdown"
+                )
+            except:
+                pass
+    
+            await query.edit_message_text("✅ **Вы сдались!** Битва завершена.")
+            return
+
+        # ⭐ ОТМЕНА КАПИТУЛЯЦИИ ⭐
+        if query.data == "battle_surrender_cancel":
+            await query.edit_message_text("❌ Капитуляция отменена. Бой продолжается.")
+    
+            # Показываем меню битвы снова
+            battle_key = None
+            for key, battle in data.get("active_battles", {}).items():
+                if user_id in [battle.get("red_player"), battle.get("blue_player")]:
+                    battle_key = key
+                    break
+    
+            if battle_key:
+                battle_data = data["active_battles"][battle_key]
+                await show_battle_menu(context, battle_data)
+            return
         
         # ⭐ ОТПРАВИТЕЛЬ ОТМЕНЯЕТ СРАЖЕНИЕ ⭐
         if query.data.startswith("battle_cancel_"):
@@ -7002,6 +7162,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             
             await query.edit_message_text("❌ Сражение отменено")
             return
+            
         
     except Exception as e:
         logger.error(f"Ошибка battle_callback: {e}")
@@ -7120,6 +7281,10 @@ async def show_battle_menu(
             inline_keyboard.append([
                 InlineKeyboardButton(button_text, callback_data=callback_data)
             ])
+
+        inline_keyboard.append([
+            InlineKeyboardButton("🏳️ Сдаться", callback_data="battle_surrender")
+        ])
         
         # Кнопка завершения битвы
         inline_keyboard.append([
@@ -7343,6 +7508,48 @@ def remove_dead_creatures_from_barracks(battle_data: Dict, data: Dict) -> None:
                     user_cards.remove(card_id)
     
     save_data(data)
+
+
+
+def calculate_surrender_cost(battle_data: Dict, player_id: str) -> int:
+    """
+    Рассчитывает стоимость капитуляции игрока.
+    Формула: 7 × суммарное здоровье всех оставшихся отрядов игрока
+    """
+    total_hp = 0
+    
+    for squad in battle_data.get("initiative_list", []):
+        # Проверяем, принадлежит ли отряд этому игроку
+        is_player_squad = False
+        if battle_data.get("red_player") == player_id and squad["owner"] == "red":
+            is_player_squad = True
+        elif battle_data.get("blue_player") == player_id and squad["owner"] == "blue":
+            is_player_squad = True
+        
+        if is_player_squad:
+            max_health = squad.get("max_health", 10)
+            damage_taken = squad.get("damage_taken", 0)
+            initial_count = squad.get("initial_count", squad["count"])
+            alive_count = squad["count"]
+            
+            # Считаем здоровье каждого существа в отряде
+            if alive_count > 0:
+                damage_to_dead = (initial_count - alive_count) * max_health
+                remainder = damage_taken - damage_to_dead
+                current_hp = max(0, max_health - remainder)
+                if current_hp == 0 and alive_count > 0:
+                    alive_count -= 1
+                    current_hp = max_health
+            else:
+                current_hp = 0
+            
+            # Суммируем здоровье всех существ в отряде
+            if alive_count > 0:
+                total_hp += (max_health * (alive_count - 1)) + current_hp
+    
+    # Стоимость капитуляции = 7 × суммарное здоровье
+    surrender_cost = total_hp * 7
+    return surrender_cost
 
 
 # ===== ЗАПУСК БОТА =====
