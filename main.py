@@ -154,6 +154,7 @@ def load_data() -> Dict[str, Any]:
                     "Цитадель": {"cards": [], "reward_claimed": False},
                     "Крепость": {"cards": [], "reward_claimed": False},
                     "Сопряжение": {"cards": [], "reward_claimed": False},
+                    "Могущество царя дракона": {"cards": [], "reward_claimed": False},
                 }
 
             if "mercenary_guild" not in data:
@@ -3761,7 +3762,7 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         # Список фракций
         factions = [
             "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение"
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Могущество царя дракона"
         ]
         
         # Создаём клавиатуру
@@ -3796,15 +3797,16 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="profile_back")])
         
         await query.edit_message_text(
-            "🏆 **Достижения**\n\n"
-            "Соберите всех существ отдельной фракции,\n"
+            "🏆 Достижения\n\n"
+            "Соберите всех существ отдельной фракции или редкости,\n"
             "чтобы получить награду!\n\n"
-            "🎁 **Награда за достижение:**\n"
+            "🎁 Награда за фракционное достижение:\n"
             "• 30 бесплатных наймов\n"
             "• 30000 золота\n"
+            "🎁 Награда за T8 достижение:\n"
+            "• special существо\n"
             "Выберите достижение:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         
     except Exception as e:
@@ -3829,7 +3831,7 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         
         factions = [
             "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение"
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Могущество царя драконов"
         ]
         
         if achievement_num < 1 or achievement_num > len(factions):
@@ -3865,6 +3867,43 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 f"🏷 Фракция: {faction}"
             )
             return
+
+        # ⭐ СПЕЦИАЛЬНАЯ ОБРАБОТКА ДЛЯ "МОГУЩЕСТВО ЦАРЯ ДРАКОНОВ" ⭐
+        if faction == "Могущество царя драконов":
+            # ID существа для награды (замените на нужный ID)
+            DRAGON_KING_CARD_ID = 173  # ← УКАЖИТЕ НУЖНЫЙ ID СУЩЕСТВА
+            
+            # Находим карту
+            reward_card = find_card_by_id(DRAGON_KING_CARD_ID, data["cards"])
+            
+            if reward_card:
+                # Добавляем карту игроку
+                user_data["cards"].append(DRAGON_KING_CARD_ID)
+                
+                # Отмечаем достижение как полученное
+                claimed_achievements.append(faction)
+                user_data["claimed_achievements"] = claimed_achievements
+                save_data(data)
+                
+                # ⭐ ОТПРАВЛЯЕМ КАРТУ СУЩЕСТВА С ОПИСАНИЕМ ⭐
+                caption = generate_card_caption(reward_card, user_data, count=1, show_bonus=True)
+                await send_card(update, reward_card, context, caption=caption)
+                
+                await query.edit_message_text(
+                    f"🎉 Достижение получено!\n"
+                    f"🏆 {achievement_num}. {faction}\n"
+                    f"🎁 Награда:\n"
+                    f"• 🐉 {reward_card['title']}\n"
+                    f"Поздравляем!",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
+                    ]])
+                )
+                logger.info(f"Пользователь {user_id} получил достижение: {faction} и существо #{DRAGON_KING_CARD_ID}")
+                return
+            else:
+                await query.edit_message_text("❌ Ошибка: существо для награды не найдено!")
+                return
         
         # ⭐ ВЫДАЁМ НАГРАДУ ⭐
         user_data["free_rolls"] = user_data.get("free_rolls", 0) + 30
@@ -3875,16 +3914,15 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         save_data(data)
         
         await query.edit_message_text(
-            f"🎉 **Достижение получено!**\n\n"
+            f"🎉 Достижение получено!\n\n"
             f"🏆 {achievement_num}. {faction}\n\n"
-            f"🎁 **Награда:**\n"
+            f"🎁 Награда:\n"
             f"• 🎲 +30 бесплатных наймов\n"
             f"• 💰 +30000 золота\n"
             f"Поздравляем!",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🔙 Назад к достижениям", callback_data="achievements_menu")
-            ]]),
-            parse_mode="Markdown"
+            ]])
         )
         
         logger.info(f"Пользователь {user_id} получил достижение: {faction}")
@@ -4640,7 +4678,7 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
                     "• UpgradeT5: 3 бесплатных найма\n"
                     "• UpgradeT6: 7 бесплатных наймов\n"
-                    "• UpgradeT7: 15 бесплатных наймов\n\n"
+                    "• UpgradeT7: 15 бесплатных наймов\n"
                     "• T8: 25 бесплатных наймов\n\n"
                     "Выберите способ просмотра:"
                 ),
