@@ -154,7 +154,7 @@ def load_data() -> Dict[str, Any]:
                     "Цитадель": {"cards": [], "reward_claimed": False},
                     "Крепость": {"cards": [], "reward_claimed": False},
                     "Сопряжение": {"cards": [], "reward_claimed": False},
-                    "Могущество царя дракона": {"cards": [], "reward_claimed": False},
+                    "Могущество царя драконов": {"cards": [], "reward_claimed": False},
                 }
 
             if "mercenary_guild" not in data:
@@ -3762,7 +3762,7 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         # Список фракций
         factions = [
             "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Могущество царя дракона"
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Могущество царя драконов"
         ]
         
         # Создаём клавиатуру
