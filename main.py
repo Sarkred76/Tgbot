@@ -154,7 +154,7 @@ def load_data() -> Dict[str, Any]:
                     "Цитадель": {"cards": [], "reward_claimed": False},
                     "Крепость": {"cards": [], "reward_claimed": False},
                     "Сопряжение": {"cards": [], "reward_claimed": False},
-                    "Могущество царя драконов": {"cards": [], "reward_claimed": False},
+                    "Могущество_царя_драконов": {"cards": [], "reward_claimed": False},
                 }
 
             if "mercenary_guild" not in data:
@@ -3762,7 +3762,7 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         # Список фракций
         factions = [
             "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Могущество царя драконов"
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Могущество_царя_драконов"
         ]
         
         # Создаём клавиатуру
@@ -3831,7 +3831,7 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         
         factions = [
             "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Могущество царя драконов"
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Могущество_царя_драконов"
         ]
         
         if achievement_num < 1 or achievement_num > len(factions):
@@ -3869,7 +3869,7 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             return
 
         # ⭐ СПЕЦИАЛЬНАЯ ОБРАБОТКА ДЛЯ "МОГУЩЕСТВО ЦАРЯ ДРАКОНОВ" ⭐
-        if faction == "Могущество царя драконов":
+        if faction == "Могущество_царя_драконов":
             # ID существа для награды (замените на нужный ID)
             DRAGON_KING_CARD_ID = 173  # ← УКАЖИТЕ НУЖНЫЙ ID СУЩЕСТВА
             
