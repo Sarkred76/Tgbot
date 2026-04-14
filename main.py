@@ -5928,17 +5928,23 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # ⭐ ДОБАВЛЯЕМ КНОПКУ "ЗАВЕРШИТЬ БИТВУ" ЕСЛИ ЕСТЬ АКТИВНАЯ ⭐
         if has_active_battle:
             keyboard.append([KeyboardButton("⏹️ Завершить битву")])
-        
         keyboard.append([KeyboardButton("🔙 Назад в меню")])
-        
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+        streak_info = f"🔥 **Серия побед:** {win_streak}\n"
+        if win_streak > 0 and win_streak % 5 == 0:
+            streak_info += f"🎁 **Следующая награда:** {win_streak + 5} наймов!\n"
+        elif win_streak > 0:
+            next_reward = ((win_streak // 5) + 1) * 5
+            streak_info += f"🎁 **До следующей награды:** {next_reward - win_streak} побед\n"
+        
         
         caption = (
             "⚔️ **Сражения**\n"
             "Управляйте своей армией и сражайтесь с другими героями!\n\n"
             f"💥 **Ваш боевой опыт:** {battle_experience}\n"
             f"🏆 **Ваше место в топе сражений:** {battle_rank}\n"
-            f"🔥 **Ваша серия побед:** {win_streak}"
+            f"{streak_info}"
         )
         
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
@@ -6947,6 +6953,12 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     data["users"][winner]["cents"] += killed_health * 5
                     # Увеличиваем серию побед
                     data["users"][winner]["win_streak"] = data["users"][winner].get("win_streak", 0) + 1
+                    win_streak = data["users"][winner]["win_streak"]
+
+                    streak_reward = 0
+                    if win_streak % 5 == 0:
+                        streak_reward = win_streak  # 5 побед = 5 наймов, 10 побед = 10 наймов и т.д.
+                        data["users"][winner]["free_rolls"] = data["users"][winner].get("free_rolls", 0) + streak_reward
 
                 if loser in data["users"]:
                     killed_health = rewards[loser]["killed_health"]
@@ -6964,6 +6976,9 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                             result += f"💥 +{killed_health * 5} боевого опыта\n"
                             result += f"💰 +{killed_health * 5} золота\n"
                             result += f"🔥 Серия побед: {data['users'][player_id]['win_streak']}"
+                            if streak_reward > 0:
+                                result += f"🎁 **НАГРАДА ЗА СЕРИЮ:** +{streak_reward} наймов!\n"
+                                result += "🎉 **Вы получили награду за серию побед!**\n"
                         else:
                             result = f"💀 **Вы проиграли!**\n\n"
                             result += f"💥 +{killed_health * 2} боевого опыта\n"
@@ -6990,6 +7005,12 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     data["users"][winner]["cents"] += killed_health * 5
                     # Увеличиваем серию побед
                     data["users"][winner]["win_streak"] = data["users"][winner].get("win_streak", 0) + 1
+                    win_streak = data["users"][winner]["win_streak"]
+
+                    streak_reward = 0
+                    if win_streak % 5 == 0:
+                        streak_reward = win_streak  # 5 побед = 5 наймов, 10 побед = 10 наймов и т.д.
+                        data["users"][winner]["free_rolls"] = data["users"][winner].get("free_rolls", 0) + streak_reward
 
                 if loser in data["users"]:
                     killed_health = rewards[loser]["killed_health"]
@@ -7007,6 +7028,9 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                             result += f"💥 +{killed_health * 5} боевого опыта\n"
                             result += f"💰 +{killed_health * 5} золота\n"
                             result += f"🔥 Серия побед: {data['users'][player_id]['win_streak']}"
+                            if streak_reward > 0:
+                                result += f"🎁 **НАГРАДА ЗА СЕРИЮ:** +{streak_reward} наймов!\n"
+                                result += "🎉 **Вы получили награду за серию побед!**\n"
                         else:
                             result = f"💀 **Вы проиграли!**\n\n"
                             result += f"💥 +{killed_health * 2} боевого опыта\n"
