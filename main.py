@@ -214,6 +214,10 @@ def load_data() -> Dict[str, Any]:
                     user_data["battle_experience"] = 0  # Боевой опыт за сражения
                 if "win_streak" not in user_data:
                     user_data["win_streak"] = 0
+                if "battle_challenges_today" not in user_data:
+                    user_data["battle_challenges_today"] = 0  # Количество вызовов сегодня
+                if "battle_challenges_last_reset" not in user_data:
+                    user_data["battle_challenges_last_reset"] = 0  # Время последнего сброса
 
             
             
@@ -5902,6 +5906,10 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         user_id = str(update.effective_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
+
+        # ⭐ ПРОВЕРКА И СБРОС СЧЁТЧИКА ВЫЗОВОВ ⭐
+        check_battle_challenges_reset(user_data)
+        save_data(data)
         
         # ⭐ ПРОВЕРЯЕМ, ЕСТЬ ЛИ АКТИВНАЯ БИТВА ⭐
         has_active_battle = False
@@ -5916,6 +5924,8 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         
         # ⭐ СЧИТАЕМ МЕСТО В ТОПе СРАЖЕНИЙ ⭐
         battle_rank = calculate_battle_rank(user_id, data)
+
+        can_challenge, remaining_challenges = check_battle_challenge_limit(user_id, data)
         
         # ⭐ КЛАВИАТУРА С КНОПКАМИ СРАЖЕНИЙ ⭐
         keyboard = [
@@ -5944,6 +5954,7 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             f"💥 **Ваш боевой опыт:** {battle_experience}\n"
             f"🏆 **Ваше место в топе сражений:** {battle_rank}\n"
             f"{streak_info}"
+            f"⚔️ **Осталось вызовов сегодня:** {remaining_challenges}/3"
         )
         
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
@@ -6447,6 +6458,21 @@ async def select_battle_opponent(update: Update, context: ContextTypes.DEFAULT_T
         if not is_valid:
             await notify_army_rebuild_needed(update, context, missing_cards)
             return
+
+        # ⭐ ПРОВЕРКА ЛИМИТА ВЫЗОВОВ ⭐
+        can_challenge, remaining = check_battle_challenge_limit(user_id, data)
+        if not can_challenge:
+            await update.message.reply_text(
+                "❌ **Лимит вызовов исчерпан!**\n"
+                "Вы можете бросить только 3 вызова в день.\n"
+                "Счётчик сбросится в 00:00 МСК.",
+                parse_mode="Markdown",
+                reply_markup=ReplyKeyboardMarkup(
+                    [[KeyboardButton("🔙 Назад в Сражения")]],
+                    resize_keyboard=True
+                )
+            )
+            return
         
         # Проверяем, есть ли у игрока армия
         if not user_data or not user_data.get("army_squads"):
@@ -6557,6 +6583,20 @@ async def process_opponent_selection(update: Update, context: ContextTypes.DEFAU
         if not opponent_data or not opponent_data.get("army_squads"):
             await update.message.reply_text("⚠️ У этого игрока нет сформированной армии!")
             return
+
+        can_challenge, remaining = check_battle_challenge_limit(user_id, data)
+        if not can_challenge:
+            await update.message.reply_text(
+                "❌ **Лимит вызовов исчерпан!**\n"
+                "Вы можете бросить только 3 вызова в день.\n"
+                "Счётчик сбросится в 00:00 МСК.",
+                parse_mode="Markdown",
+                reply_markup=ReplyKeyboardMarkup(
+                    [[KeyboardButton("🔙 Назад в Сражения")]],
+                    resize_keyboard=True
+                )
+            )
+            return
         
         # 6. ⭐ ОТПРАВЛЯЕМ ЗАПРОС ПРОТИВНИКУ ⭐
         my_army_text = format_army_for_opponent(user_data.get("army_squads", []), data)
@@ -6588,6 +6628,8 @@ async def process_opponent_selection(update: Update, context: ContextTypes.DEFAU
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
             )
+
+            data["users"][user_id]["battle_challenges_today"] = user_data.get("battle_challenges_today", 0) + 1
             
             # Сохраняем ожидающий запрос
             if "pending_battles" not in data:
@@ -6607,11 +6649,13 @@ async def process_opponent_selection(update: Update, context: ContextTypes.DEFAU
                 "battle_type": "challenge_sent"
             }
             
+            remaining = 3 - data["users"][user_id]["battle_challenges_today"]
             await update.message.reply_text(
                 f"✅ Вызов отправлен игроку @{username}!\n"
-                f"⏳ Ожидайте ответа...",
+                f"⏳ Ожидайте ответа...\n"
+                f"📊 Осталось вызовов сегодня: {remaining}/3",
                 reply_markup=ReplyKeyboardMarkup(
-                    [[KeyboardButton("🔙 Назад в Сражения")]], 
+                    [[KeyboardButton("🔙 Назад в Сражения")]],
                     resize_keyboard=True
                 )
             )
@@ -7829,6 +7873,42 @@ async def top_battles(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     except Exception as e:
         logger.error(f"Ошибка в top_battles: {e}")
         await update.message.reply_text("❌ Ошибка при загрузке топа")
+
+def check_battle_challenges_reset(user_data: Dict) -> None:
+    """Проверяет и сбрасывает счётчик вызовов в полночь по МСК."""
+    import datetime
+    # Получаем текущее время по МСК
+    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+    now_msk = datetime.datetime.now(msk_tz)
+    # Получаем дату последнего сброса
+    last_reset = user_data.get("battle_challenges_last_reset", 0)
+    # ⭐ ЕСЛИ НАСТУПИЛ НОВЫЙ ДЕНЬ ⭐
+    if (
+        last_reset == 0
+        or now_msk.day != datetime.datetime.fromtimestamp(last_reset, msk_tz).day
+    ):
+        # Сбрасываем счётчик вызовов
+        user_data["battle_challenges_today"] = 0
+        # ⭐ ОБНОВЛЯЕМ ВРЕМЯ СБРОСА ⭐
+        user_data["battle_challenges_last_reset"] = int(now_msk.timestamp())
+        logger.info(f"Сброс счётчика вызовов для пользователя {user_data.get('username', 'unknown')}")
+
+def check_battle_challenge_limit(user_id: str) -> tuple[bool, int]:
+    """
+    Проверяет, может ли игрок бросить вызов.
+    Возвращает: (can_challenge, remaining_challenges)
+    """
+    data = load_data()
+    user_data = data["users"].get(user_id, {})
+    # Проверяем, является ли пользователь админом
+    if user_id in data.get("admins", []):
+        return True, 999  # Админы без ограничений
+    
+    # Проверяем лимит (3 вызова в день)
+    challenges_today = user_data.get("battle_challenges_today", 0)
+    remaining = 3 - challenges_today
+    
+    return remaining > 0, max(0, remaining)
 
 # ===== ЗАПУСК БОТА =====
 
