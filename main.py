@@ -210,6 +210,10 @@ def load_data() -> Dict[str, Any]:
                     user_data["army_squads"] = []  # Список из 5 отрядов
                 if "army_page" not in user_data:
                     user_data["army_page"] = 0
+                if "battle_experience" not in user_data:
+                    user_data["battle_experience"] = 0  # Боевой опыт за сражения
+                if "win_streak" not in user_data:
+                    user_data["win_streak"] = 0
 
             
             
@@ -1595,6 +1599,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         elif text == "🛡️ Моя Армия":
             await my_army(update, context)
             return
+
+        elif text == "🏆 Топ сражений":
+            await top_battles(update, context)
 
         elif text == "🔙 Назад в Подземелье":
             await dungeon_menu(update, context)
@@ -4059,15 +4066,6 @@ async def set_achievement_cards(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text("❌ Ошибка при настройке достижения")
 
 
-        
-        # Сохраняем данные если были отправлены уведомления
-        if notified_count > 0:
-            save_data(data)
-            logger.info(f"Отправлено {notified_count} уведомлений")
-        
-    except Exception as e:
-        logger.error(f"Ошибка в send_card_notifications: {e}")
-
 async def check_card_notifications(application: Application) -> None:
     """Фоновая проверка уведомлений каждую минуту."""
     while True:
@@ -5912,11 +5910,19 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             if battle.get("red_player") == user_id or battle.get("blue_player") == user_id:
                 has_active_battle = True
                 break
+
+        # ⭐ ПОЛУЧАЕМ СТАТИСТИКУ СРАЖЕНИЙ ⭐
+        battle_experience = user_data.get("battle_experience", 0)
+        win_streak = user_data.get("win_streak", 0)
+        
+        # ⭐ СЧИТАЕМ МЕСТО В ТОПе СРАЖЕНИЙ ⭐
+        battle_rank = calculate_battle_rank(user_id, data)
         
         # ⭐ КЛАВИАТУРА С КНОПКАМИ СРАЖЕНИЙ ⭐
         keyboard = [
             [KeyboardButton("🛡️ Моя Армия")],
             [KeyboardButton("🔍 Найти противника")],
+            [KeyboardButton("🏆 Топ сражений")], 
         ]
         
         # ⭐ ДОБАВЛЯЕМ КНОПКУ "ЗАВЕРШИТЬ БИТВУ" ЕСЛИ ЕСТЬ АКТИВНАЯ ⭐
@@ -5927,7 +5933,13 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
-        caption = "⚔️ **Сражения**\n\nУправляйте своей армией и сражайтесь с другими героями!"
+        caption = (
+            "⚔️ **Сражения**\n"
+            "Управляйте своей армией и сражайтесь с другими героями!\n\n"
+            f"💥 **Ваш боевой опыт:** {battle_experience}\n"
+            f"🏆 **Ваше место в топе сражений:** {battle_rank}\n"
+            f"🔥 **Ваша серия побед:** {win_streak}"
+        )
         
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
         if hasattr(update, 'callback_query') and update.callback_query:
@@ -5956,6 +5968,7 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         keyboard = [
             [KeyboardButton("🛡️ Моя Армия")],
             [KeyboardButton("🔍 Найти противника")],
+            [KeyboardButton("🏆 Топ сражений")],
             [KeyboardButton("⏹️ Завершить битву")],
             [KeyboardButton("🔙 Назад в меню")],
         ]
@@ -6893,15 +6906,25 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ⭐ ПРОВЕРЯЕМ ОКОНЧАНИЕ БИТВЫ ⭐
             red_squads = [u for u in initiative_list if u["owner"] == "red"]
             blue_squads = [u for u in initiative_list if u["owner"] == "blue"]
+
+            rewards, red_killed_health, blue_killed_health = calculate_battle_rewards(battle_data, data)
             
             if not red_squads and not blue_squads:
                 # Ничья
                 for player_id in [battle_data.get("red_player"), battle_data.get("blue_player")]:
                     try:
-                        await context.bot.send_message(
-                            chat_id=player_id,
-                            text="🤝 **Битва завершена вничью!**\n\n⚠️ Погибшие существа удалены из вашей Казармы."
-                        )
+                         if player_id in data["users"]:
+                            data["users"][player_id]["battle_experience"] += rewards[player_id]["battle_experience"]
+                            data["users"][player_id]["cents"] += rewards[player_id]["gold"]
+                            # Сбрасываем серию побед при ничьей
+                            data["users"][player_id]["win_streak"] = 0
+                            await context.bot.send_message(
+                                chat_id=player_id,
+                                text=f"🤝 **Битва завершена вничью!**\n\n"
+                                     f"💥 +{rewards[player_id]['battle_experience']} боевого опыта\n"
+                                     f"💰 +{rewards[player_id]['gold']} золота\n"
+                                     f"🔥 Серия побед сброшена!"
+                            )
                     except:
                         pass
                 # ⭐ УДАЛЯЕМ ПОГИБШИХ СУЩЕСТВ ⭐
@@ -6914,9 +6937,32 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 # Синий победил
                 winner = battle_data.get("blue_player")
                 loser = battle_data.get("red_player")
+
+                if winner in data["users"]:
+                    data["users"][winner]["battle_experience"] += rewards[winner]["battle_experience"]
+                    data["users"][winner]["cents"] += rewards[winner]["gold"]
+                    # Увеличиваем серию побед
+                    data["users"][winner]["win_streak"] = data["users"][winner].get("win_streak", 0) + 1
+    
+                # Проигравший получает 2 × здоровье убитых
+                if loser in data["users"]:
+                    data["users"][loser]["battle_experience"] += rewards[loser]["battle_experience"]
+                    data["users"][loser]["cents"] += rewards[loser]["gold"]
+                    # Сбрасываем серию побед
+                    data["users"][loser]["win_streak"] = 0
+                
                 for player_id in [winner, loser]:
                     try:
-                        result = "🏆 **Вы победили!**\n\n⚠️ Погибшие существа удалены из вашей Казармы." if player_id == winner else "💀 **Вы проиграли!**\n\n⚠️ Погибшие существа удалены из вашей Казармы."
+                        if player_id == winner:
+                            result = f"🏆 **Вы победили!**\n\n"
+                            result += f"💥 +{rewards[player_id]['battle_experience']} боевого опыта\n"
+                            result += f"💰 +{rewards[player_id]['gold']} золота\n"
+                            result += f"🔥 Серия побед: {data['users'][player_id]['win_streak']}"
+                        else:
+                            result = f"💀 **Вы проиграли!**\n\n"
+                            result += f"💥 +{rewards[player_id]['battle_experience']} боевого опыта\n"
+                            result += f"💰 +{rewards[player_id]['gold']} золота\n"
+                            result += f"🔥 Серия побед сброшена!"
                         await context.bot.send_message(chat_id=player_id, text=result)
                     except:
                         pass
@@ -6930,9 +6976,32 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 # Красный победил
                 winner = battle_data.get("red_player")
                 loser = battle_data.get("blue_player")
+
+                if winner in data["users"]:
+                    data["users"][winner]["battle_experience"] += rewards[winner]["battle_experience"]
+                    data["users"][winner]["cents"] += rewards[winner]["gold"]
+                    # Увеличиваем серию побед
+                    data["users"][winner]["win_streak"] = data["users"][winner].get("win_streak", 0) + 1
+    
+                # Проигравший получает 2 × здоровье убитых
+                if loser in data["users"]:
+                    data["users"][loser]["battle_experience"] += rewards[loser]["battle_experience"]
+                    data["users"][loser]["cents"] += rewards[loser]["gold"]
+                    # Сбрасываем серию побед
+                    data["users"][loser]["win_streak"] = 0
+                
                 for player_id in [winner, loser]:
                     try:
-                        result = "🏆 **Вы победили!**\n\n⚠️ Погибшие существа удалены из вашей Казармы." if player_id == winner else "💀 **Вы проиграли!**\n\n⚠️ Погибшие существа удалены из вашей Казармы."
+                        if player_id == winner:
+                            result = f"🏆 **Вы победили!**\n\n"
+                            result += f"💥 +{rewards[player_id]['battle_experience']} боевого опыта\n"
+                            result += f"💰 +{rewards[player_id]['gold']} золота\n"
+                            result += f"🔥 Серия побед: {data['users'][player_id]['win_streak']}"
+                        else:
+                            result = f"💀 **Вы проиграли!**\n\n"
+                            result += f"💥 +{rewards[player_id]['battle_experience']} боевого опыта\n"
+                            result += f"💰 +{rewards[player_id]['gold']} золота\n"
+                            result += f"🔥 Серия побед сброшена!"
                         await context.bot.send_message(chat_id=player_id, text=result)
                     except:
                         pass
@@ -7551,6 +7620,187 @@ def calculate_surrender_cost(battle_data: Dict, player_id: str) -> int:
     surrender_cost = total_hp * 7
     return surrender_cost
 
+def calculate_battle_rewards(battle_data: Dict, data: Dict) -> Dict[str, Dict]:
+    """
+    Рассчитывает награды за битву для обоих игроков.
+    Возвращает: {player_id: {"gold": X, "battle_experience": Y}}
+    """
+    red_player = battle_data.get("red_player")
+    blue_player = battle_data.get("blue_player")
+    red_squads = battle_data.get("red_squads", [])
+    blue_squads = battle_data.get("blue_squads", [])
+    initiative_list = battle_data.get("initiative_list", [])
+    
+    rewards = {
+        red_player: {"gold": 0, "battle_experience": 0},
+        blue_player: {"gold": 0, "battle_experience": 0}
+    }
+    
+    # Считаем сколько существ каждого типа осталось после битвы
+    remaining_red = {}
+    remaining_blue = {}
+    for squad in initiative_list:
+        card_id = squad["card_id"]
+        count = squad["count"]
+        if squad["owner"] == "red":
+            remaining_red[card_id] = remaining_red.get(card_id, 0) + count
+        else:
+            remaining_blue[card_id] = remaining_blue.get(card_id, 0) + count
+    
+    # Считаем сколько было до битвы
+    initial_red = {}
+    initial_blue = {}
+    for squad in red_squads:
+        card_id = squad["card_id"]
+        count = squad["count"]
+        initial_red[card_id] = initial_red.get(card_id, 0) + count
+    for squad in blue_squads:
+        card_id = squad["card_id"]
+        count = squad["count"]
+        initial_blue[card_id] = initial_blue.get(card_id, 0) + count
+    
+    # Считаем убитых существ для каждого игрока
+    red_killed_health = 0
+    blue_killed_health = 0
+    
+    # Красный убил синих
+    for card_id, initial_count in initial_blue.items():
+        remaining_count = remaining_blue.get(card_id, 0)
+        killed_count = initial_count - remaining_count
+        # Находим здоровье существа
+        card = find_card_by_id(card_id, data["cards"])
+        if card:
+            health = card.get("health", 10)
+            red_killed_health += killed_count * health
+    
+    # Синий убил красных
+    for card_id, initial_count in initial_red.items():
+        remaining_count = remaining_red.get(card_id, 0)
+        killed_count = initial_count - remaining_count
+        # Находим здоровье существа
+        card = find_card_by_id(card_id, data["cards"])
+        if card:
+            health = card.get("health", 10)
+            blue_killed_health += killed_count * health
+    
+    # Рассчитываем награды
+    # Победитель получает 5 × здоровье убитых
+    # Проигравший получает 2 × здоровье убитых
+    # (Победитель определится позже, пока считаем для обоих)
+    rewards[red_player]["battle_experience"] = blue_killed_health * 5  # Пока считаем как победитель
+    rewards[red_player]["gold"] = blue_killed_health * 5
+    
+    rewards[blue_player]["battle_experience"] = red_killed_health * 5  # Пока считаем как победитель
+    rewards[blue_player]["gold"] = red_killed_health * 5
+    
+    return rewards, red_killed_health, blue_killed_health
+
+
+def calculate_battle_rank(user_id: str, data: Dict) -> int:
+    """
+    Считает место игрока в топе сражений по боевому опыту.
+    Возвращает: место (1, 2, 3, ...)
+    """
+    users = data.get("users", {})
+    
+    # Сортируем всех пользователей по battle_experience
+    sorted_users = sorted(
+        users.items(),
+        key=lambda x: x[1].get("battle_experience", 0),
+        reverse=True
+    )
+    
+    # Находим место пользователя
+    for rank, (uid, _) in enumerate(sorted_users, 1):
+        if uid == user_id:
+            return rank
+    
+    # Если пользователя нет в топе
+    return len(sorted_users) + 1
+
+async def top_battles(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает топ-10 героев по боевому опыту."""
+    try:
+        data = load_data()
+        users = data.get("users", {})
+        admin_list = data.get("admins", [])
+        
+        # ⭐ ФИЛЬТРУЕМ АДМИНОВ ⭐
+        non_admin_users = {
+            uid: udata for uid, udata in users.items()
+            if uid not in admin_list
+        }
+        
+        # Сортируем пользователей по battle_experience (только не-админы)
+        sorted_users = sorted(
+            non_admin_users.items(),
+            key=lambda x: x[1].get("battle_experience", 0),
+            reverse=True
+        )
+        
+        # Берём топ-10
+        top_10 = sorted_users[:10]
+        
+        # Формируем сообщение
+        message_text = "🏆 **Топ сражений этого сезона**\n"
+        if not top_10:
+            message_text += "📭 Пока нет героев в топе!"
+        else:
+            for rank, (user_id, user_data) in enumerate(top_10, 1):
+                # Получаем имя из профиля Telegram
+                first_name = user_data.get("first_name", "Герой")
+                last_name = user_data.get("last_name", "")
+                # Формируем полное имя
+                if last_name:
+                    username = f"{first_name} {last_name}"
+                else:
+                    username = first_name
+                battle_exp = user_data.get("battle_experience", 0)
+                # Медали для топ-3
+                if rank == 1:
+                    medal = "🥇"
+                elif rank == 2:
+                    medal = "🥈"
+                elif rank == 3:
+                    medal = "🥉"
+                else:
+                    medal = f"{rank}."
+                message_text += f"{medal} **{username}** — {battle_exp} боевого опыта\n"
+        
+        # ⭐ ПОКАЗЫВАЕМ МЕСТО ТОЛЬКО ЕСЛИ ПОЛЬЗОВАТЕЛЬ НЕ АДМИН ⭐
+        current_user_id = str(update.effective_user.id)
+        # Проверяем, является ли текущий пользователь админом
+        if current_user_id not in admin_list:
+            current_user_data = users.get(current_user_id, {})
+            current_battle_exp = current_user_data.get("battle_experience", 0)
+            # Находим место пользователя (среди не-админов)
+            user_rank = None
+            for rank, (uid, _) in enumerate(sorted_users, 1):
+                if uid == current_user_id:
+                    user_rank = rank
+                    break
+            # Если пользователя нет в топе
+            if not user_rank:
+                user_rank = len(sorted_users) + 1
+            message_text += "\n" + "─" * 30 + "\n"
+            if user_rank <= 10:
+                message_text += f"✅ **Ваше место:** {user_rank}\n"
+            else:
+                message_text += f"📍 **Ваше место:** {user_rank}\n"
+            message_text += f"💥 **Ваш боевой опыт:** {current_battle_exp}"
+        else:
+            # ⭐ ДЛЯ АДМИНОВ - СООБЩЕНИЕ ЧТО ОНИ НЕ УЧАСТВУЮТ ⭐
+            message_text += "\n" + "─" * 30 + "\n"
+            message_text += "⚙️ **Вы администратор**\n"
+            message_text += "Ваш прогресс не учитывается в топе"
+        
+        await update.message.reply_text(
+            message_text,
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка в top_battles: {e}")
+        await update.message.reply_text("❌ Ошибка при загрузке топа")
 
 # ===== ЗАПУСК БОТА =====
 
@@ -7609,6 +7859,7 @@ def main() -> None:
             CommandHandler("mercenary_remove", mercenary_remove),
             CommandHandler("mercenary_list", mercenary_list),
             CommandHandler("mercenary_price", mercenary_update_price),
+            CommandHandler("top_battles", top_battles),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
             CallbackQueryHandler(handle_callback, pattern=r"^card_.*"),
             CallbackQueryHandler(mycards_callback, pattern=r"^(mycards_|barracks_).*"),
