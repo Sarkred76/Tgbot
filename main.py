@@ -66,7 +66,7 @@ BATTLES_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
 
 FREE_ROLLS_PACKAGE = {
     "id": "free_rolls_package",
-    "title": "15 Бесплатных наймов",
+    "title": "15 наймов",
     "price": 35000,
     "rolls": 15,
 }
@@ -4725,9 +4725,9 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     "Пожертвуйте существо и получите награду!\n\n"
                     "💰 Награды:\n"
                     "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
-                    "• UpgradeT5: 3 бесплатных найма\n"
-                    "• UpgradeT6: 7 бесплатных наймов\n"
-                    "• UpgradeT7: 15 бесплатных наймов\n"
+                    "• UpgradeT5: 3 найма\n"
+                    "• UpgradeT6: 7 наймов\n"
+                    "• UpgradeT7: 15 наймов\n"
                     "• T8: 25 бесплатных наймов\n\n"
                     "Выберите способ просмотра:"
                 ),
@@ -4742,9 +4742,9 @@ async def sacrifice_altar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     "Пожертвуйте существо и получите награду!\n\n"
                     "💰 Награды:\n"
                     "• UpgradeT1-T4: золото (50% от награды за крафт)\n"
-                    "• UpgradeT5: 3 бесплатных найма\n"
-                    "• UpgradeT6: 7 бесплатных наймов\n"
-                    "• UpgradeT7: 15 бесплатных наймов\n"
+                    "• UpgradeT5: 3 найма\n"
+                    "• UpgradeT6: 7 наймов\n"
+                    "• UpgradeT7: 15 наймов\n"
                     "• T8: 25 бесплатных наймов\n\n"
                     "Выберите способ просмотра:"
                 ),
@@ -5224,10 +5224,9 @@ async def refugee_camp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         keyboard = [[KeyboardButton("🔙 Назад в Лес")]]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
-            "🏕️ **Лагерь Беженцев**\n\n"
+            "🏕️ Лагерь Беженцев\n\n"
             "❌ Ошибка при открытии Лагеря Беженцев!",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
+            reply_markup=reply_markup
         )
 
 
