@@ -7695,8 +7695,8 @@ def calculate_battle_rewards(battle_data: Dict, data: Dict) -> Dict[str, Dict]:
     
     # Рассчитываем награды
 
-    rewards[red_player]["killed_health"] = blue_killed_health    
-    rewards[blue_player]["killed_health"] = red_killed_health
+    rewards[red_player]["killed_health"] = red_killed_health    
+    rewards[blue_player]["killed_health"] = blue_killed_health
     
     return rewards, red_killed_health, blue_killed_health
 
