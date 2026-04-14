@@ -6914,17 +6914,19 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 for player_id in [battle_data.get("red_player"), battle_data.get("blue_player")]:
                     try:
                          if player_id in data["users"]:
-                            data["users"][player_id]["battle_experience"] += rewards[player_id]["battle_experience"]
-                            data["users"][player_id]["cents"] += rewards[player_id]["gold"]
+                            killed_health = rewards[player_id]["killed_health"]
+                            # При ничьей оба получают ×2
+                            data["users"][player_id]["battle_experience"] += killed_health * 2
+                            data["users"][player_id]["cents"] += killed_health * 2
                             # Сбрасываем серию побед при ничьей
                             data["users"][player_id]["win_streak"] = 0
                             await context.bot.send_message(
                                 chat_id=player_id,
                                 text=f"🤝 **Битва завершена вничью!**\n\n"
-                                     f"💥 +{rewards[player_id]['battle_experience']} боевого опыта\n"
-                                     f"💰 +{rewards[player_id]['gold']} золота\n"
+                                     f"💥 +{killed_health * 2} боевого опыта\n"
+                                     f"💰 +{killed_health * 2} золота\n"
                                      f"🔥 Серия побед сброшена!"
-                            )
+                )
                     except:
                         pass
                 # ⭐ УДАЛЯЕМ ПОГИБШИХ СУЩЕСТВ ⭐
@@ -6939,29 +6941,33 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 loser = battle_data.get("red_player")
 
                 if winner in data["users"]:
-                    data["users"][winner]["battle_experience"] += rewards[winner]["battle_experience"]
-                    data["users"][winner]["cents"] += rewards[winner]["gold"]
+                    killed_health = rewards[winner]["killed_health"]
+                    # ⭐ Победитель получает ×5 ⭐
+                    data["users"][winner]["battle_experience"] += killed_health * 5
+                    data["users"][winner]["cents"] += killed_health * 5
                     # Увеличиваем серию побед
                     data["users"][winner]["win_streak"] = data["users"][winner].get("win_streak", 0) + 1
-    
-                # Проигравший получает 2 × здоровье убитых
+
                 if loser in data["users"]:
-                    data["users"][loser]["battle_experience"] += rewards[loser]["battle_experience"]
-                    data["users"][loser]["cents"] += rewards[loser]["gold"]
+                    killed_health = rewards[loser]["killed_health"]
+                    # ⭐ Проигравший получает ×2 ⭐
+                    data["users"][loser]["battle_experience"] += killed_health * 2
+                    data["users"][loser]["cents"] += killed_health * 2
                     # Сбрасываем серию побед
                     data["users"][loser]["win_streak"] = 0
                 
                 for player_id in [winner, loser]:
                     try:
+                        killed_health = rewards[player_id]["killed_health"]
                         if player_id == winner:
                             result = f"🏆 **Вы победили!**\n\n"
-                            result += f"💥 +{rewards[player_id]['battle_experience']} боевого опыта\n"
-                            result += f"💰 +{rewards[player_id]['gold']} золота\n"
+                            result += f"💥 +{killed_health * 5} боевого опыта\n"
+                            result += f"💰 +{killed_health * 5} золота\n"
                             result += f"🔥 Серия побед: {data['users'][player_id]['win_streak']}"
                         else:
                             result = f"💀 **Вы проиграли!**\n\n"
-                            result += f"💥 +{rewards[player_id]['battle_experience']} боевого опыта\n"
-                            result += f"💰 +{rewards[player_id]['gold']} золота\n"
+                            result += f"💥 +{killed_health * 2} боевого опыта\n"
+                            result += f"💰 +{killed_health * 2} золота\n"
                             result += f"🔥 Серия побед сброшена!"
                         await context.bot.send_message(chat_id=player_id, text=result)
                     except:
@@ -6978,29 +6984,33 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 loser = battle_data.get("blue_player")
 
                 if winner in data["users"]:
-                    data["users"][winner]["battle_experience"] += rewards[winner]["battle_experience"]
-                    data["users"][winner]["cents"] += rewards[winner]["gold"]
+                    killed_health = rewards[winner]["killed_health"]
+                    # ⭐ Победитель получает ×5 ⭐
+                    data["users"][winner]["battle_experience"] += killed_health * 5
+                    data["users"][winner]["cents"] += killed_health * 5
                     # Увеличиваем серию побед
                     data["users"][winner]["win_streak"] = data["users"][winner].get("win_streak", 0) + 1
-    
-                # Проигравший получает 2 × здоровье убитых
+
                 if loser in data["users"]:
-                    data["users"][loser]["battle_experience"] += rewards[loser]["battle_experience"]
-                    data["users"][loser]["cents"] += rewards[loser]["gold"]
+                    killed_health = rewards[loser]["killed_health"]
+                    # ⭐ Проигравший получает ×2 ⭐
+                    data["users"][loser]["battle_experience"] += killed_health * 2
+                    data["users"][loser]["cents"] += killed_health * 2
                     # Сбрасываем серию побед
                     data["users"][loser]["win_streak"] = 0
                 
                 for player_id in [winner, loser]:
                     try:
+                        killed_health = rewards[player_id]["killed_health"]
                         if player_id == winner:
                             result = f"🏆 **Вы победили!**\n\n"
-                            result += f"💥 +{rewards[player_id]['battle_experience']} боевого опыта\n"
-                            result += f"💰 +{rewards[player_id]['gold']} золота\n"
+                            result += f"💥 +{killed_health * 5} боевого опыта\n"
+                            result += f"💰 +{killed_health * 5} золота\n"
                             result += f"🔥 Серия побед: {data['users'][player_id]['win_streak']}"
                         else:
                             result = f"💀 **Вы проиграли!**\n\n"
-                            result += f"💥 +{rewards[player_id]['battle_experience']} боевого опыта\n"
-                            result += f"💰 +{rewards[player_id]['gold']} золота\n"
+                            result += f"💥 +{killed_health * 2} боевого опыта\n"
+                            result += f"💰 +{killed_health * 2} золота\n"
                             result += f"🔥 Серия побед сброшена!"
                         await context.bot.send_message(chat_id=player_id, text=result)
                     except:
@@ -7684,14 +7694,9 @@ def calculate_battle_rewards(battle_data: Dict, data: Dict) -> Dict[str, Dict]:
             blue_killed_health += killed_count * health
     
     # Рассчитываем награды
-    # Победитель получает 5 × здоровье убитых
-    # Проигравший получает 2 × здоровье убитых
-    # (Победитель определится позже, пока считаем для обоих)
-    rewards[red_player]["battle_experience"] = blue_killed_health * 5  # Пока считаем как победитель
-    rewards[red_player]["gold"] = blue_killed_health * 5
-    
-    rewards[blue_player]["battle_experience"] = red_killed_health * 5  # Пока считаем как победитель
-    rewards[blue_player]["gold"] = red_killed_health * 5
+
+    rewards[red_player]["killed_health"] = blue_killed_health    
+    rewards[blue_player]["killed_health"] = red_killed_health
     
     return rewards, red_killed_health, blue_killed_health
 
