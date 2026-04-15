@@ -6629,6 +6629,7 @@ async def process_opponent_selection(update: Update, context: ContextTypes.DEFAU
                 parse_mode="Markdown"
             )
 
+            # ⭐ УВЕЛИЧИВАЕМ СЧЁТЧИК ВЫЗОВОВ ⭐
             data["users"][user_id]["battle_challenges_today"] = user_data.get("battle_challenges_today", 0) + 1
             
             # Сохраняем ожидающий запрос
@@ -6648,7 +6649,8 @@ async def process_opponent_selection(update: Update, context: ContextTypes.DEFAU
                 "opponent_id": opponent_id,
                 "battle_type": "challenge_sent"
             }
-            
+
+             # ⭐ ПОКАЗЫВАЕМ ОСТАТОК ВЫЗОВОВ ⭐
             remaining = 3 - data["users"][user_id]["battle_challenges_today"]
             await update.message.reply_text(
                 f"✅ Вызов отправлен игроку @{username}!\n"
