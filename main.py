@@ -7007,6 +7007,9 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 # Синий победил
                 winner = battle_data.get("blue_player")
                 loser = battle_data.get("red_player")
+                level_up_rewards = []
+                level_up_rewards_loser = []
+                streak_reward = 0
 
                 if winner in data["users"]:
                     killed_health = rewards[winner]["killed_health"]
@@ -7017,7 +7020,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     data["users"][winner]["win_streak"] = data["users"][winner].get("win_streak", 0) + 1
                     win_streak = data["users"][winner]["win_streak"]
 
-                    streak_reward = 0
                     if win_streak % 5 == 0:
                         streak_reward = win_streak  # 5 побед = 5 наймов, 10 побед = 10 наймов и т.д.
                         data["users"][winner]["free_rolls"] = data["users"][winner].get("free_rolls", 0) + streak_reward
@@ -7031,7 +7033,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     data["users"][loser]["cents"] += killed_health * 2
                     # Сбрасываем серию побед
                     data["users"][loser]["win_streak"] = 0
-                    level_up_rewards_loser = check_battle_level_up(winner, data)
+                    level_up_rewards_loser = check_battle_level_up(loser, data)
                 
                 for player_id in [winner, loser]:
                     try:
@@ -7056,19 +7058,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                         result += f"🎲 Получено: {reward['rolls']} наймов\n"
                                     elif reward["reward_type"] == "special_card":
                                         result += f"🌟 Получена special-карта!\n"
-                             # ⭐ ОТПРАВЛЯЕМ SPECIAL-КАРТУ ОТДЕЛЬНЫМ СООБЩЕНИЕМ ⭐
-                            if player_id == winner and level_up_rewards:
-                                for reward in level_up_rewards:
-                                    if reward["reward_type"] == "special_card":
-                                        # Находим карту по ID
-                                        special_card = find_card_by_id(reward["card_id"], data["cards"])
-                                        if special_card:
-                                            # Генерируем caption
-                                            caption = generate_card_caption(special_card, data["users"][player_id], count=1, show_bonus=True)
-                                            caption += "\n\n🎉 **Награда за повышение уровня в сражениях!**"
-                                            # Отправляем карту с картинкой
-                                            await send_card(update, special_card, context, caption=caption)
-            
                         else:
                             result = f"💀 **Вы проиграли!**\n\n"
                             result += f"💥 +{killed_health * 2} боевого опыта\n"
@@ -7086,21 +7075,29 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                         result += f"🎲 Получено: {reward['rolls']} наймов\n"
                                     elif reward["reward_type"] == "special_card":
                                         result += f"🌟 Получена special-карта!\n"
-                            # ⭐ ОТПРАВЛЯЕМ SPECIAL-КАРТУ ОТДЕЛЬНЫМ СООБЩЕНИЕМ ⭐
-                            if player_id == loser and level_up_rewards_loser:
-                                for reward in level_up_rewards_loser:
-                                    if reward["reward_type"] == "special_card":
-                                        # Находим карту по ID
-                                        special_card = find_card_by_id(reward["card_id"], data["cards"])
-                                        if special_card:
-                                            # Генерируем caption
-                                            caption = generate_card_caption(special_card, data["users"][player_id], count=1, show_bonus=True)
-                                            caption += "\n\n🎉 **Награда за повышение уровня в сражениях!**"
-                                            # Отправляем карту с картинкой
-                                            await send_card(update, special_card, context, caption=caption)
                         await context.bot.send_message(chat_id=player_id, text=result)
+
+                         # ⭐ ОТПРАВЛЯЕМ SPECIAL-КАРТУ ОТДЕЛЬНЫМ СООБЩЕНИЕМ ⭐
+                        if player_id == winner and level_up_rewards:
+                            for reward in level_up_rewards:
+                                if reward["reward_type"] == "special_card":
+                                    special_card = find_card_by_id(reward["card_id"], data["cards"])
+                                    if special_card:
+                                        caption = generate_card_caption(special_card, data["users"][player_id], count=1, show_bonus=True)
+                                        caption += "\n\n🎉 **Награда за повышение уровня в сражениях!**"
+                                        await send_card(update, special_card, context, caption=caption)
+            
+                        if player_id == loser and level_up_rewards_loser:
+                            for reward in level_up_rewards_loser:
+                                if reward["reward_type"] == "special_card":
+                                    special_card = find_card_by_id(reward["card_id"], data["cards"])
+                                    if special_card:
+                                        caption = generate_card_caption(special_card, data["users"][player_id], count=1, show_bonus=True)
+                                        caption += "\n\n🎉 **Награда за повышение уровня в сражениях!**"
+                                        await send_card(update, special_card, context, caption=caption)
+                    
                     except:
-                        pass
+                        logger.error(f"Ошибка отправки результата битвы {player_id}: {e}")
                 # ⭐ УДАЛЯЕМ ПОГИБШИХ СУЩЕСТВ ⭐
                 remove_dead_creatures_from_barracks(battle_data, data)
                 del data["active_battles"][battle_key]
@@ -7111,6 +7108,9 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 # Красный победил
                 winner = battle_data.get("red_player")
                 loser = battle_data.get("blue_player")
+                level_up_rewards = []
+                level_up_rewards_loser = []
+                streak_reward = 0
 
                 if winner in data["users"]:
                     killed_health = rewards[winner]["killed_health"]
@@ -7121,10 +7121,10 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     data["users"][winner]["win_streak"] = data["users"][winner].get("win_streak", 0) + 1
                     win_streak = data["users"][winner]["win_streak"]
 
-                    streak_reward = 0
                     if win_streak % 5 == 0:
                         streak_reward = win_streak  # 5 побед = 5 наймов, 10 побед = 10 наймов и т.д.
                         data["users"][winner]["free_rolls"] = data["users"][winner].get("free_rolls", 0) + streak_reward
+                    level_up_rewards = check_battle_level_up(winner, data)  
 
                 if loser in data["users"]:
                     killed_health = rewards[loser]["killed_health"]
@@ -7133,6 +7133,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     data["users"][loser]["cents"] += killed_health * 2
                     # Сбрасываем серию побед
                     data["users"][loser]["win_streak"] = 0
+                    level_up_rewards_loser = check_battle_level_up(loser, data) 
                 
                 for player_id in [winner, loser]:
                     try:
@@ -7157,18 +7158,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                         result += f"🎲 Получено: {reward['rolls']} наймов\n"
                                     elif reward["reward_type"] == "special_card":
                                         result += f"🌟 Получена special-карта!\n"
-                            # ⭐ ОТПРАВЛЯЕМ SPECIAL-КАРТУ ОТДЕЛЬНЫМ СООБЩЕНИЕМ ⭐
-                            if player_id == winner and level_up_rewards:
-                                for reward in level_up_rewards:
-                                    if reward["reward_type"] == "special_card":
-                                        # Находим карту по ID
-                                        special_card = find_card_by_id(reward["card_id"], data["cards"])
-                                        if special_card:
-                                            # Генерируем caption
-                                            caption = generate_card_caption(special_card, data["users"][player_id], count=1, show_bonus=True)
-                                            caption += "\n\n🎉 **Награда за повышение уровня в сражениях!**"
-                                            # Отправляем карту с картинкой
-                                            await send_card(update, special_card, context, caption=caption)
                         else:
                             result = f"💀 **Вы проиграли!**\n\n"
                             result += f"💥 +{killed_health * 2} боевого опыта\n"
@@ -7186,21 +7175,29 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                         result += f"🎲 Получено: {reward['rolls']} наймов\n"
                                     elif reward["reward_type"] == "special_card":
                                         result += f"🌟 Получена special-карта!\n"
-                            # ⭐ ОТПРАВЛЯЕМ SPECIAL-КАРТУ ОТДЕЛЬНЫМ СООБЩЕНИЕМ ⭐
-                            if player_id == loser and level_up_rewards_loser:
-                                for reward in level_up_rewards_loser:
-                                    if reward["reward_type"] == "special_card":
-                                        # Находим карту по ID
-                                        special_card = find_card_by_id(reward["card_id"], data["cards"])
-                                        if special_card:
-                                            # Генерируем caption
-                                            caption = generate_card_caption(special_card, data["users"][player_id], count=1, show_bonus=True)
-                                            caption += "\n\n🎉 **Награда за повышение уровня в сражениях!**"
-                                            # Отправляем карту с картинкой
-                                            await send_card(update, special_card, context, caption=caption)
                         await context.bot.send_message(chat_id=player_id, text=result)
+
+                        # ⭐ ОТПРАВЛЯЕМ SPECIAL-КАРТУ ОТДЕЛЬНЫМ СООБЩЕНИЕМ ⭐
+                        if player_id == winner and level_up_rewards:
+                            for reward in level_up_rewards:
+                                if reward["reward_type"] == "special_card":
+                                    special_card = find_card_by_id(reward["card_id"], data["cards"])
+                                    if special_card:
+                                        caption = generate_card_caption(special_card, data["users"][player_id], count=1, show_bonus=True)
+                                        caption += "\n\n🎉 **Награда за повышение уровня в сражениях!**"
+                                        await send_card(update, special_card, context, caption=caption)
+            
+                        if player_id == loser and level_up_rewards_loser:
+                            for reward in level_up_rewards_loser:
+                                if reward["reward_type"] == "special_card":
+                                    special_card = find_card_by_id(reward["card_id"], data["cards"])
+                                    if special_card:
+                                        caption = generate_card_caption(special_card, data["users"][player_id], count=1, show_bonus=True)
+                                        caption += "\n\n🎉 **Награда за повышение уровня в сражениях!**"
+                                        await send_card(update, special_card, context, caption=caption)
+                        
                     except:
-                        pass
+                        logger.error(f"Ошибка отправки результата битвы {player_id}: {e}")
                 # ⭐ УДАЛЯЕМ ПОГИБШИХ СУЩЕСТВ ⭐
                 remove_dead_creatures_from_barracks(battle_data, data)
                 del data["active_battles"][battle_key]
