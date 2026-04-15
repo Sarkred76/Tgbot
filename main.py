@@ -7895,12 +7895,11 @@ def check_battle_challenges_reset(user_data: Dict) -> None:
         user_data["battle_challenges_last_reset"] = int(now_msk.timestamp())
         logger.info(f"Сброс счётчика вызовов для пользователя {user_data.get('username', 'unknown')}")
 
-def check_battle_challenge_limit(user_id: str) -> tuple[bool, int]:
+def check_battle_challenge_limit(user_id: str, data: Dict) -> tuple[bool, int]:
     """
     Проверяет, может ли игрок бросить вызов.
     Возвращает: (can_challenge, remaining_challenges)
     """
-    data = load_data()
     user_data = data["users"].get(user_id, {})
     # Проверяем, является ли пользователь админом
     if user_id in data.get("admins", []):
