@@ -7534,8 +7534,8 @@ async def show_battle_menu(
                 # Остаточный урон по текущим живым
                 remainder = damage_taken - damage_to_dead
                 current_hp = max(0, max_health - remainder)
-                # ⭐ ПРОВЕРКА: если HP = 0, но есть живые существа ⭐
                 
+                # ⭐ ПРОВЕРКА: если HP = 0, но есть живые существа ⭐
                 if current_hp <= 0 and alive_count > 0:
                     # Уменьшаем количество на 1 и восстанавливаем HP
                     alive_count -= 1
@@ -7663,15 +7663,24 @@ def calculate_battle_damage(attacker_squad, defender_squad, data):
     
     # 4. Расчёт убитых существ
     defender_health = defender_card.get("health", 10)
-    # Сначала наносим урон по здоровью, потом считаем убитых
-    damage_to_kill = defender_health  # Урон needed to kill one creature
+    # ⭐ ИСПРАВЛЕНИЕ: УЧИТЫВАЕМ УЖЕ ПОЛУЧЕННЫЙ УРОН ⭐
+    damage_taken = defender_squad.get("damage_taken", 0)
+    total_damage_to_squad = damage_taken + final_damage
     
-    # Если в отряде уже есть полученный урон (можно добавить в future)
-    killed_count = final_damage // defender_health
-    remaining_damage = final_damage % defender_health
+    # Считаем сколько существ уже было убито до этой атаки
+    already_killed = damage_taken // defender_health
+    
+    # Считаем сколько существ будет убито после этой атаки
+    total_killed = total_damage_to_squad // defender_health
+    
+    # Количество убитых в этой атаке
+    killed_count = total_killed - already_killed
     
     # Не может убить больше чем есть в отряде
-    killed_count = min(killed_count, defender_squad["count"])
+    killed_count = max(0, min(killed_count, defender_squad["count"]))
+    
+    # Остаточный урон
+    remaining_damage = total_damage_to_squad % defender_health
     
     return final_damage, killed_count, remaining_damage
 
