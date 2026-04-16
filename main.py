@@ -7269,21 +7269,24 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ⭐ СЛЕДУЮЩИЙ ХОД ⭐
             if initiative_list and len(initiative_list) > 0:
                 if current_turn["count"] <= 0:
-                    pass
+                    initiative_list.pop(current_turn_index)
+                    if current_turn_index >= len(initiative_list):
+                        current_turn_index = 0
                 else:
                     current_turn_index = (current_turn_index + 1) % len(initiative_list)
-
-                # ⭐ КОРРЕКТИРУЕМ ИНДЕКС ЕСЛИ ВЫШЕЛ ЗА ГРАНИЦЫ ⭐
-                if current_turn_index >= len(initiative_list):
-                    current_turn_index = 0
                 
                 # ⭐ ПРОВЕРКА СМЕНЫ РАУНДА — СБРОС КОНТРАТАК ⭐
-                if current_turn_index < previous_turn_index:
+                if current_turn_index < previous_turn_index or len(initiative_list) == 0:
                     # Раунд завершился, сбрасываем счётчики контратак у всех отрядов
                     for squad in initiative_list:
                         squad["counter_attack_available"] = 1
+
+                # ⭐ КОРРЕКТИРУЕМ ИНДЕКС ЕСЛИ ВЫШЕЛ ЗА ГРАНИЦЫ ⭐
+                    if initiative_list and current_turn_index >= len(initiative_list):
+                        current_turn_index = 0
             else:
                 current_turn_index = 0
+                
             battle_data["current_turn_index"] = current_turn_index
             battle_data["initiative_list"] = initiative_list
             save_data(data)
