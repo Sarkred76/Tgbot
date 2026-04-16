@@ -2314,7 +2314,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Обновляем параметр
         valid_params = [
             "title", "url", "rarity", "faction", "available",
-            "attack", "defense", "damage", "health", "speed", "stats"
+            "attack", "defense", "damage", "health", "speed", "stats", "shooter"
         ]
         if param not in valid_params:
             await update.message.reply_text(
@@ -2400,6 +2400,9 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # ⭐ ОБРАБОТКА ОСТАЛЬНЫХ ПАРАМЕТРОВ ⭐
         elif param == "available":
+            new_value = new_value.lower() in ["true", "1", "yes", "вкл", "on"]
+            card[param] = new_value
+        elif param == "shooter":  # ← ДОБАВЛЕНО
             new_value = new_value.lower() in ["true", "1", "yes", "вкл", "on"]
             card[param] = new_value
         elif param == "rarity":
@@ -6915,6 +6918,30 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
             # ⭐ ЗАПОМИНАЕМ ИНДЕКС ТЕКУЩЕГО ХОДА ДЛЯ ПРОВЕРКИ СМЕНЫ РАУНДА ⭐
             previous_turn_index = current_turn_index
+
+           # ⭐ ПРОВЕРКА СТРЕЛКОВ ⭐
+            # Проверяем, может ли атакующий атаковать эту цель
+            attacker_is_shooter = current_turn.get("shooter_active", False)
+            target_is_shooter = target_squad.get("shooter_active", False)
+    
+            # Если атакующий НЕ стрелок, а цель — стрелок
+            if not attacker_is_shooter and target_is_shooter:
+                # Проверяем, есть ли у цели не-стреляющие союзники
+                target_owner = target_squad["owner"]
+                has_non_shooter_allies = False
+                for squad in initiative_list:
+                    if squad["owner"] == target_owner and squad["count"] > 0:
+                        if not squad.get("shooter_active", False):
+                            has_non_shooter_allies = True
+                            break
+        
+                # Если есть не-стрелки, нельзя атаковать стрелка
+                if has_non_shooter_allies:
+                    await query.answer(
+                        "🚫 Сначала уничтожьте не-стреляющие отряды!",
+                        show_alert=True
+                    )
+                    return
             
             # ⭐ РАСЧЁТ УРОНА ⭐
             final_damage, killed_count, remaining_damage = calculate_battle_damage(
@@ -6936,19 +6963,30 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 battle_data["dead_creatures"][f"{target_owner}_player"][card_id] = 0
             battle_data["dead_creatures"][f"{target_owner}_player"][card_id] += killed_count
             target_squad["damage_taken"] = target_squad.get("damage_taken", 0) + final_damage
+
+            # ⭐ ЕСЛИ ЦЕЛЬ — СТРЕЛОК И АТАКУЮЩИЙ НЕ СТРЕЛОК, СТРЕЛОК ТЕРЯЕТ СТАТУС ⭐
+            if target_squad.get("shooter", False) and not current_turn.get("shooter", False):
+                target_squad["shooter_active"] = False  # ← ТЕРЯЕТ СТАТУС СТРЕЛКА
+
             battle_data["initiative_list"] = initiative_list
             
             # ⭐ СООБЩЕНИЕ ОБ АТАКЕ ⭐
             attacker_color = "🟥" if current_turn["owner"] == "red" else "🟦"
             defender_color = "🟦" if target_squad["owner"] == "blue" else "🟥"
+            # ⭐ ДОБАВЛЯЕМ ИКОНКУ СТРЕЛКА В СООБЩЕНИЕ ⭐
+            attacker_shooter_icon = "🏹" if current_turn.get("shooter_active", False) else ""
+            defender_shooter_icon = "🏹" if target_squad.get("shooter_active", False) else ""
             attack_message = (
-                f"{attacker_color} {current_turn['card_name']} нанёс {final_damage} урона!\n"
-                f"{defender_color} {killed_count} {target_squad['card_name']} убито!\n"
+                f"{attacker_color} {current_turn['card_name']} {attacker_shooter_icon} нанёс {final_damage} урона!\n"
+                f"{defender_color} {target_squad['card_name']} {defender_shooter_icon} {killed_count} убито!\n"
             )
             
             # ⭐ ПРОВЕРКА НА КОНТРАТАКУ ⭐
             counter_attack_message = ""
-            if target_squad["count"] > 0 and target_squad.get("counter_attack_available", 1) == 1:
+            if (target_squad["count"] > 0 and 
+                target_squad.get("counter_attack_available", 1) == 1 and
+                not target_squad.get("shooter_active", False)):
+                
                 # ⭐ ОТРЯД МОЖЕТ КОНТРАТАКОВАТЬ ⭐
                 # Считаем урон контратаки (по той же формуле)
                 counter_damage, counter_killed, _ = calculate_battle_damage(
@@ -6970,9 +7008,12 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 target_squad["counter_attack_available"] = 0
         
                 counter_attack_message = (
-                    f"\n⚔️ {defender_color} {target_squad['card_name']} контратакует и наносит {counter_damage} урона в ответ!\n"
-                    f"{attacker_color} {counter_killed} {current_turn['card_name']} убито в контратаке!"
+                    f"\n⚔️ {defender_color} {target_squad['card_name']} {defender_shooter_icon} контратакует и наносит {counter_damage} урона в ответ!\n"
+                    f"{attacker_color} {current_turn['card_name']} {attacker_shooter_icon} {counter_killed} убито в контратаке!"
                 )
+             # ⭐ ЕСЛИ СТРЕЛОК АТАКОВАН НЕ-СТРЕЛКОМ, ОН ТЕРЯЕТ СТАТУС ⭐
+            if target_is_shooter and not attacker_is_shooter:
+                target_squad["shooter_active"] = False
 
             # Отправляем сообщение обоим игрокам
             for player_id in [battle_data.get("red_player"), battle_data.get("blue_player")]:
@@ -7479,7 +7520,9 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "owner": "red",
                 "random_factor": random.random(),
                 "damage_taken": 0,  # ← Полученный урон
-                "counter_attack_available": 1
+                "counter_attack_available": 1,
+                "shooter": card.get("shooter", False),
+                "shooter_active": card.get("shooter", False)
             })
     
     # Добавляем отряды второго игрока (🟦 Синий)
@@ -7496,12 +7539,13 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "owner": "blue",
                 "random_factor": random.random(),
                 "damage_taken": 0,
-                "counter_attack_available": 1
+                "counter_attack_available": 1,
+                "shooter": card.get("shooter", False),
+                "shooter_active": card.get("shooter", False)
             })
     
     # ⭐ СОРТИРОВКА: сначала по скорости (убывание), потом по рандому ⭐
     initiative_list.sort(key=lambda x: (x["speed"], x["random_factor"]), reverse=True)
-    
     return initiative_list
 
 
@@ -7543,6 +7587,9 @@ async def show_battle_menu(
                 color_emoji = "🟥"
             else:
                 color_emoji = "🟦"
+
+            # ⭐ ДОБАВЛЯЕМ ИКОНКУ СТРЕЛКА ⭐
+            shooter_icon = "🏹" if unit.get("shooter_active", False) else ""
             
             # ⭐ РАССЧИТЫВАЕМ ТЕКУЩЕЕ ЗДОРОВЬЕ ⭐
             alive_count = unit["count"]
@@ -7575,7 +7622,7 @@ async def show_battle_menu(
                 continue
             
             # Показываем количество живых существ и здоровье одного
-            button_text = f"{color_emoji} {unit['card_name']} {alive_count}шт {current_hp}/{max_health}❤️"
+            button_text = f"{color_emoji} {unit['card_name']} {shooter_icon} {alive_count}шт {current_hp}/{max_health}❤️"
             
             # Callback для атаки
             callback_data = f"battle_attack_{i}"
@@ -8132,6 +8179,33 @@ def check_battle_level_up(user_id: str, data: Dict) -> List[Dict]:
         user_data["battle_level"] = new_level
     
     return rewards
+
+
+def can_attack_target(attacker_squad, target_squad, initiative_list, data) -> tuple[bool, str]:
+    """
+    Проверяет, можно ли атаковать цель.
+    Возвращает: (можно_ли_атаковать, причина_запрета)
+    """
+    # Если атакующий — стрелок, может атаковать кого угодно
+    if attacker_squad.get("shooter", False) and attacker_squad.get("shooter_active", True):
+        return True, ""
+    
+    # Если цель — не стрелок, можно атаковать
+    if not target_squad.get("shooter", False):
+        return True, ""
+    
+    # Цель — стрелок, атакующий — не стрелок
+    # Проверяем, есть ли у цели живые не-стреляющие союзники
+    target_owner = target_squad["owner"]
+    
+    for squad in initiative_list:
+        if squad["owner"] == target_owner and squad["count"] > 0:
+            # Если есть живой не-стрелок — нельзя атаковать стрелка
+            if not squad.get("shooter", False):
+                return False, "Сначала уничтожьте не-стреляющие отряды!"
+    
+    # Все не-стрелки мертвы, можно атаковать стрелка
+    return True, ""
 
 
 # ===== ЗАПУСК БОТА =====
