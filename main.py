@@ -7523,6 +7523,10 @@ async def show_battle_menu(
             max_health = unit.get("max_health", 10)
             damage_taken = unit.get("damage_taken", 0)
             initial_count = unit.get("initial_count", alive_count)
+
+            # ⭐ ПРОВЕРКА: если отряд полностью уничтожен, пропускаем его ⭐
+            if alive_count <= 0:
+                continue  # Пропускаем этот отряд в отображении
             
             if alive_count > 0:
                 # Урон, который пошёл на убитых существ
@@ -7531,12 +7535,18 @@ async def show_battle_menu(
                 remainder = damage_taken - damage_to_dead
                 current_hp = max(0, max_health - remainder)
                 # ⭐ ПРОВЕРКА: если HP = 0, но есть живые существа ⭐
-                if current_hp == 0 and alive_count > 0:
+                
+                if current_hp <= 0 and alive_count > 0:
                     # Уменьшаем количество на 1 и восстанавливаем HP
                     alive_count -= 1
-                    current_hp = max_health
+                    if alive_count > 0:
+                        current_hp = max_health
+                    else:
+                        current_hp = 0
+                        continue
             else:
                 current_hp = 0
+                continue
             
             # Показываем количество живых существ и здоровье одного
             button_text = f"{color_emoji} {unit['card_name']} {alive_count}шт {current_hp}/{max_health}❤️"
