@@ -6893,31 +6893,28 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # Проверяем что игрок может действовать
             if user_id not in [battle_data.get("red_player"), battle_data.get("blue_player")]:
                 await query.answer("❌ Вы не участник этой битвы!", show_alert=True)
-                return
-            
+                return 
             if current_turn["owner"] == "red" and user_id != battle_data.get("red_player"):
                 await query.answer("🚫 Сейчас ходит не ваш отряд!", show_alert=True)
                 return
-            
             if current_turn["owner"] == "blue" and user_id != battle_data.get("blue_player"):
                 await query.answer("🚫 Сейчас ходит не ваш отряд!", show_alert=True)
                 return
-            
-            # Проверяем что не атакует свой отряд
             if target_index == current_turn_index:
                 await query.answer("🚫 Нельзя атаковать союзный отряд!", show_alert=True)
                 return
-            
             if target_index >= len(initiative_list):
                 await query.answer("❌ Неверный индекс цели!", show_alert=True)
                 return
-            
             target_squad = initiative_list[target_index]
             
             # Проверяем что цель не свой игрок
             if target_squad["owner"] == current_turn["owner"]:
                 await query.answer("🚫 Нельзя атаковать союзный отряд!", show_alert=True)
                 return
+
+            # ⭐ ЗАПОМИНАЕМ ИНДЕКС ТЕКУЩЕГО ХОДА ДЛЯ ПРОВЕРКИ СМЕНЫ РАУНДА ⭐
+            previous_turn_index = current_turn_index
             
             # ⭐ РАСЧЁТ УРОНА ⭐
             final_damage, killed_count, remaining_damage = calculate_battle_damage(
@@ -6926,7 +6923,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             
             # ⭐ НАНОСИМ УРОН ⭐
             target_squad["count"] -= killed_count
-
             if "dead_creatures" not in battle_data:
                 battle_data["dead_creatures"] = {
                     "red_player": {},  # {card_id: count}
@@ -6936,32 +6932,54 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # Добавляем погибших к соответствующему игроку
             target_owner = target_squad["owner"]
             card_id = target_squad["card_id"]
-
             if card_id not in battle_data["dead_creatures"][f"{target_owner}_player"]:
                 battle_data["dead_creatures"][f"{target_owner}_player"][card_id] = 0
-
             battle_data["dead_creatures"][f"{target_owner}_player"][card_id] += killed_count
-                
             target_squad["damage_taken"] = target_squad.get("damage_taken", 0) + final_damage
             battle_data["initiative_list"] = initiative_list
-            
-            
             
             # ⭐ СООБЩЕНИЕ ОБ АТАКЕ ⭐
             attacker_color = "🟥" if current_turn["owner"] == "red" else "🟦"
             defender_color = "🟦" if target_squad["owner"] == "blue" else "🟥"
-            
             attack_message = (
                 f"{attacker_color} {current_turn['card_name']} нанёс {final_damage} урона!\n"
                 f"{defender_color} {killed_count} {target_squad['card_name']} убито!"
             )
             
+            # ⭐ ПРОВЕРКА НА КОНТРАТАКУ ⭐
+            counter_attack_message = ""
+            if target_squad["count"] > 0 and target_squad.get("counter_attack_available", 1) == 1:
+                # ⭐ ОТРЯД МОЖЕТ КОНТРАТАКОВАТЬ ⭐
+                # Считаем урон контратаки (по той же формуле)
+                counter_damage, counter_killed, _ = calculate_battle_damage(
+                    target_squad, current_turn, data
+                )
+        
+                # Наносим урон контратаки
+                current_turn["count"] -= counter_killed
+                current_turn["damage_taken"] = current_turn.get("damage_taken", 0) + counter_damage
+        
+                # Добавляем погибших от контратаки
+                attacker_owner = current_turn["owner"]
+                attacker_card_id = current_turn["card_id"]
+                if attacker_card_id not in battle_data["dead_creatures"][f"{attacker_owner}_player"]:
+                    battle_data["dead_creatures"][f"{attacker_owner}_player"][attacker_card_id] = 0
+                battle_data["dead_creatures"][f"{attacker_owner}_player"][attacker_card_id] += counter_killed
+        
+                # ⭐ СБРАСЫВАЕМ СЧЁТЧИК КОНТРАТАКИ ⭐
+                target_squad["counter_attack_available"] = 0
+        
+                counter_attack_message = (
+                    f"\n⚔️ {defender_color} {target_squad['card_name']} контратакует!\n"
+                    f"{attacker_color} {counter_killed} {current_turn['card_name']} убито в контратаке!"
+                )
+
             # Отправляем сообщение обоим игрокам
             for player_id in [battle_data.get("red_player"), battle_data.get("blue_player")]:
                 try:
                     await context.bot.send_message(
                         chat_id=player_id,
-                        text=attack_message
+                        text=attack_message + counter_attack_message
                     )
                 except:
                     pass
@@ -7210,6 +7228,12 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ⭐ СЛЕДУЮЩИЙ ХОД ⭐
             if initiative_list and len(initiative_list) > 0:
                 current_turn_index = (current_turn_index + 1) % len(initiative_list)
+                
+                # ⭐ ПРОВЕРКА СМЕНЫ РАУНДА — СБРОС КОНТРАТАК ⭐
+                if current_turn_index < previous_turn_index:
+                    # Раунд завершился, сбрасываем счётчики контратак у всех отрядов
+                    for squad in initiative_list:
+                        squad["counter_attack_available"] = 1
             else:
                 current_turn_index = 0
             battle_data["current_turn_index"] = current_turn_index
@@ -7454,7 +7478,8 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "speed": card.get("speed", 0),
                 "owner": "red",
                 "random_factor": random.random(),
-                "damage_taken": 0  # ← Полученный урон
+                "damage_taken": 0,  # ← Полученный урон
+                "counter_attack_available": 1
             })
     
     # Добавляем отряды второго игрока (🟦 Синий)
@@ -7470,7 +7495,8 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "speed": card.get("speed", 0),
                 "owner": "blue",
                 "random_factor": random.random(),
-                "damage_taken": 0
+                "damage_taken": 0,
+                "counter_attack_available": 1
             })
     
     # ⭐ СОРТИРОВКА: сначала по скорости (убывание), потом по рандому ⭐
