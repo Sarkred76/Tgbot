@@ -6943,7 +6943,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             defender_color = "🟦" if target_squad["owner"] == "blue" else "🟥"
             attack_message = (
                 f"{attacker_color} {current_turn['card_name']} нанёс {final_damage} урона!\n"
-                f"{defender_color} {killed_count} {target_squad['card_name']} убито!"
+                f"{defender_color} {killed_count} {target_squad['card_name']} убито!\n"
             )
             
             # ⭐ ПРОВЕРКА НА КОНТРАТАКУ ⭐
@@ -6970,7 +6970,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 target_squad["counter_attack_available"] = 0
         
                 counter_attack_message = (
-                    f"\n⚔️ {defender_color} {target_squad['card_name']} контратакует!\n"
+                    f"\n⚔️ {defender_color} {target_squad['card_name']} контратакует и наносит {counter_damage} урона в ответ!\n"
                     f"{attacker_color} {counter_killed} {current_turn['card_name']} убито в контратаке!"
                 )
 
