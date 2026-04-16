@@ -7268,7 +7268,14 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 
             # ⭐ СЛЕДУЮЩИЙ ХОД ⭐
             if initiative_list and len(initiative_list) > 0:
-                current_turn_index = (current_turn_index + 1) % len(initiative_list)
+                if current_turn["count"] <= 0:
+                    pass
+                else:
+                    current_turn_index = (current_turn_index + 1) % len(initiative_list)
+
+                # ⭐ КОРРЕКТИРУЕМ ИНДЕКС ЕСЛИ ВЫШЕЛ ЗА ГРАНИЦЫ ⭐
+                if current_turn_index >= len(initiative_list):
+                    current_turn_index = 0
                 
                 # ⭐ ПРОВЕРКА СМЕНЫ РАУНДА — СБРОС КОНТРАТАК ⭐
                 if current_turn_index < previous_turn_index:
