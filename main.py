@@ -6970,6 +6970,9 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             if target_squad["count"] <= 0:
                 # Удаляем отряд из инициативы
                 initiative_list.pop(target_index)
+                if target_index < current_turn_index:
+                    # Удалён отряд ДО текущего хода - сдвигаем индекс на 1 назад
+                    current_turn_index -= 1
             
             # ⭐ ПРОВЕРЯЕМ ОКОНЧАНИЕ БИТВЫ ⭐
             red_squads = [u for u in initiative_list if u["owner"] == "red"]
