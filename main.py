@@ -6920,12 +6920,13 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
             # Получаем способности атакующего
             attacker_abilities = current_turn.get("ability", "")
+            has_double_attack = "Двойная атака" in attacker_abilities
             has_flying = "Летает" in attacker_abilities or "Летает" in attacker_abilities
 
             # ⭐ ЗАПОМИНАЕМ ИНДЕКС ТЕКУЩЕГО ХОДА ДЛЯ ПРОВЕРКИ СМЕНЫ РАУНДА ⭐
             previous_turn_index = current_turn_index
 
-           # ⭐ ПРОВЕРКА СТРЕЛКОВ ⭐
+            # ⭐ ПРОВЕРКА СТРЕЛКОВ ⭐
             # Проверяем, может ли атакующий атаковать эту цель
             attacker_is_shooter = current_turn.get("shooter_active", False)
             target_is_shooter = target_squad.get("shooter_active", False)
@@ -6948,45 +6949,60 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                         show_alert=True
                     )
                     return
-            
-            # ⭐ РАСЧЁТ УРОНА ⭐
-            final_damage, killed_count, remaining_damage = calculate_battle_damage(
-                current_turn, target_squad, data
-            )
-            
-            # ⭐ НАНОСИМ УРОН ⭐
-            target_squad["count"] -= killed_count
-            if "dead_creatures" not in battle_data:
-                battle_data["dead_creatures"] = {
-                    "red_player": {},  # {card_id: count}
-                    "blue_player": {}
-                }
 
-            # Добавляем погибших к соответствующему игроку
-            target_owner = target_squad["owner"]
-            card_id = target_squad["card_id"]
-            if card_id not in battle_data["dead_creatures"][f"{target_owner}_player"]:
-                battle_data["dead_creatures"][f"{target_owner}_player"][card_id] = 0
-            battle_data["dead_creatures"][f"{target_owner}_player"][card_id] += killed_count
-            target_squad["damage_taken"] = target_squad.get("damage_taken", 0) + final_damage
+            # ⭐ СООБЩЕНИЯ ОБ АТАКАХ ⭐
+            all_attack_messages = []
 
-            # ⭐ ЕСЛИ ЦЕЛЬ — СТРЕЛОК И АТАКУЮЩИЙ НЕ СТРЕЛОК, СТРЕЛОК ТЕРЯЕТ СТАТУС ⭐
-            if target_squad.get("shooter", False) and not current_turn.get("shooter", False):
-                target_squad["shooter_active"] = False  # ← ТЕРЯЕТ СТАТУС СТРЕЛКА
-
-            battle_data["initiative_list"] = initiative_list
-            
-            # ⭐ СООБЩЕНИЕ ОБ АТАКЕ ⭐
-            attacker_color = "🟥" if current_turn["owner"] == "red" else "🟦"
-            defender_color = "🟦" if target_squad["owner"] == "blue" else "🟥"
             # ⭐ ДОБАВЛЯЕМ ИКОНКУ СТРЕЛКА В СООБЩЕНИЕ ⭐
             attacker_shooter_icon = "🏹" if current_turn.get("shooter_active", False) else ""
             defender_shooter_icon = "🏹" if target_squad.get("shooter_active", False) else ""
-            attack_message = (
-                f"{attacker_color} {current_turn['card_name']} {attacker_shooter_icon} нанёс {final_damage} урона!\n"
-                f"{defender_color} {target_squad['card_name']} {defender_shooter_icon} {killed_count} убито!\n"
-            )
+
+            # ⭐ ФУНКЦИЯ ДЛЯ ОДНОЙ АТАКИ ⭐
+            def perform_attack(current_turn, target_squad, battle_data, data):
+                """Выполняет одну атаку и возвращает сообщения"""
+                messages = []
+                # ⭐ РАСЧЁТ УРОНА ⭐
+                final_damage, killed_count, remaining_damage = calculate_battle_damage(
+                    current_turn, target_squad, data
+                )
             
+                # ⭐ НАНОСИМ УРОН ⭐
+                target_squad["count"] -= killed_count
+                if "dead_creatures" not in battle_data:
+                    battle_data["dead_creatures"] = {
+                        "red_player": {},  # {card_id: count}
+                        "blue_player": {}
+                    }
+
+                # Добавляем погибших к соответствующему игроку
+                target_owner = target_squad["owner"]
+                card_id = target_squad["card_id"]
+                if card_id not in battle_data["dead_creatures"][f"{target_owner}_player"]:
+                    battle_data["dead_creatures"][f"{target_owner}_player"][card_id] = 0
+                battle_data["dead_creatures"][f"{target_owner}_player"][card_id] += killed_count
+                target_squad["damage_taken"] = target_squad.get("damage_taken", 0) + final_damage
+
+                # ⭐ ЕСЛИ ЦЕЛЬ — СТРЕЛОК И АТАКУЮЩИЙ НЕ СТРЕЛОК, СТРЕЛОК ТЕРЯЕТ СТАТУС ⭐
+                if target_squad.get("shooter", False) and not current_turn.get("shooter", False):
+                    target_squad["shooter_active"] = False  # ← ТЕРЯЕТ СТАТУС СТРЕЛКА
+
+                battle_data["initiative_list"] = initiative_list
+            
+                # ⭐ СООБЩЕНИЕ ОБ АТАКЕ ⭐
+                attacker_color = "🟥" if current_turn["owner"] == "red" else "🟦"
+                defender_color = "🟦" if target_squad["owner"] == "blue" else "🟥"
+                message = (
+                    f"{attacker_color} {current_turn['card_name']} {attacker_shooter_icon} нанёс {final_damage} урона!\n"
+                    f"{defender_color} {target_squad['card_name']} {defender_shooter_icon} {killed_count} убито!\n"
+                )
+                messages.append(message)
+                return messages, killed_count
+
+            
+            # ⭐ ПЕРВАЯ АТАКА ⭐
+            attack_messages, first_killed = perform_attack(current_turn, target_squad, battle_data, data)
+            all_attack_messages.extend(attack_messages)
+
             # ⭐ ПРОВЕРКА НА КОНТРАТАКУ ⭐
             counter_attack_message = ""
             # ⭐ ПРОВЕРЯЕМ ВОЗМОЖНОСТЬ КОНТРАТАКИ ⭐
@@ -7017,21 +7033,35 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         
                 # ⭐ СБРАСЫВАЕМ СЧЁТЧИК КОНТРАТАКИ ⭐
                 target_squad["counter_attack_available"] = 0
-        
+
+                attacker_color = "🟥" if current_turn["owner"] == "red" else "🟦"
+                defender_color = "🟦" if target_squad["owner"] == "blue" else "🟥"
                 counter_attack_message = (
                     f"\n⚔️ {defender_color} {target_squad['card_name']} {defender_shooter_icon} контратакует и наносит {counter_damage} урона в ответ!\n"
                     f"{attacker_color} {current_turn['card_name']} {attacker_shooter_icon} {counter_killed} убито в контратаке!"
                 )
-             # ⭐ ЕСЛИ СТРЕЛОК АТАКОВАН НЕ-СТРЕЛКОМ, ОН ТЕРЯЕТ СТАТУС ⭐
+                all_attack_messages.append(counter_attack_message)
+                
+            # ⭐ ЕСЛИ СТРЕЛОК АТАКОВАН НЕ-СТРЕЛКОМ, ОН ТЕРЯЕТ СТАТУС ⭐
             if target_is_shooter and not attacker_is_shooter:
                 target_squad["shooter_active"] = False
 
+            # ⭐ ВТОРАЯ АТАКА (ЕСЛИ ЕСТЬ ДВОЙНАЯ АТАКА) ⭐
+            if has_double_attack and current_turn["count"] > 0 and target_squad["count"] > 0:
+                attack_messages, second_killed = perform_attack(current_turn, target_squad, battle_data, data)
+                # Добавляем пометку что это вторая атака
+                for msg in attack_messages:
+                    msg = msg.replace("нанёс", "нанёс (вторая атака)")
+                all_attack_messages.extend(attack_messages)
+                # Контратаки больше нет (уже использована)
+
             # Отправляем сообщение обоим игрокам
+            full_message = "\n".join(all_attack_messages)
             for player_id in [battle_data.get("red_player"), battle_data.get("blue_player")]:
                 try:
                     await context.bot.send_message(
                         chat_id=player_id,
-                        text=attack_message + counter_attack_message
+                        text=full_message
                     )
                 except:
                     pass
