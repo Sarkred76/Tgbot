@@ -6989,9 +6989,14 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             
             # ⭐ ПРОВЕРКА НА КОНТРАТАКУ ⭐
             counter_attack_message = ""
-            if (target_squad["count"] > 0 and 
+            # ⭐ ПРОВЕРЯЕМ ВОЗМОЖНОСТЬ КОНТРАТАКИ ⭐
+            can_counterattack = (
+                target_squad["count"] > 0 and
                 target_squad.get("counter_attack_available", 1) == 1 and
-                not current_turn.get("shooter_active", False)):
+                not target_squad.get("shooter_active", False) and
+                not current_turn.get("no_counterattack", False)  # ← НОВАЯ ПРОВЕРКА
+            )
+            if can_counterattack:
                 
                 # ⭐ ОТРЯД МОЖЕТ КОНТРАТАКОВАТЬ ⭐
                 # Считаем урон контратаки (по той же формуле)
@@ -7546,7 +7551,8 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "counter_attack_available": 1,
                 "shooter": card.get("shooter", False),
                 "shooter_active": card.get("shooter", False),
-                "ability": card.get("ability", "")
+                "ability": card.get("ability", ""),
+                "no_counterattack": "Безответная атака" in card.get("ability", "")
             })
     
     # Добавляем отряды второго игрока (🟦 Синий)
@@ -7566,7 +7572,8 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "counter_attack_available": 1,
                 "shooter": card.get("shooter", False),
                 "shooter_active": card.get("shooter", False),
-                "ability": card.get("ability", "")
+                "ability": card.get("ability", ""),
+                "no_counterattack": "Безответная атака" in card.get("ability", "")
             })
     
     # ⭐ СОРТИРОВКА: сначала по скорости (убывание), потом по рандому ⭐
