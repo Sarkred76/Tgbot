@@ -2314,7 +2314,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Обновляем параметр
         valid_params = [
             "title", "url", "rarity", "faction", "available",
-            "attack", "defense", "damage", "health", "speed", "stats", "shooter"
+            "attack", "defense", "damage", "health", "speed", "stats", "shooter", "ability"
         ]
         if param not in valid_params:
             await update.message.reply_text(
@@ -2404,6 +2404,8 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             card[param] = new_value
         elif param == "shooter":  # ← ДОБАВЛЕНО
             new_value = new_value.lower() in ["true", "1", "yes", "вкл", "on"]
+            card[param] = new_value
+        elif param == "ability":
             card[param] = new_value
         elif param == "rarity":
             if new_value not in RARITY_BONUSES:
@@ -6916,6 +6918,10 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await query.answer("🚫 Нельзя атаковать союзный отряд!", show_alert=True)
                 return
 
+            # Получаем способности атакующего
+            attacker_abilities = current_turn.get("ability", "")
+            has_flying = "Летает" in attacker_abilities or "Летает" in attacker_abilities
+
             # ⭐ ЗАПОМИНАЕМ ИНДЕКС ТЕКУЩЕГО ХОДА ДЛЯ ПРОВЕРКИ СМЕНЫ РАУНДА ⭐
             previous_turn_index = current_turn_index
 
@@ -6925,7 +6931,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             target_is_shooter = target_squad.get("shooter_active", False)
     
             # Если атакующий НЕ стрелок, а цель — стрелок
-            if not attacker_is_shooter and target_is_shooter:
+            if not attacker_is_shooter and target_is_shooter and not has_flying:
                 # Проверяем, есть ли у цели не-стреляющие союзники
                 target_owner = target_squad["owner"]
                 has_non_shooter_allies = False
@@ -7539,7 +7545,8 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "damage_taken": 0,  # ← Полученный урон
                 "counter_attack_available": 1,
                 "shooter": card.get("shooter", False),
-                "shooter_active": card.get("shooter", False)
+                "shooter_active": card.get("shooter", False),
+                "ability": card.get("ability", "")
             })
     
     # Добавляем отряды второго игрока (🟦 Синий)
@@ -7558,7 +7565,8 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "damage_taken": 0,
                 "counter_attack_available": 1,
                 "shooter": card.get("shooter", False),
-                "shooter_active": card.get("shooter", False)
+                "shooter_active": card.get("shooter", False),
+                "ability": card.get("ability", "")
             })
     
     # ⭐ СОРТИРОВКА: сначала по скорости (убывание), потом по рандому ⭐
