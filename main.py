@@ -6985,7 +6985,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             counter_attack_message = ""
             if (target_squad["count"] > 0 and 
                 target_squad.get("counter_attack_available", 1) == 1 and
-                not target_squad.get("shooter_active", False)):
+                not current_turn.get("shooter_active", False)):
                 
                 # ⭐ ОТРЯД МОЖЕТ КОНТРАТАКОВАТЬ ⭐
                 # Считаем урон контратаки (по той же формуле)
