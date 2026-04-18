@@ -6976,6 +6976,60 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                         "blue_player": {}
                     }
 
+                # ⭐ ПРОВЕРКА АТАКИ ПО ОБЛАСТИ ⭐
+                area_attack_messages = []
+                attacker_abilities = current_turn.get("ability", "")
+                has_area_attack = "Атака по области" in attacker_abilities
+
+                if has_area_attack:
+                    # Находим соседние цели в списке инициативы
+                    area_attack_targets = []
+    
+                    # Проверяем предыдущего юнита в инициативе
+                    if target_index > 0:
+                        prev_index = target_index - 1
+                        prev_unit = initiative_list[prev_index]
+                        # Проверяем, что это вражеский юнит
+                        if prev_unit["owner"] != current_turn["owner"]:
+                            # Проверяем защиту стрелка
+                            if not (prev_unit.get("shooter_active", False) and 
+                                    has_non_shooter_allies(battle_data, prev_unit["owner"])):
+                                area_attack_targets.append((prev_index, prev_unit, "слева"))
+    
+                    # Проверяем следующего юнита в инициативе
+                    if target_index < len(initiative_list) - 1:
+                        next_index = target_index + 1
+                        next_unit = initiative_list[next_index]
+                        # Проверяем, что это вражеский юнит
+                        if next_unit["owner"] != current_turn["owner"]:
+                            # Проверяем защиту стрелка
+                            if not (next_unit.get("shooter_active", False) and 
+                                    has_non_shooter_allies(battle_data, next_unit["owner"])):
+                                area_attack_targets.append((next_index, next_unit, "справа"))
+    
+                    # Наносим урон целям атаки по области
+                    for area_index, area_unit, direction in area_attack_targets:
+                        # Рассчитываем урон (такой же как основная атака)
+                        area_final_damage, area_killed_count, _ = calculate_battle_damage(
+                            current_turn, area_unit, data
+                        )
+        
+                        # Наносим урон
+                        area_unit["count"] -= area_killed_count
+                        area_unit["damage_taken"] = area_unit.get("damage_taken", 0) + area_final_damage
+        
+                        # Добавляем погибших
+                        area_target_owner = area_unit["owner"]
+                        area_card_id = area_unit["card_id"]
+                        if area_card_id not in battle_data["dead_creatures"][f"{area_target_owner}_player"]:
+                            battle_data["dead_creatures"][f"{area_target_owner}_player"][area_card_id] = 0
+                        battle_data["dead_creatures"][f"{area_target_owner}_player"][area_card_id] += area_killed_count
+        
+                        area_attack_messages.append(
+                            f"⚡ {area_unit['card_name']} ({direction}) получил {area_final_damage} урона! "
+                            f"{area_killed_count} {area_unit['card_name']} убито!"
+                        )
+
                 # Добавляем погибших к соответствующему игроку
                 target_owner = target_squad["owner"]
                 card_id = target_squad["card_id"]
@@ -6999,6 +7053,10 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 )
                 messages.append(message)
                 return messages, killed_count
+
+                if has_area_attack and area_attack_messages:
+                    message += "\n\n**Атака по области:**\n"
+                    message += "\n".join(area_attack_messages)
 
             
             # ⭐ ПЕРВАЯ АТАКА ⭐
@@ -8280,6 +8338,17 @@ def can_attack_target(attacker_squad, target_squad, initiative_list, data) -> tu
     # Все не-стрелки мертвы, можно атаковать стрелка
     return True, ""
 
+def has_non_shooter_allies(battle_data: Dict, player_owner: str) -> bool:
+    """
+    Проверяет, есть ли у игрока живые не-стреляющие союзники.
+    Возвращает: True если есть не-стрелки, False если все стрелки
+    """
+    initiative_list = battle_data.get("initiative_list", [])
+    for squad in initiative_list:
+        if squad["owner"] == player_owner and squad["count"] > 0:
+            if not squad.get("shooter_active", False):
+                return True
+    return False
 
 # ===== ЗАПУСК БОТА =====
 
