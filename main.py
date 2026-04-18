@@ -2314,7 +2314,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Обновляем параметр
         valid_params = [
             "title", "url", "rarity", "faction", "available",
-            "attack", "defense", "damage", "health", "speed", "stats", "shooter", "ability"
+            "attack", "defense", "damage", "health", "speed", "stats", "shooter", "ability", "hates"
         ]
         if param not in valid_params:
             await update.message.reply_text(
@@ -2406,6 +2406,8 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             new_value = new_value.lower() in ["true", "1", "yes", "вкл", "on"]
             card[param] = new_value
         elif param == "ability":
+            card[param] = new_value
+        elif param == "hates":
             card[param] = new_value
         elif param == "rarity":
             if new_value not in RARITY_BONUSES:
@@ -7795,6 +7797,15 @@ def calculate_battle_damage(attacker_squad, defender_squad, data):
     
     # Итоговый урон (округление вниз)
     final_damage = int(total_damage * damage_multiplier)
+
+    # ⭐ 4. ПРОВЕРКА СПОСОБНОСТИ "НЕНАВИДИТ" ⭐
+    hates_list = attacker_card.get("hates", "")
+    if hates_list:
+        # Преобразуем строку "10,15,20" в список ID
+        hated_ids = [int(x.strip()) for x in hates_list.split(",") if x.strip().isdigit()]
+        # Если защищающееся существо в списке ненавистных — +50% к финальному урону
+        if defender_card["id"] in hated_ids:
+            final_damage = int(final_damage * 1.5)  # +50% к финальному урону
     
     # 4. Расчёт убитых существ
     defender_health = defender_card.get("health", 10)
