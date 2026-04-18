@@ -2299,7 +2299,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "/edit_card 45 damage 10-20\n"
                 "/edit_card 45 attack 100\n"
                 "/edit_card 45 stats 100 50 75 200 30",
-                parse_mode="Markdown",
+                parse_mode="HTML",
             )
             return
         
@@ -2337,7 +2337,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     "Нужно указать 5 значений:\n"
                     "/edit_card [ID] stats [атака] [защита] [урон] [здоровье] [скорость]\n"
                     "Пример: /edit_card 45 stats 100 50 10-20 200 30",
-                    parse_mode="Markdown"
+                    parse_mode="HTML"
                 )
                 return
             
@@ -2455,7 +2455,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         response += f"\n\n{'✅ Включена' if card.get('available') else '❌ Выключена'}"
         
-        await update.message.reply_text(response, parse_mode="Markdown")
+        await update.message.reply_text(response, parse_mode="HTML")
         
     except ValueError:
         await update.message.reply_text("⚠️ ID должен быть числом!")
