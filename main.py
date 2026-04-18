@@ -67,6 +67,8 @@ BATTLES_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
 
 ANTI_SHOOTER_CREATURES = [69, 114]
 GOLD_DIGGER_CARD_IDS = [180, 181]
+DOUBLE_COUNTERATTACK_CREATURE_ID = 42
+INFINITE_COUNTERATTACK_CREATURE_IDS = [87, 148] 
 
 FREE_ROLLS_PACKAGE = {
     "id": "free_rolls_package",
@@ -7071,7 +7073,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ⭐ ПРОВЕРЯЕМ ВОЗМОЖНОСТЬ КОНТРАТАКИ ⭐
             can_counterattack = (
                 target_squad["count"] > 0 and
-                target_squad.get("counter_attack_available", 1) == 1 and
+                target_squad.get("counter_attacks_remaining", 0) > 0 and
                 not current_turn.get("shooter_active", False) and
                 not current_turn.get("no_counterattack", False)  # ← НОВАЯ ПРОВЕРКА
             )
@@ -7095,7 +7097,8 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 battle_data["dead_creatures"][f"{attacker_owner}_player"][attacker_card_id] += counter_killed
         
                 # ⭐ СБРАСЫВАЕМ СЧЁТЧИК КОНТРАТАКИ ⭐
-                target_squad["counter_attack_available"] = 0
+                if target_squad.get("counter_attacks_remaining", 0) < 999:
+                    target_squad["counter_attacks_remaining"] -= 1
 
                 attacker_color = "🟥" if current_turn["owner"] == "red" else "🟦"
                 defender_color = "🟦" if target_squad["owner"] == "blue" else "🟥"
@@ -7390,8 +7393,15 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 if current_turn_index < previous_turn_index or len(initiative_list) == 0:
                     # Раунд завершился, сбрасываем счётчики контратак у всех отрядов
                     for squad in initiative_list:
-                        squad["counter_attack_available"] = 1
-
+                        card = find_card_by_id(squad["card_id"], data["cards"])
+                        if card:
+                            # ⭐ ВОССТАНАВЛИВАЕМ ПЕРВОНАЧАЛЬНОЕ КОЛИЧЕСТВО КОНТРАТАК ⭐
+                            if card["id"] == DOUBLE_COUNTERATTACK_CREATURE_ID:
+                                squad["counter_attacks_remaining"] = 2
+                            elif card["id"] in INFINITE_COUNTERATTACK_CREATURE_IDS:
+                                squad["counter_attacks_remaining"] = 999
+                            else:
+                                squad["counter_attacks_remaining"] = 1
                 # ⭐ КОРРЕКТИРУЕМ ИНДЕКС ЕСЛИ ВЫШЕЛ ЗА ГРАНИЦЫ ⭐
                     if initiative_list and current_turn_index >= len(initiative_list):
                         current_turn_index = 0
@@ -7631,6 +7641,12 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
     for squad in squads1:
         card = find_card_by_id(squad["card_id"], data["cards"])
         if card:
+            counter_attacks = 1  # По умолчанию
+            if card["id"] == DOUBLE_COUNTERATTACK_CREATURE_ID:
+                counter_attacks = 2  # 2 контратаки
+            elif card["id"] in INFINITE_COUNTERATTACK_CREATURE_IDS:
+                counter_attacks = 999  # Бесконечность (условно)
+                
             initiative_list.append({
                 "card_id": squad["card_id"],
                 "card_name": card["title"],
@@ -7641,7 +7657,7 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "owner": "red",
                 "random_factor": random.random(),
                 "damage_taken": 0,  # ← Полученный урон
-                "counter_attack_available": 1,
+                "counter_attacks_remaining": counter_attacks,
                 "shooter": card.get("shooter", False),
                 "shooter_active": card.get("shooter", False),
                 "ability": card.get("ability", ""),
@@ -7652,6 +7668,12 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
     for squad in squads2:
         card = find_card_by_id(squad["card_id"], data["cards"])
         if card:
+            counter_attacks = 1  # По умолчанию
+            if card["id"] == DOUBLE_COUNTERATTACK_CREATURE_ID:
+                counter_attacks = 2  # 2 контратаки
+            elif card["id"] in INFINITE_COUNTERATTACK_CREATURE_IDS:
+                counter_attacks = 999  # Бесконечность (условно)
+                
             initiative_list.append({
                 "card_id": squad["card_id"],
                 "card_name": card["title"],
@@ -7662,7 +7684,7 @@ def create_initiative_list(squads1: List[Dict], squads2: List[Dict], data: Dict)
                 "owner": "blue",
                 "random_factor": random.random(),
                 "damage_taken": 0,
-                "counter_attack_available": 1,
+                "counter_attacks_remaining": counter_attacks,
                 "shooter": card.get("shooter", False),
                 "shooter_active": card.get("shooter", False),
                 "ability": card.get("ability", ""),
