@@ -6926,11 +6926,32 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ⭐ ЗАПОМИНАЕМ ИНДЕКС ТЕКУЩЕГО ХОДА ДЛЯ ПРОВЕРКИ СМЕНЫ РАУНДА ⭐
             previous_turn_index = current_turn_index
 
-            # ⭐ СООБЩЕНИЯ ОБ АТАКАХ ⭐
-            all_attack_messages = []
-
+            # ⭐ ПРОВЕРКА СТРЕЛКОВ ⭐
+            # Проверяем, может ли атакующий атаковать эту цель
             attacker_is_shooter = current_turn.get("shooter_active", False)
             target_is_shooter = target_squad.get("shooter_active", False)
+    
+            # Если атакующий НЕ стрелок, а цель — стрелок
+            if not attacker_is_shooter and target_is_shooter and not has_flying:
+                # Проверяем, есть ли у цели не-стреляющие союзники
+                target_owner = target_squad["owner"]
+                has_non_shooter_allies = False
+                for squad in initiative_list:
+                    if squad["owner"] == target_owner and squad["count"] > 0:
+                        if not squad.get("shooter_active", False):
+                            has_non_shooter_allies = True
+                            break
+        
+                # Если есть не-стрелки, нельзя атаковать стрелка
+                if has_non_shooter_allies:
+                    await query.answer(
+                        "🚫 Сначала уничтожьте не-стреляющие отряды!",
+                        show_alert=True
+                    )
+                    return
+
+            # ⭐ СООБЩЕНИЯ ОБ АТАКАХ ⭐
+            all_attack_messages = []
 
             # ⭐ ДОБАВЛЯЕМ ИКОНКУ СТРЕЛКА В СООБЩЕНИЕ ⭐
             attacker_shooter_icon = "🏹" if current_turn.get("shooter_active", False) else ""
@@ -6940,26 +6961,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             def perform_attack(current_turn, target_squad, battle_data, data):
                 """Выполняет одну атаку и возвращает сообщения"""
                 messages = []
-                # ⭐ ПРОВЕРКА СТРЕЛКОВ ⭐
-                # Проверяем, может ли атакующий атаковать эту цель
-                attacker_is_shooter = current_turn.get("shooter_active", False)
-                target_is_shooter = target_squad.get("shooter_active", False)
-    
-                # Если атакующий НЕ стрелок, а цель — стрелок
-                if not attacker_is_shooter and target_is_shooter and not has_flying:
-                    # Проверяем, есть ли у цели не-стреляющие союзники
-                    target_owner = target_squad["owner"]
-                    has_non_shooter_allies = False
-                    for squad in initiative_list:
-                        if squad["owner"] == target_owner and squad["count"] > 0:
-                            if not squad.get("shooter_active", False):
-                                has_non_shooter_allies = True
-                                break
-        
-                    # Если есть не-стрелки, нельзя атаковать стрелка
-                    if has_non_shooter_allies:
-                        return
-                    
                 # ⭐ РАСЧЁТ УРОНА ⭐
                 final_damage, killed_count, remaining_damage = calculate_battle_damage(
                     current_turn, target_squad, data
@@ -6996,6 +6997,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 )
                 messages.append(message)
                 return messages, killed_count
+
             
             # ⭐ ПЕРВАЯ АТАКА ⭐
             attack_messages, first_killed = perform_attack(current_turn, target_squad, battle_data, data)
@@ -7007,7 +7009,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             can_counterattack = (
                 target_squad["count"] > 0 and
                 target_squad.get("counter_attack_available", 1) == 1 and
-                not target_squad.get("shooter_active", False) and
+                not target_squad.get("shooter_active", False) or
                 not current_turn.get("no_counterattack", False)  # ← НОВАЯ ПРОВЕРКА
             )
             if can_counterattack:
