@@ -5,6 +5,7 @@ import threading
 import os
 import random
 import time
+import datetime
 from typing import Optional, Dict, Any, List
 from collections import Counter
 from telegram import (
@@ -65,6 +66,7 @@ FREE_ROLLS_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
 BATTLES_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
 
 ANTI_SHOOTER_CREATURES = [69, 114]
+GOLD_DIGGER_CARD_IDS = [180, 181]
 
 FREE_ROLLS_PACKAGE = {
     "id": "free_rolls_package",
@@ -222,6 +224,8 @@ def load_data() -> Dict[str, Any]:
                     user_data["battle_challenges_today"] = 0  # Количество вызовов сегодня
                 if "battle_challenges_last_reset" not in user_data:
                     user_data["battle_challenges_last_reset"] = 0  # Время последнего сброса
+                if "gold_digger_last_income" not in user_data:
+                    user_data["gold_digger_last_income"] = ""
             return data
             
         except Exception as e:
@@ -8366,6 +8370,88 @@ def has_non_shooter_allies(battle_data: Dict, player_owner: str) -> bool:
                 return True
     return False
 
+async def process_gold_digger_income(application: Application) -> None:
+    """
+    Ежедневное начисление золота за существ со способностью "Золотоискатель".
+    Запускается в 00:00 по МСК.
+    """
+    try:
+        await asyncio.sleep(60)  # Ждём 1 минуту после запуска бота
+        data = load_data()
+        current_time = int(time.time())
+        
+        # Проверяем, наступила ли новая дата по МСК
+        msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+        now_msk = datetime.datetime.now(msk_tz)
+        today_date = now_msk.date()
+        
+        processed_count = 0
+        total_gold_distributed = 0
+        
+        for user_id, user_data in data["users"].items():
+            # Проверяем, было ли уже начисление сегодня
+            last_income_date = user_data.get("gold_digger_last_income", "")
+            
+            if last_income_date == str(today_date):
+                continue  # Уже получили золото сегодня
+            
+            # Считаем существ со способностью "Золотоискатель"
+            gold_digger_count = 0
+            gold_digger_names = {}
+            
+            user_cards = user_data.get("cards", [])
+            card_counts = Counter(user_cards)
+            
+            for card_id, count in card_counts.items():
+                if card_id in GOLD_DIGGER_CARD_IDS:
+                    gold_digger_count += count
+                    # Сохраняем название для сообщения
+                    card = find_card_by_id(card_id, data["cards"])
+                    if card:
+                        card_name = card["title"]
+                        if card_name not in gold_digger_names:
+                            gold_digger_names[card_name] = 0
+                        gold_digger_names[card_name] += count
+            
+            if gold_digger_count > 0:
+                # Начисляем золото (50 за каждое существо)
+                gold_income = gold_digger_count * 50
+                user_data["cents"] = user_data.get("cents", 0) + gold_income
+                
+                # Сохраняем дату последнего начисления
+                user_data["gold_digger_last_income"] = str(today_date)
+                
+                # Формируем сообщение
+                creatures_text = ", ".join([f"{name}: {count} шт." for name, count in gold_digger_names.items()])
+                message = (
+                    f"💰 Ваши золотоискатели принесли доход! {gold_income} золота\n\n"
+                    f"⏰ Следующее начисление завтра в 00:00 МСК"
+                )
+                
+                # Отправляем сообщение игроку
+                try:
+                    await application.bot.send_message(
+                        chat_id=user_id,
+                        text=message
+                    )
+                    processed_count += 1
+                    total_gold_distributed += gold_income
+                    logger.info(f"Игрок {user_id} получил {gold_income} золота от золотоискателей")
+                except Exception as send_error:
+                    logger.error(f"Не удалось отправить сообщение игроку {user_id}: {send_error}")
+        
+        # Сохраняем данные
+        if processed_count > 0:
+            save_data(data)
+            logger.info(f"Обработано {processed_count} игроков, распределено {total_gold_distributed} золота")
+        
+    except Exception as e:
+        logger.error(f"Ошибка в process_gold_digger_income: {e}")
+    
+    # Планируем следующее выполнение через 24 часа
+    await asyncio.sleep(24 * 60 * 60)
+    asyncio.create_task(process_gold_digger_income(application))
+
 # ===== ЗАПУСК БОТА =====
 
 
@@ -8459,7 +8545,16 @@ def main() -> None:
         )
         notification_thread.start()
 
-        logger.info("Запущена фоновая задача уведомлений") 
+        logger.info("Запущена фоновая задача уведомлений")
+
+        # ⭐ ЗАПУСКАЕМ ЗАДАЧУ ЗОЛОТОИСКАТЕЛЕЙ ⭐
+        gold_digger_thread = threading.Thread(
+            target=lambda: asyncio.run(process_gold_digger_income(application)),
+            daemon=True
+        )
+        gold_digger_thread.start()
+        logger.info("Запущена фоновая задача золотоискателей")
+        
         application.run_polling(allowed_updates=Update.ALL_TYPES)
 
     except Exception as e:
