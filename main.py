@@ -7009,7 +7009,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             can_counterattack = (
                 target_squad["count"] > 0 and
                 target_squad.get("counter_attack_available", 1) == 1 and
-                not target_squad.get("shooter_active", False) or
+                not current_turn.get("shooter_active", False) and
                 not current_turn.get("no_counterattack", False)  # ← НОВАЯ ПРОВЕРКА
             )
             if can_counterattack:
