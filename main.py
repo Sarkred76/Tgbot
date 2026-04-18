@@ -64,6 +64,8 @@ MERCENARY_GUILD_IMAGE_URL = "https://files.catbox.moe/k7gzi0.jpg"
 FREE_ROLLS_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
 BATTLES_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
 
+ANTI_SHOOTER_CREATURES = [69, 114]
+
 FREE_ROLLS_PACKAGE = {
     "id": "free_rolls_package",
     "title": "15 наймов",
@@ -2314,7 +2316,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Обновляем параметр
         valid_params = [
             "title", "url", "rarity", "faction", "available",
-            "attack", "defense", "damage", "health", "speed", "stats", "shooter", "ability", "hates"
+            "attack", "defense", "damage", "health", "speed", "stats", "shooter", "ability", "hates", "resistant_to"
         ]
         if param not in valid_params:
             await update.message.reply_text(
@@ -2408,6 +2410,8 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         elif param == "ability":
             card[param] = new_value
         elif param == "hates":
+            card[param] = new_value
+        elif param == "resistant_to":
             card[param] = new_value
         elif param == "rarity":
             if new_value not in RARITY_BONUSES:
@@ -7847,11 +7851,18 @@ def calculate_battle_damage(attacker_squad, defender_squad, data):
         damage_multiplier = 1 + (final_attack * 0.025)
     else:
         damage_multiplier = 1
+
+    # ⭐ 4. ПРОВЕРКА БОНУСА ПРОТИВ СТРЕЛКОВ ⭐
+    attacker_card_id = attacker_card["id"]
+    defender_is_shooter = defender_squad.get("shooter_active", False)
+    
+    if attacker_card_id in ANTI_SHOOTER_CREATURES and defender_is_shooter:
+        damage_multiplier *= 1.2  # +20% урона по стрелкам
     
     # Итоговый урон (округление вниз)
     final_damage = int(total_damage * damage_multiplier)
 
-    # ⭐ 4. ПРОВЕРКА СПОСОБНОСТИ "НЕНАВИДИТ" ⭐
+    # ⭐ 5. ПРОВЕРКА СПОСОБНОСТИ "НЕНАВИДИТ" ⭐
     hates_list = attacker_card.get("hates", "")
     if hates_list:
         # Преобразуем строку "10,15,20" в список ID
@@ -7859,8 +7870,18 @@ def calculate_battle_damage(attacker_squad, defender_squad, data):
         # Если защищающееся существо в списке ненавистных — +50% к финальному урону
         if defender_card["id"] in hated_ids:
             final_damage = int(final_damage * 1.5)  # +50% к финальному урону
+
+    # ⭐ 6. ПРОВЕРКА СОПРОТИВЛЕНИЯ УРОНУ ⭐
+    resistant_list = defender_card.get("resistant_to", "")
+    if resistant_list:
+        # Преобразуем строку "10,15,20" в список ID
+        resistant_ids = [int(x.strip()) for x in resistant_list.split(",") if x.strip().isdigit()]
+        # Если атакующее существо в списке сопротивления — -20% к финальному урону
+        if attacker_card["id"] in resistant_ids:
+            final_damage = int(final_damage * 0.8)  # -20% к финальному урону
     
-    # 4. Расчёт убитых существ
+    
+    # 7. Расчёт убитых существ
     defender_health = defender_card.get("health", 10)
     # ⭐ ИСПРАВЛЕНИЕ: УЧИТЫВАЕМ УЖЕ ПОЛУЧЕННЫЙ УРОН ⭐
     damage_taken = defender_squad.get("damage_taken", 0)
