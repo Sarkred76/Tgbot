@@ -6839,7 +6839,8 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 "initiative_list": initiative_list,
                 "current_turn_index": 0,
                 "started_at": int(time.time()),
-                "status": "active"
+                "status": "active",
+                "entangled": {}
             }
             save_data(data)
     
@@ -6891,7 +6892,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
             # ⭐ ИНИЦИАЛИЗИРУЕМ СЛОВАРЬ ОПУТЫВАНИЯ ЕСЛИ НЕТ ⭐
             if "entangled" not in battle_data:
-                battle_data["entangled"] = {}  # {target_card_id: entangler_card_id}
+                battle_data["entangled"] = {}
             
             # Проверяем чей сейчас ход
             if current_turn_index >= len(initiative_list):
@@ -6931,15 +6932,17 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 entangler_card_id = battle_data["entangled"][current_turn_card_id]
                 # Проверяем, жив ли ещё опутавший
                 entangler_alive = False
-                for squad in initiative_list:
+                entangler_index = -1
+                for idx, squad in enumerate(initiative_list):
                     if squad["card_id"] == entangler_card_id and squad["count"] > 0:
                         entangler_alive = True
+                        entangler_index = idx
                         break
     
                 if not entangler_alive:
                     # Освобождаем от опутывания
                     del battle_data["entangled"][current_turn_card_id]
-                elif target_squad["card_id"] != entangler_card_id:
+                elif target_index != entangler_index:
                     # Атакует не того, кто опутал
                     await query.answer(
                         "🕸️ Этот отряд опутан! Может атаковать только тот отряд, который его опутал!",
@@ -7067,6 +7070,16 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             attack_messages, first_killed = perform_attack(current_turn, target_squad, battle_data, data)
             all_attack_messages.extend(attack_messages)
 
+            # ⭐ ПРИМЕНЕНИЕ ОПУТЫВАНИЯ ⭐
+            # Если у атакующего есть способность "Опутывание", опутываем цель
+            attacker_abilities = current_turn.get("ability", "")
+            has_entangle = "Опутывание" in attacker_abilities
+            if has_entangle and target_squad["count"] > 0:
+                target_card_id = target_squad["card_id"]
+                entangler_card_id = current_turn["card_id"]
+                # Сохраняем опутывание
+                battle_data["entangled"][target_card_id] = entangler_card_id
+
             # ⭐ НАНОСИМ УРОН ЦЕЛЯМ АТАКИ ПО ОБЛАСТИ ⭐
             if has_area_attack:
                 for area_index, area_unit, direction in area_attack_targets:
@@ -7171,13 +7184,17 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ⭐ ПРОВЕРЯЕМ УНИЧТОЖЕНИЕ ОТРЯДА ⭐
             
             if target_squad["count"] <= 0:
-                # ⭐ ОСВОБОЖДАЕМ ОПутАННЫЕ ОТРЯДЫ ⭐
-                target_card_id = target_squad["card_id"]
-                if target_card_id in battle_data["entangled"]:
-                    del battle_data["entangled"][target_card_id]
-                    
                 # Удаляем отряд из инициативы
                 initiative_list.pop(target_index)
+                
+                 # ⭐ ОЧИЩАЕМ ОПУТЫВАНИЕ ОТ ЭТОГО ОТРЯДА ⭐
+                target_card_id = target_squad["card_id"]
+                # Удаляем все опутывания, которые наложил этот отряд
+                entangled_to_remove = [k for k, v in battle_data["entangled"].items() if v == target_card_id]
+                for entangled_id in entangled_to_remove:
+                    if entangled_id in battle_data["entangled"]:
+                        del battle_data["entangled"][entangled_id]
+
                 if target_index < current_turn_index:
                     # Удалён отряд ДО текущего хода - сдвигаем индекс на 1 назад
                     current_turn_index -= 1
