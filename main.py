@@ -6992,7 +6992,8 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     check_unit = initiative_list[i]
                     if check_unit["owner"] != current_turn["owner"]:
                         # Проверяем защиту стрелка
-                        if not has_non_shooter_allies(battle_data, check_unit["owner"]) or check_unit.get("shooter_active", False):
+                        if not (check_unit.get("shooter_active", False) and 
+                                has_non_shooter_allies(battle_data, check_unit["owner"])):
                             area_attack_targets.append((i, check_unit, "слева"))
                         break  # Нашли первого врага, дальше не ищем
     
@@ -7001,7 +7002,8 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     check_unit = initiative_list[i]
                     if check_unit["owner"] != current_turn["owner"]:
                         # Проверяем защиту стрелка
-                        if not has_non_shooter_allies(battle_data, check_unit["owner"]) or check_unit.get("shooter_active", False):
+                        if not (check_unit.get("shooter_active", False) and 
+                                has_non_shooter_allies(battle_data, check_unit["owner"])):
                             area_attack_targets.append((i, check_unit, "справа"))
                         break  # Нашли первого врага, дальше не ищем
 
