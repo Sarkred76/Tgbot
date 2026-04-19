@@ -69,7 +69,8 @@ BATTLES_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
 ANTI_SHOOTER_CREATURES = [69, 114]
 GOLD_DIGGER_CARD_IDS = [180, 181]
 DOUBLE_COUNTERATTACK_CREATURE_ID = 42
-INFINITE_COUNTERATTACK_CREATURE_IDS = [87, 148] 
+INFINITE_COUNTERATTACK_CREATURE_IDS = [87, 148]
+ENTANGLING_CREATURE_IDS = [61, 106]
 
 FREE_ROLLS_PACKAGE = {
     "id": "free_rolls_package",
@@ -6887,6 +6888,10 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             battle_data = data["active_battles"][battle_key]
             initiative_list = battle_data.get("initiative_list", [])
             current_turn_index = battle_data.get("current_turn_index", 0)
+
+            # ⭐ ИНИЦИАЛИЗИРУЕМ СЛОВАРЬ ОПУТЫВАНИЯ ЕСЛИ НЕТ ⭐
+            if "entangled" not in battle_data:
+                battle_data["entangled"] = {}  # {target_card_id: entangler_card_id}
             
             # Проверяем чей сейчас ход
             if current_turn_index >= len(initiative_list):
@@ -6917,6 +6922,30 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             if target_squad["owner"] == current_turn["owner"]:
                 await query.answer("🚫 Нельзя атаковать союзный отряд!", show_alert=True)
                 return
+
+            # ⭐ ПРОВЕРКА ОПУТЫВАНИЯ ⭐
+            # Проверяем, опутан ли текущий отряд
+            current_turn_card_id = current_turn["card_id"]
+            if current_turn_card_id in battle_data["entangled"]:
+                # Отряд опутан - может атаковать только того, кто его опутал
+                entangler_card_id = battle_data["entangled"][current_turn_card_id]
+                # Проверяем, жив ли ещё опутавший
+                entangler_alive = False
+                for squad in initiative_list:
+                    if squad["card_id"] == entangler_card_id and squad["count"] > 0:
+                        entangler_alive = True
+                        break
+    
+                if not entangler_alive:
+                    # Освобождаем от опутывания
+                    del battle_data["entangled"][current_turn_card_id]
+                elif target_squad["card_id"] != entangler_card_id:
+                    # Атакует не того, кто опутал
+                    await query.answer(
+                        "🕸️ Этот отряд опутан! Может атаковать только тот отряд, который его опутал!",
+                        show_alert=True
+                    )
+                    return
 
             # Получаем способности атакующего
             attacker_abilities = current_turn.get("ability", "")
@@ -7009,6 +7038,17 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 battle_data["dead_creatures"][f"{target_owner}_player"][card_id] += killed_count
                 target_squad["damage_taken"] = target_squad.get("damage_taken", 0) + final_damage
 
+                # ⭐ ПРИМЕНЕНИЕ ОПУТЫВАНИЯ ⭐
+                # Проверяем, есть ли у атакующего способность "Опутывание"
+                attacker_card = find_card_by_id(current_turn["card_id"], data["cards"])
+                if attacker_card and attacker_card["id"] in ENTANGLING_CREATURE_IDS:
+                    # Проверяем, есть ли у атакующего способность "Опутывание" в ability
+                    attacker_abilities = current_turn.get("ability", "")
+                    if "Опутывание" in attacker_abilities or attacker_card["id"] in ENTANGLING_CREATURE_IDS:
+                        # Опутываем цель
+                        target_card_id = target_squad["card_id"]
+                        battle_data["entangled"][target_card_id] = current_turn["card_id"]
+
                 # ⭐ ЕСЛИ ЦЕЛЬ — СТРЕЛОК И АТАКУЮЩИЙ НЕ СТРЕЛОК, СТРЕЛОК ТЕРЯЕТ СТАТУС ⭐
                 if target_squad.get("shooter", False) and not current_turn.get("shooter", False):
                     target_squad["shooter_active"] = False  # ← ТЕРЯЕТ СТАТУС СТРЕЛКА
@@ -7076,6 +7116,14 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 # Наносим урон контратаки
                 current_turn["count"] -= counter_killed
                 current_turn["damage_taken"] = current_turn.get("damage_taken", 0) + counter_damage
+                
+                # ⭐ ЕСЛИ АТАКУЮЩИЙ УМЕР ОТ КОНТРАТАКИ, ОСВОБОЖДАЕМ ЕГО ЖЕРТВЫ ⭐
+                if current_turn["count"] <= 0:
+                    attacker_card_id = current_turn["card_id"]
+                    # Находим всех, кого опутал этот отряд, и освобождаем
+                    freed_targets = [cid for cid, entangler in battle_data["entangled"].items() if entangler == attacker_card_id]
+                    for freed_id in freed_targets:
+                        del battle_data["entangled"][freed_id]
         
                 # Добавляем погибших от контратаки
                 attacker_owner = current_turn["owner"]
@@ -7123,6 +7171,11 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ⭐ ПРОВЕРЯЕМ УНИЧТОЖЕНИЕ ОТРЯДА ⭐
             
             if target_squad["count"] <= 0:
+                # ⭐ ОСВОБОЖДАЕМ ОПутАННЫЕ ОТРЯДЫ ⭐
+                target_card_id = target_squad["card_id"]
+                if target_card_id in battle_data["entangled"]:
+                    del battle_data["entangled"][target_card_id]
+                    
                 # Удаляем отряд из инициативы
                 initiative_list.pop(target_index)
                 if target_index < current_turn_index:
@@ -7750,6 +7803,10 @@ async def show_battle_menu(
             
             # Показываем количество живых существ и здоровье одного
             button_text = f"{color_emoji} {unit['card_name']} {shooter_icon} {alive_count}шт {current_hp}/{max_health}❤️"
+
+            # ⭐ ПОКАЗЫВАЕМ СТАТУС ОПУТЫВАНИЯ ⭐
+            if unit["card_id"] in battle_data.get("entangled", {}):
+                button_text += " 🕸️"  # Иконка паутины для опутанных
             
             # Callback для атаки
             callback_data = f"battle_attack_{i}"
