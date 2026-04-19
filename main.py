@@ -6938,7 +6938,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                         entangler_alive = True
                         entangler_index = idx
                         break
-    
                 if not entangler_alive:
                     # Освобождаем от опутывания
                     del battle_data["entangled"][current_turn_card_id]
@@ -7041,17 +7040,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 battle_data["dead_creatures"][f"{target_owner}_player"][card_id] += killed_count
                 target_squad["damage_taken"] = target_squad.get("damage_taken", 0) + final_damage
 
-                # ⭐ ПРИМЕНЕНИЕ ОПУТЫВАНИЯ ⭐
-                # Проверяем, есть ли у атакующего способность "Опутывание"
-                attacker_card = find_card_by_id(current_turn["card_id"], data["cards"])
-                if attacker_card and attacker_card["id"] in ENTANGLING_CREATURE_IDS:
-                    # Проверяем, есть ли у атакующего способность "Опутывание" в ability
-                    attacker_abilities = current_turn.get("ability", "")
-                    if "Опутывание" in attacker_abilities or attacker_card["id"] in ENTANGLING_CREATURE_IDS:
-                        # Опутываем цель
-                        target_card_id = target_squad["card_id"]
-                        battle_data["entangled"][target_card_id] = current_turn["card_id"]
-
                 # ⭐ ЕСЛИ ЦЕЛЬ — СТРЕЛОК И АТАКУЮЩИЙ НЕ СТРЕЛОК, СТРЕЛОК ТЕРЯЕТ СТАТУС ⭐
                 if target_squad.get("shooter", False) and not current_turn.get("shooter", False):
                     target_squad["shooter_active"] = False  # ← ТЕРЯЕТ СТАТУС СТРЕЛКА
@@ -7073,6 +7061,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # ⭐ ПРИМЕНЕНИЕ ОПУТЫВАНИЯ ⭐
             # Если у атакующего есть способность "Опутывание", опутываем цель
             attacker_abilities = current_turn.get("ability", "")
+            
             has_entangle = "Опутывание" in attacker_abilities
             if has_entangle and target_squad["count"] > 0:
                 target_card_id = target_squad["card_id"]
@@ -7189,6 +7178,9 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 
                  # ⭐ ОЧИЩАЕМ ОПУТЫВАНИЕ ОТ ЭТОГО ОТРЯДА ⭐
                 target_card_id = target_squad["card_id"]
+                # ⭐ ВАЖНО: Удаляем опутывание НА этом отряде ⭐
+                if target_card_id in battle_data["entangled"]:
+                    del battle_data["entangled"][target_card_id]
                 # Удаляем все опутывания, которые наложил этот отряд
                 entangled_to_remove = [k for k, v in battle_data["entangled"].items() if v == target_card_id]
                 for entangled_id in entangled_to_remove:
