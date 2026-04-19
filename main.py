@@ -6511,7 +6511,7 @@ async def select_battle_opponent(update: Update, context: ContextTypes.DEFAULT_T
         
         await update.message.reply_text(
             "🔍 Введите @никнейм противника\n\n"
-            "Пример: `@username`\n\n"
+            "Пример: @username\n\n"
             "❌ Для отмены: /cancel",
             reply_markup=ReplyKeyboardMarkup(
                 [[KeyboardButton("🔙 Назад в Сражения")]], 
@@ -6637,7 +6637,6 @@ async def process_opponent_selection(update: Update, context: ContextTypes.DEFAU
                     f"👤 От: {sender_name}\n\n"
                     f"🛡️ Армия противника:\n"
                     f"{my_army_text}\n\n"
-                    f"⚠️ Количество существ показано в диапазонах!\n"
                     f"Выберите действие:"
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard)
@@ -6755,7 +6754,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     f"👤 Противник: {opponent_name}\n\n"
                     f"🛡️ Армия противника:\n"
                     f"{opponent_army_text}\n\n"
-                    f"⚠️ Количество существ показано в диапазонах!\n"
                     f"Выберите действие:"
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard)
@@ -7494,12 +7492,9 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     
             await query.edit_message_text(
                 f"🏳️ Вы уверены, что хотите сдаться?\n\n"
-                f"💀 Погибшие существа:\n"
                 f"• Ваши потери: {dead_red} существ\n"
                 f"• Потери противника: {dead_blue} существ\n\n"
                 f"💰 Стоимость капитуляции: {surrender_cost} золота\n"
-                f"(7 × суммарное здоровье оставшихся существ)\n\n"
-                f"⚠️ Погибшие существа будут удалены из казарм ОБОИХ игроков!\n"
                 f"Золото будет списано с вас и передано противнику.",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
@@ -7549,7 +7544,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                         f"🏳️ Вы сдались!\n\n"
                         f"💸 С вашего баланса списано {surrender_cost} золота.\n"
                         f"💰 Противник получил {surrender_cost} золота.\n\n"
-                        f"⚰️ Погибшие существа удалены из казарм ОБОИХ игроков."
                     )
                 )
             except:
@@ -7562,7 +7556,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                         f"🏆 Противник сдался!\n\n"
                         f"🏆 Вы победили!\n"
                         f"💰 Вы получили {surrender_cost} золота.\n\n"
-                        f"⚰️ Погибшие существа удалены из вашей казармы."
                     )
                 )
             except:
@@ -8019,8 +8012,6 @@ def remove_dead_creatures_from_barracks(battle_data: Dict, data: Dict) -> None:
     
     save_data(data)
 
-
-
 def calculate_surrender_cost(battle_data: Dict, player_id: str) -> int:
     """
     Рассчитывает стоимость капитуляции игрока.
@@ -8201,7 +8192,7 @@ async def top_battles(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                     medal = "🥉"
                 else:
                     medal = f"{rank}."
-                message_text += f"{medal} **{username}** — {battle_exp} боевого опыта\n"
+                message_text += f"{medal} {username} — {battle_exp} боевого опыта\n"
         
         # ⭐ ПОКАЗЫВАЕМ МЕСТО ТОЛЬКО ЕСЛИ ПОЛЬЗОВАТЕЛЬ НЕ АДМИН ⭐
         current_user_id = str(update.effective_user.id)
@@ -8353,7 +8344,7 @@ def can_attack_target(attacker_squad, target_squad, initiative_list, data) -> tu
         if squad["owner"] == target_owner and squad["count"] > 0:
             # Если есть живой не-стрелок — нельзя атаковать стрелка
             if not squad.get("shooter", False):
-                return False, "Сначала уничтожьте не-стреляющие отряды!"
+                return False, "Сначала уничтожьте не стреляющие отряды!"
     
     # Все не-стрелки мертвы, можно атаковать стрелка
     return True, ""
