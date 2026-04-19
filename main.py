@@ -6917,12 +6917,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             if target_index >= len(initiative_list):
                 await query.answer("❌ Неверный индекс цели!", show_alert=True)
                 return
-            target_squad = initiative_list[target_index]
-            
-            # Проверяем что цель не свой игрок
-            if target_squad["owner"] == current_turn["owner"]:
-                await query.answer("🚫 Нельзя атаковать союзный отряд!", show_alert=True)
-                return
 
             # ⭐ ПРОВЕРКА ОПУТЫВАНИЯ ⭐
             # Проверяем, опутан ли текущий отряд
@@ -6948,6 +6942,13 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                         show_alert=True
                     )
                     return
+
+            target_squad = initiative_list[target_index]
+            
+            # Проверяем что цель не свой игрок
+            if target_squad["owner"] == current_turn["owner"]:
+                await query.answer("🚫 Нельзя атаковать союзный отряд!", show_alert=True)
+                return
 
             # Получаем способности атакующего
             attacker_abilities = current_turn.get("ability", "")
