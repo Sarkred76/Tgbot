@@ -53,6 +53,7 @@ DATA_FILE = "/data/bot_data.json"
 ANIMATED_FORMATS = (".mp4", ".gif", ".webm")
 AUTO_ANIMATED_RARITIES = ["Animated!"]
 SUPER_ADMIN_ID = "881692999"
+_gold_digger_last_check = None
 
 FORT_IMAGE_URL = "https://files.catbox.moe/jfvt8d.jpg"
 FOREST_IMAGE_URL = "https://files.catbox.moe/1p3gd9.jpg"
@@ -8396,83 +8397,98 @@ async def process_gold_digger_income(application: Application) -> None:
     Ежедневное начисление золота за существ со способностью "Золотоискатель".
     Запускается в 00:00 по МСК.
     """
+    global _gold_digger_last_check
+    
     try:
-        await asyncio.sleep(60)  # Ждём 1 минуту после запуска бота
-        data = load_data()
-        current_time = int(time.time())
+        # Ждём 1 минуту после запуска бота
+        await asyncio.sleep(60)
         
-        # Проверяем, наступила ли новая дата по МСК
-        msk_tz = datetime.timezone(datetime.timedelta(hours=3))
-        now_msk = datetime.datetime.now(msk_tz)
-        today_date = now_msk.date()
-        
-        processed_count = 0
-        total_gold_distributed = 0
-        
-        for user_id, user_data in data["users"].items():
-            # Проверяем, было ли уже начисление сегодня
-            last_income_date = user_data.get("gold_digger_last_income", "")
+        while True:
+            # Получаем текущее время по МСК
+            msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+            now_msk = datetime.datetime.now(msk_tz)
+            today_date = str(now_msk.date())
+            current_hour = now_msk.hour
+            current_minute = now_msk.minute
             
-            if last_income_date == str(today_date):
-                continue  # Уже получили золото сегодня
-            
-            # Считаем существ со способностью "Золотоискатель"
-            gold_digger_count = 0
-            gold_digger_names = {}
-            
-            user_cards = user_data.get("cards", [])
-            card_counts = Counter(user_cards)
-            
-            for card_id, count in card_counts.items():
-                if card_id in GOLD_DIGGER_CARD_IDS:
-                    gold_digger_count += count
-                    # Сохраняем название для сообщения
-                    card = find_card_by_id(card_id, data["cards"])
-                    if card:
-                        card_name = card["title"]
-                        if card_name not in gold_digger_names:
-                            gold_digger_names[card_name] = 0
-                        gold_digger_names[card_name] += count
-            
-            if gold_digger_count > 0:
-                # Начисляем золото (50 за каждое существо)
-                gold_income = gold_digger_count * 50
-                user_data["cents"] = user_data.get("cents", 0) + gold_income
+            # Проверяем, находимся ли мы в окне 00:00–00:05 МСК
+            # и ещё не начисляли сегодня
+            if current_hour == 0 and current_minute < 5:
+                if _gold_digger_last_check != today_date:
+                    data = load_data()
+                    processed_count = 0
+                    total_gold_distributed = 0
+                    
+                    for user_id, user_data in data["users"].items():
+                        # Проверяем, было ли уже начисление сегодня этому пользователю
+                        last_income_date = user_data.get("gold_digger_last_income", "")
+                        if last_income_date == today_date:
+                            continue  # Уже получили золото сегодня
+                        
+                        # Считаем существ со способностью "Золотоискатель"
+                        gold_digger_count = 0
+                        gold_digger_names = {}
+                        
+                        user_cards = user_data.get("cards", [])
+                        card_counts = Counter(user_cards)
+                        
+                        for card_id, count in card_counts.items():
+                            if card_id in GOLD_DIGGER_CARD_IDS:
+                                gold_digger_count += count
+                                card = find_card_by_id(card_id, data["cards"])
+                                if card:
+                                    card_name = card["title"]
+                                    if card_name not in gold_digger_names:
+                                        gold_digger_names[card_name] = 0
+                                    gold_digger_names[card_name] += count
+                        
+                        if gold_digger_count > 0:
+                            # Начисляем золото (50 за каждое существо)
+                            gold_income = gold_digger_count * 50
+                            user_data["cents"] = user_data.get("cents", 0) + gold_income
+                            
+                            # Сохраняем дату последнего начисления
+                            user_data["gold_digger_last_income"] = today_date
+                            
+                            # Формируем сообщение
+                            creatures_text = ", ".join([f"{name}: {count} шт." for name, count in gold_digger_names.items()])
+                            message = (
+                                f"💰 Ваши золотоискатели принесли доход! {gold_income} золота за {creatures_text}\n\n"
+                                f"⏰ Следующее начисление завтра в 00:00 МСК"
+                            )
+                            
+                            # Отправляем сообщение игроку
+                            try:
+                                await application.bot.send_message(
+                                    chat_id=user_id,
+                                    text=message
+                                )
+                                processed_count += 1
+                                total_gold_distributed += gold_income
+                                logger.info(f"Игрок {user_id} получил {gold_income} золота от золотоискателей")
+                            except Exception as send_error:
+                                logger.error(f"Не удалось отправить сообщение игроку {user_id}: {send_error}")
+                    
+                    # Сохраняем данные
+                    if processed_count > 0:
+                        save_data(data)
+                        logger.info(f"Обработано {processed_count} игроков, распределено {total_gold_distributed} золота")
+                    
+                    # Обновляем метку, чтобы не начислить дважды в одном окне
+                    _gold_digger_last_check = today_date
                 
-                # Сохраняем дату последнего начисления
-                user_data["gold_digger_last_income"] = str(today_date)
+                # Ждём 10 минут внутри окна, чтобы избежать повторного начисления
+                await asyncio.sleep(600)
+            else:
+                # Если не в окне начисления — проверяем каждую минуту
+                await asyncio.sleep(60)
                 
-                # Формируем сообщение
-                creatures_text = ", ".join([f"{name}: {count} шт." for name, count in gold_digger_names.items()])
-                message = (
-                    f"💰 Ваши золотоискатели принесли доход! {gold_income} золота\n\n"
-                    f"⏰ Следующее начисление завтра в 00:00 МСК"
-                )
-                
-                # Отправляем сообщение игроку
-                try:
-                    await application.bot.send_message(
-                        chat_id=user_id,
-                        text=message
-                    )
-                    processed_count += 1
-                    total_gold_distributed += gold_income
-                    logger.info(f"Игрок {user_id} получил {gold_income} золота от золотоискателей")
-                except Exception as send_error:
-                    logger.error(f"Не удалось отправить сообщение игроку {user_id}: {send_error}")
-        
-        # Сохраняем данные
-        if processed_count > 0:
-            save_data(data)
-            logger.info(f"Обработано {processed_count} игроков, распределено {total_gold_distributed} золота")
-        
     except Exception as e:
         logger.error(f"Ошибка в process_gold_digger_income: {e}")
-    
-    # Планируем следующее выполнение через 24 часа
-    await asyncio.sleep(24 * 60 * 60)
-    asyncio.create_task(process_gold_digger_income(application))
-
+        # При ошибке ждём 5 минут и пробуем снова
+        await asyncio.sleep(300)
+        asyncio.create_task(process_gold_digger_income(application))
+        
 # ===== ЗАПУСК БОТА =====
 
 
@@ -8568,12 +8584,7 @@ def main() -> None:
 
         logger.info("Запущена фоновая задача уведомлений")
 
-        # ⭐ ЗАПУСКАЕМ ЗАДАЧУ ЗОЛОТОИСКАТЕЛЕЙ ⭐
-        gold_digger_thread = threading.Thread(
-            target=lambda: asyncio.run(process_gold_digger_income(application)),
-            daemon=True
-        )
-        gold_digger_thread.start()
+        asyncio.create_task(process_gold_digger_income(application))
         logger.info("Запущена фоновая задача золотоискателей")
         
         application.run_polling(allowed_updates=Update.ALL_TYPES)
