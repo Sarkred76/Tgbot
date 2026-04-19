@@ -1764,10 +1764,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
             await open_casino_from_button(update, context)
 
-        elif text == "⏹️ Завершить битву":
-            await end_battle(update, context)
-            return
-
         elif text == "👑 Мой герой":
 
             await my_profile(update, context)
@@ -5951,9 +5947,6 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             [KeyboardButton("🏆 Топ сражений")], 
         ]
         
-        # ⭐ ДОБАВЛЯЕМ КНОПКУ "ЗАВЕРШИТЬ БИТВУ" ЕСЛИ ЕСТЬ АКТИВНАЯ ⭐
-        if has_active_battle:
-            keyboard.append([KeyboardButton("⏹️ Завершить битву")])
         keyboard.append([KeyboardButton("🔙 Назад в меню")])
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -6017,7 +6010,6 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             [KeyboardButton("🛡️ Моя Армия")],
             [KeyboardButton("🔍 Найти противника")],
             [KeyboardButton("🏆 Топ сражений")],
-            [KeyboardButton("⏹️ Завершить битву")],
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -7774,11 +7766,6 @@ async def show_battle_menu(
 
         inline_keyboard.append([
             InlineKeyboardButton("🏳️ Сдаться", callback_data="battle_surrender")
-        ])
-        
-        # Кнопка завершения битвы
-        inline_keyboard.append([
-            InlineKeyboardButton("⏹️ Завершить битву", callback_data="battle_end")
         ])
         
         # ⭐ ФОРМИРУЕМ CAPTION ⭐
