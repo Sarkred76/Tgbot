@@ -6958,15 +6958,15 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             if not attacker_is_shooter and target_is_shooter and not has_flying:
                 # Проверяем, есть ли у цели не-стреляющие союзники
                 target_owner = target_squad["owner"]
-                has_non_shooter_allies = False
+                found_non_shooter = False
                 for squad in initiative_list:
                     if squad["owner"] == target_owner and squad["count"] > 0:
                         if not squad.get("shooter_active", False):
-                            has_non_shooter_allies = True
+                            found_non_shooter = True
                             break
         
                 # Если есть не-стрелки, нельзя атаковать стрелка
-                if has_non_shooter_allies:
+                if found_non_shooter:
                     await query.answer(
                         "🚫 Сначала уничтожьте не-стреляющие отряды!",
                         show_alert=True
