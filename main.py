@@ -6981,12 +6981,8 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     check_unit = initiative_list[i]
                     if check_unit["owner"] != current_turn["owner"]:
                         # Проверяем защиту стрелка
-                        if check_unit.get("shooter_active", False):
-                            if has_non_shooter_allies(battle_data, check_unit["owner"]):
-                                # ⭐ СТРЕЛОК ЗАЩИЩЁН - ПРОПУСКАЕМ И ИЩЕМ ДАЛЬШЕ ⭐
-                                continue  # ← Ищем следующую цель вместо break
-                        
-                        area_attack_targets.append((i, check_unit, "слева"))
+                        if not has_non_shooter_allies(battle_data, check_unit["owner"]) or check_unit.get("shooter_active", False):
+                            area_attack_targets.append((i, check_unit, "слева"))
                         break  # Нашли первого врага, дальше не ищем
     
                 # Ищем ближайшего врага ПОСЛЕ целевого отряда (пропуская свои отряды)
@@ -6994,12 +6990,8 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     check_unit = initiative_list[i]
                     if check_unit["owner"] != current_turn["owner"]:
                         # Проверяем защиту стрелка
-                        if check_unit.get("shooter_active", False):
-                            if has_non_shooter_allies(battle_data, check_unit["owner"]):
-                                # ⭐ СТРЕЛОК ЗАЩИЩЁН - ПРОПУСКАЕМ И ИЩЕМ ДАЛЬШЕ ⭐
-                                continue  # ← Ищем следующую цель вместо break
-                        
-                        area_attack_targets.append((i, check_unit, "слева"))
+                        if not has_non_shooter_allies(battle_data, check_unit["owner"]) or check_unit.get("shooter_active", False):
+                            area_attack_targets.append((i, check_unit, "справа"))
                         break  # Нашли первого врага, дальше не ищем
 
             # ⭐ ФУНКЦИЯ ДЛЯ ОДНОЙ АТАКИ ⭐
