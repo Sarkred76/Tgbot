@@ -640,28 +640,26 @@ async def show_user_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 chat_id=query.message.chat_id,
                 photo=BARRACKS_IMAGE_URL,  # ← Изображение Казармы
                 caption=(
-                    "🛡 **Казарма**\n\n"
+                    "🛡 Казарма\n\n"
                     "Выберите способ просмотра:\n"
                     "• 📊 По редкости\n"
                     "• ⚔️ По фракции\n"
                     "• 📋 Все существа"
                 ),
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
         else:
             await context.bot.send_photo(
                 chat_id=update.effective_chat.id,
                 photo=BARRACKS_IMAGE_URL,  # ← Изображение Казармы
                 caption=(
-                    "🛡 **Казарма**\n\n"
+                    "🛡 Казарма\n\n"
                     "Выберите способ просмотра:\n"
                     "• 📊 По редкости\n"
                     "• ⚔️ По фракции\n"
                     "• 📋 Все существа"
                 ),
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
         
     except Exception as e:
@@ -824,9 +822,8 @@ async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text="⚔️ **Выберите фракцию:**\nПросмотрите существ по принадлежности к фракции:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
+            text="⚔️ Выберите фракцию:\nПросмотрите существ по принадлежности к фракции:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         
     except Exception as e:
@@ -1011,9 +1008,8 @@ async def show_rarity_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text="📊 **Выберите редкость:**",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
+            text="📊 Выберите редкость:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         
     except Exception as e:
@@ -1031,7 +1027,7 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         data = load_data()
         user_data = data["users"].get(user_id)
         
-        # ⭐ НОВЫЕ КНОПКИ КАЗАРМЫ (barracks_*) ⭐
+        # ⭐ НОВЫЕ КНОПКИ КАЗАРМЫ (barracks_) ⭐
         
         # Кнопка "По редкости" → показать меню редкостей
         if query.data == "barracks_rarity":
@@ -1102,7 +1098,7 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await show_user_cards(update, context)
             return
         
-        # ⭐ СТАРАЯ ЛОГИКА (mycards_*) ⭐
+        # ⭐ СТАРАЯ ЛОГИКА (mycards_) ⭐
         
         # Кнопка "Все карты" (старая)
         elif query.data == "mycards_all":
@@ -1177,7 +1173,7 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await show_cards_by_rarity(update, context, rarity, start_index=index)
             return
         
-        # ⭐ НАВИГАЦИЯ ПО ФРАКЦИЯМ (barracks_*) ⭐
+        # ⭐ НАВИГАЦИЯ ПО ФРАКЦИЯМ (barracks_) ⭐
         elif query.data.startswith("barracks_faction_"):
             if query.data.startswith("barracks_faction_nav_"):
                 # Навигация внутри фракции
@@ -1194,7 +1190,7 @@ async def mycards_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 await show_faction_menu(update, context)
             return
         
-        # ⭐ НАВИГАЦИЯ ПО РЕДКОСТЯМ (barracks_*) ⭐
+        # ⭐ НАВИГАЦИЯ ПО РЕДКОСТЯМ (barracks_) ⭐
         elif query.data.startswith("barracks_rarity_"):
             if query.data.startswith("barracks_rarity_nav_"):
                 # Навигация внутри редкости
@@ -1277,19 +1273,19 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         claimed_count = len(user_data.get("claimed_achievements", []))
         
         profile_text = (
-            f"👤 **Профиль героя**\n\n"
+            f"👤 Профиль героя\n\n"
             f"🆔 ID: `{user_id}`\n"
             f"💰 Золото: {user_data.get('cents', 0)}\n"
             f"💥 Опыта (сезон): {user_data.get('season_points', 0)}\n"
             f"💎 Опыта (всего): {user_data.get('total_points', 0)}\n\n"
-            f"🐦‍🔥 **Коллекция:**\n"
+            f"🐦‍🔥 Коллекция:\n"
             f"📦 Собрано существ: {unique_cards}/{total_available_cards}\n"
             f"📊 Заполненность: {collection_percent}%\n"
             f"🔢 Всего получено: {len(user_card_ids)} (с дубликатами)\n\n"
-            f"📈 **По редкостям:**\n"
+            f"📈 По редкостям:\n"
             f"{rarity_text}\n"
-            f"🎲 **Бесплатные наймы:** {user_data.get('free_rolls', 0)}\n"
-            f"🏆 **Достижения:** {claimed_count}/9\n"
+            f"🎲 Бесплатные наймы: {user_data.get('free_rolls', 0)}\n"
+            f"🏆 Достижения: {claimed_count}/9\n"
         )
         
         keyboard = [[InlineKeyboardButton("🏆 Достижения", callback_data="achievements_menu")]]
@@ -1304,14 +1300,12 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=profile_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
         else:
             await update.message.reply_text(
                 profile_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
         
     except Exception as e:
@@ -1569,9 +1563,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
-                "🏠 **Главное меню**\n\nДобро пожаловать! Используйте кнопки ниже:",
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
+                "🏠 Главное меню\n\nДобро пожаловать! Используйте кнопки ниже:",
+                reply_markup=reply_markup
             )
             return
         
@@ -5463,8 +5456,8 @@ async def mercenary_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             )
             return
         
-        message_text = "🪓 **Гильдия Наёмников**\n\n"
-        message_text += f"📊 **Существ:** {len(guild['creatures'])}/{guild['max_slots']}\n\n"
+        message_text = "🪓 Гильдия Наёмников\n\n"
+        message_text += f"📊 Существ: {len(guild['creatures'])}/{guild['max_slots']}\n\n"
         
         for i, creature in enumerate(guild["creatures"], 1):
             card = find_card_by_id(creature["card_id"], data["cards"])
@@ -5472,7 +5465,7 @@ async def mercenary_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             rarity = card["rarity"] if card else "?"
             
             message_text += (
-                f"{i}. **{card_name}** ({rarity})\n"
+                f"{i}. {card_name} ({rarity})\n"
                 f"   💰 Цена: {creature['price']} золота\n"
                 f"   🆔 ID: {creature['card_id']}\n\n"
             )
@@ -5495,11 +5488,10 @@ async def mercenary_update_price(update: Update, context: ContextTypes.DEFAULT_T
         # Проверяем аргументы: /mercenary_price [ID_карты] [новая_цена]
         if not context.args or len(context.args) < 2:
             await update.message.reply_text(
-                "ℹ️ **Формат команды:**\n"
+                "ℹ️ Формат команды:\n"
                 "/mercenary_price [ID_карты] [новая_цена]\n\n"
-                "**Пример:**\n"
-                "/mercenary_price 45 10000",
-                parse_mode="Markdown"
+                "Пример:\n"
+                "/mercenary_price 45 10000"
             )
             return
         
@@ -5958,12 +5950,12 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         keyboard.append([KeyboardButton("🔙 Назад в меню")])
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-        streak_info = f"🔥 **Серия побед:** {win_streak}\n"
+        streak_info = f"🔥 Серия побед: {win_streak}\n"
         if win_streak > 0 and win_streak % 5 == 0:
-            streak_info += f"🎁 **Следующая награда:** {win_streak + 5} наймов!\n"
+            streak_info += f"🎁 Следующая награда: {win_streak + 5} наймов!\n"
         elif win_streak > 0:
             next_reward = ((win_streak // 5) + 1) * 5
-            streak_info += f"🎁 **До следующей награды:** {next_reward - win_streak} побед\n"
+            streak_info += f"🎁 До следующей награды: {next_reward - win_streak} побед\n"
 
         # ⭐ ПОКАЗЫВАЕМ ПРОГРЕСС ДО СЛЕДУЮЩЕГО УРОВНЯ ⭐
         LEVEL_THRESHOLDS = {
@@ -5978,18 +5970,18 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         if next_level in LEVEL_THRESHOLDS:
             next_exp = LEVEL_THRESHOLDS[next_level]
             exp_needed = max(0, next_exp - battle_experience)
-            level_progress = f"📊 **Уровень:** {battle_level} ({exp_needed} до {next_level} уровня)\n"
+            level_progress = f"📊 Уровень: {battle_level} ({exp_needed} до {next_level} уровня)\n"
         else:
-            level_progress = f"📊 **Уровень:** {battle_level} (МАКС)\n"        
+            level_progress = f"📊 Уровень: {battle_level} (МАКС)\n"        
         
         caption = (
-            "⚔️ **Сражения**\n"
+            "⚔️ Сражения\n"
             "Управляйте своей армией и сражайтесь с другими героями!\n\n"
-            f"💥 **Ваш боевой опыт:** {battle_experience}\n"
+            f"💥 Ваш боевой опыт: {battle_experience}\n"
             f"{level_progress}"
-            f"🏆 **Ваше место в топе сражений:** {battle_rank}\n"
+            f"🏆 Ваше место в топе сражений: {battle_rank}\n"
             f"{streak_info}"
-            f"⚔️ **Осталось вызовов сегодня:** {remaining_challenges}/3"
+            f"⚔️ Осталось вызовов сегодня: {remaining_challenges}/3"
         )
         
         # ⭐ ПРОВЕРКА: callback или сообщение ⭐
@@ -6003,16 +5995,14 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 chat_id=query.message.chat_id,
                 photo=BATTLES_IMAGE_URL,
                 caption=caption,
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
+                reply_markup=reply_markup
             )
         else:
             await context.bot.send_photo(
                 chat_id=update.effective_chat.id,
                 photo=BATTLES_IMAGE_URL,
                 caption=caption,
-                reply_markup=reply_markup,
-                parse_mode="Markdown"
+                reply_markup=reply_markup
             )
     except Exception as e:
         logger.error(f"Ошибка в battles_menu: {e}")
@@ -6025,9 +6015,8 @@ async def battles_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
-            "⚔️ **Сражения**\n\nУправляйте своей армией!",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
+            "⚔️ Сражения\n\nУправляйте своей армией!",
+            reply_markup=reply_markup
         )
 async def my_army(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Показывает армию пользователя с сортировкой по редкостям."""
@@ -6198,14 +6187,14 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
         
         # ⭐ ФОРМИРУЕМ CAPTION ⭐
         caption = (
-            f"🛡️ **Моя Армия**\n\n"
-            f"📊 **Выберите существ для отрядов:**\n"
+            f"🛡️ Моя Армия\n\n"
+            f"📊 Выберите существ для отрядов:\n"
             f"📄 Страница {page + 1}/{total_pages}\n\n"
-            f"📋 **Текущие отряды:** {len(selected_squads)}/{MAX_ARMY_SQUADS}\n"
+            f"📋 Текущие отряды: {len(selected_squads)}/{MAX_ARMY_SQUADS}\n"
         )
         
         if selected_squads:
-            caption += "\n**Ваши отряды:**\n"
+            caption += "\nВаши отряды:\n"
             for i, squad in enumerate(selected_squads, 1):
                 card = find_card_by_id(squad["card_id"], data["cards"])
                 if card:
@@ -6217,22 +6206,19 @@ async def show_army_page(update: Update, context: ContextTypes.DEFAULT_TYPE, pag
             try:
                 await query.edit_message_text(
                     caption,
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                    parse_mode="Markdown"
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard)
                 )
             except Exception as edit_error:
                 logger.error(f"Ошибка редактирования: {edit_error}")
                 await context.bot.send_message(
                     chat_id=query.message.chat_id,
                     text=caption,
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                    parse_mode="Markdown"
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard)
                 )
         else:
             await update.message.reply_text(
                 caption,
-                reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                parse_mode="Markdown"
+                reply_markup=InlineKeyboardMarkup(inline_keyboard)
             )
         
     except Exception as e:
@@ -6340,13 +6326,12 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             ]
             
             await query.edit_message_text(
-                f"➕ **Добавление в отряд**\n\n"
-                f"🃏 **Существо:** {card['title']}\n"
-                f"🌟 **Редкость:** {card['rarity']}\n"
-                f"📦 **Доступно:** {max_count} шт.\n\n"
+                f"➕ Добавление в отряд\n\n"
+                f"🃏 Существо: {card['title']}\n"
+                f"🌟 Редкость: {card['rarity']}\n"
+                f"📦 Доступно: {max_count} шт.\n\n"
                 f"Выберите количество:",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
             
             # ⭐ УСТАНАВЛИВАЕМ ФЛАГ ОЖИДАНИЯ ⭐
@@ -6420,13 +6405,13 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 return
             
             # ⭐ ФОРМИРУЕМ ОТЧЁТ ⭐
-            report = "✅ **Армия сформирована!**\n\n"
-            report += f"📋 **Ваши {MAX_ARMY_SQUADS} отрядов:**\n\n"
+            report = "✅ Армия сформирована!\n\n"
+            report += f"📋 Ваши {MAX_ARMY_SQUADS} отрядов:\n\n"
             
             for i, squad in enumerate(selected_squads, 1):
                 card = find_card_by_id(squad["card_id"], data["cards"])
                 if card:
-                    report += f"{i}. **{card['title']}** ({card['rarity']})\n"
+                    report += f"{i}. {card['title']} ({card['rarity']})\n"
                     report += f"   👥 Количество: {squad['count']} шт.\n\n"
             
             keyboard = [[
@@ -6435,8 +6420,7 @@ async def army_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             
             await query.edit_message_text(
                 report,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
             
             # ⭐ СОХРАНЯЕМ ВРЕМЯ ФОРМИРОВАНИЯ ⭐
@@ -6498,10 +6482,9 @@ async def select_battle_opponent(update: Update, context: ContextTypes.DEFAULT_T
         can_challenge, remaining = check_battle_challenge_limit(user_id, data)
         if not can_challenge:
             await update.message.reply_text(
-                "❌ **Лимит вызовов исчерпан!**\n"
+                "❌ Лимит вызовов исчерпан!\n"
                 "Вы можете бросить только 3 вызова в день.\n"
                 "Счётчик сбросится в 00:00 МСК.",
-                parse_mode="Markdown",
                 reply_markup=ReplyKeyboardMarkup(
                     [[KeyboardButton("🔙 Назад в Сражения")]],
                     resize_keyboard=True
@@ -6528,10 +6511,9 @@ async def select_battle_opponent(update: Update, context: ContextTypes.DEFAULT_T
         }
         
         await update.message.reply_text(
-            "🔍 **Введите @никнейм противника**\n\n"
+            "🔍 Введите @никнейм противника\n\n"
             "Пример: `@username`\n\n"
             "❌ Для отмены: /cancel",
-            parse_mode="Markdown",
             reply_markup=ReplyKeyboardMarkup(
                 [[KeyboardButton("🔙 Назад в Сражения")]], 
                 resize_keyboard=True
@@ -6622,10 +6604,9 @@ async def process_opponent_selection(update: Update, context: ContextTypes.DEFAU
         can_challenge, remaining = check_battle_challenge_limit(user_id, data)
         if not can_challenge:
             await update.message.reply_text(
-                "❌ **Лимит вызовов исчерпан!**\n"
+                "❌ Лимит вызовов исчерпан!\n"
                 "Вы можете бросить только 3 вызова в день.\n"
                 "Счётчик сбросится в 00:00 МСК.",
-                parse_mode="Markdown",
                 reply_markup=ReplyKeyboardMarkup(
                     [[KeyboardButton("🔙 Назад в Сражения")]],
                     resize_keyboard=True
@@ -6653,15 +6634,14 @@ async def process_opponent_selection(update: Update, context: ContextTypes.DEFAU
             await context.bot.send_message(
                 chat_id=opponent_id,
                 text=(
-                    f"⚔️ **Вам бросили вызов!**\n\n"
+                    f"⚔️ Вам бросили вызов!\n\n"
                     f"👤 От: {sender_name}\n\n"
-                    f"🛡️ **Армия противника:**\n"
+                    f"🛡️ Армия противника:\n"
                     f"{my_army_text}\n\n"
                     f"⚠️ Количество существ показано в диапазонах!\n"
                     f"Выберите действие:"
                 ),
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
 
             # ⭐ УВЕЛИЧИВАЕМ СЧЁТЧИК ВЫЗОВОВ ⭐
@@ -6732,7 +6712,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             is_valid, missing_cards = validate_army(user_id, data)
             if not is_valid:
                 await query.edit_message_text(
-                    "⚠️ **Ваша армия требует пересборки!**\n\n"
+                    "⚠️ Ваша армия требует пересборки!\n\n"
                     "Некоторые существа из вашей армии больше не доступны.\n"
                     "Пожалуйста, пересоберите армию в разделе 🛡️ Моя Армия."
                 )
@@ -6747,7 +6727,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             is_valid_sender, _ = validate_army(sender_id, data)
             if not is_valid_sender:
                 await query.edit_message_text(
-                    "⚠️ **Армия отправителя требует пересборки!**\n\n"
+                    "⚠️ Армия отправителя требует пересборки!\n\n"
                     "Отправитель должен пересобрать свою армию."
                 )
                 return
@@ -6772,15 +6752,14 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await context.bot.send_message(
                 chat_id=sender_id,
                 text=(
-                    f"⚔️ **Противник принял вызов!**\n\n"
+                    f"⚔️ Противник принял вызов!\n\n"
                     f"👤 Противник: {opponent_name}\n\n"
-                    f"🛡️ **Армия противника:**\n"
+                    f"🛡️ Армия противника:\n"
                     f"{opponent_army_text}\n\n"
                     f"⚠️ Количество существ показано в диапазонах!\n"
                     f"Выберите действие:"
                 ),
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
             
             # Обновляем состояние
@@ -6831,7 +6810,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             is_valid_opponent, _ = validate_army(opponent_id, data)
             if not is_valid_opponent:
                 await query.edit_message_text(
-                    "⚠️ **Армия противника требует пересборки!**\n\n"
+                    "⚠️ Армия противника требует пересборки!\n\n"
                     "Противник должен пересобрать свою армию."
                 )
                 return
@@ -6867,13 +6846,13 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             save_data(data)
     
             # ⭐ СООБЩЕНИЕ О ЦВЕТЕ ИГРОКАМ ⭐
-            await query.edit_message_text("✅ **Сражение началось!** ⚔️\n\nВы 🟥 **красный игрок**")
+            await query.edit_message_text("✅ Сражение началось! ⚔️\n\nВы 🟥 красный игрок")
     
             # Уведомляем противника
             try:
                 await context.bot.send_message(
                     chat_id=opponent_id,
-                    text="✅ **Сражение началось!** ⚔️\n\nВы 🟦 **синий игрок**"
+                    text="✅ Сражение началось! ⚔️\n\nВы 🟦 синий игрок"
                 )
         
                 # ⭐ ПОКАЗЫВАЕМ МЕНЮ БИТВЫ ОБОИМ ИГРОКАМ ⭐
@@ -7077,7 +7056,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     
                 # ⭐ ДОБАВЛЯЕМ СООБЩЕНИЯ ОБ АТАКЕ ПО ОБЛАСТИ ⭐
                 if area_attack_messages:
-                    all_attack_messages.append("\n**Атака по области:**")
+                    all_attack_messages.append("\nАтака по области:")
                     all_attack_messages.extend(area_attack_messages)
 
             # ⭐ ПРОВЕРКА НА КОНТРАТАКУ ⭐
@@ -7178,7 +7157,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                             data["users"][player_id]["win_streak"] = 0
                             await context.bot.send_message(
                                 chat_id=player_id,
-                                text=f"🤝 **Битва завершена вничью!**\n\n"
+                                text=f"🤝 Битва завершена вничью!\n\n"
                                      f"💥 +{killed_health * 2} боевого опыта\n"
                                      f"💰 +{killed_health * 2} золота\n"
                                      f"🔥 Серия побед сброшена!"
@@ -7227,17 +7206,17 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     try:
                         killed_health = rewards[player_id]["killed_health"]
                         if player_id == winner:
-                            result = f"🏆 **Вы победили!**\n\n"
+                            result = f"🏆 Вы победили!\n\n"
                             result += f"💥 +{killed_health * 5} боевого опыта\n"
                             result += f"💰 +{killed_health * 5} золота\n"
                             result += f"🔥 Серия побед: {data['users'][player_id]['win_streak']}"
                             if streak_reward > 0:
-                                result += f"🎁 **НАГРАДА ЗА СЕРИЮ:** +{streak_reward} наймов!\n"
-                                result += "🎉 **Вы получили награду за серию побед!**\n"
+                                result += f"🎁 НАГРАДА ЗА СЕРИЮ: +{streak_reward} наймов!\n"
+                                result += "🎉 Вы получили награду за серию побед!\n"
                             if player_id == winner and level_up_rewards:
-                                result += "\n🎉 **ПОВЫШЕНИЕ УРОВНЯ!**\n"
+                                result += "\n🎉 ПОВЫШЕНИЕ УРОВНЯ!\n"
                                 for reward in level_up_rewards:
-                                    result += f"🎊 **Уровень {reward['level']}!**\n"
+                                    result += f"🎊 Уровень {reward['level']}!\n"
                                     if reward["reward_type"] == "card":
                                         result += f"🃏 Получено: {reward['card_name']}\n"
                                     elif reward["reward_type"] == "gold":
@@ -7247,14 +7226,14 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                     elif reward["reward_type"] == "special_card":
                                         result += f"🌟 Получена special-карта!\n"
                         else:
-                            result = f"💀 **Вы проиграли!**\n\n"
+                            result = f"💀 Вы проиграли!\n\n"
                             result += f"💥 +{killed_health * 2} боевого опыта\n"
                             result += f"💰 +{killed_health * 2} золота\n"
                             result += f"🔥 Серия побед сброшена!"
                             if player_id == loser and level_up_rewards_loser:
-                                result += "\n🎉 **ПОВЫШЕНИЕ УРОВНЯ!**\n"
+                                result += "\n🎉 ПОВЫШЕНИЕ УРОВНЯ!\n"
                                 for reward in level_up_rewards_loser:
-                                    result += f"🎊 **Уровень {reward['level']}!**\n"
+                                    result += f"🎊 Уровень {reward['level']}!\n"
                                     if reward["reward_type"] == "card":
                                         result += f"🃏 Получено: {reward['card_name']}\n"
                                     elif reward["reward_type"] == "gold":
@@ -7272,7 +7251,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                     special_card = find_card_by_id(reward["card_id"], data["cards"])
                                     if special_card:
                                         caption = generate_card_caption(special_card, data["users"][player_id], count=1, show_bonus=True)
-                                        caption += "\n\n🎉 **Награда за повышение уровня в сражениях!**"
+                                        caption += "\n\n🎉 Награда за повышение уровня в сражениях!"
                                         await send_card(update, special_card, context, caption=caption)
             
                         if player_id == loser and level_up_rewards_loser:
@@ -7281,7 +7260,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                     special_card = find_card_by_id(reward["card_id"], data["cards"])
                                     if special_card:
                                         caption = generate_card_caption(special_card, data["users"][player_id], count=1, show_bonus=True)
-                                        caption += "\n\n🎉 **Награда за повышение уровня в сражениях!**"
+                                        caption += "\n\n🎉 Награда за повышение уровня в сражениях!"
                                         await send_card(update, special_card, context, caption=caption)
                     
                     except:
@@ -7327,17 +7306,17 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     try:
                         killed_health = rewards[player_id]["killed_health"]
                         if player_id == winner:
-                            result = f"🏆 **Вы победили!**\n\n"
+                            result = f"🏆 Вы победили!\n\n"
                             result += f"💥 +{killed_health * 5} боевого опыта\n"
                             result += f"💰 +{killed_health * 5} золота\n"
                             result += f"🔥 Серия побед: {data['users'][player_id]['win_streak']}"
                             if streak_reward > 0:
-                                result += f"🎁 **НАГРАДА ЗА СЕРИЮ:** +{streak_reward} наймов!\n"
-                                result += "🎉 **Вы получили награду за серию побед!**\n"
+                                result += f"🎁 НАГРАДА ЗА СЕРИЮ: +{streak_reward} наймов!\n"
+                                result += "🎉 Вы получили награду за серию побед!\n"
                             if player_id == winner and level_up_rewards:
-                                result += "\n🎉 **ПОВЫШЕНИЕ УРОВНЯ!**\n"
+                                result += "\n🎉 ПОВЫШЕНИЕ УРОВНЯ!\n"
                                 for reward in level_up_rewards:
-                                    result += f"🎊 **Уровень {reward['level']}!**\n"
+                                    result += f"🎊 Уровень {reward['level']}!\n"
                                     if reward["reward_type"] == "card":
                                         result += f"🃏 Получено: {reward['card_name']}\n"
                                     elif reward["reward_type"] == "gold":
@@ -7347,14 +7326,14 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                     elif reward["reward_type"] == "special_card":
                                         result += f"🌟 Получена special-карта!\n"
                         else:
-                            result = f"💀 **Вы проиграли!**\n\n"
+                            result = f"💀 Вы проиграли!\n\n"
                             result += f"💥 +{killed_health * 2} боевого опыта\n"
                             result += f"💰 +{killed_health * 2} золота\n"
                             result += f"🔥 Серия побед сброшена!"
                             if player_id == loser and level_up_rewards_loser:
-                                result += "\n🎉 **ПОВЫШЕНИЕ УРОВНЯ!**\n"
+                                result += "\n🎉 ПОВЫШЕНИЕ УРОВНЯ!\n"
                                 for reward in level_up_rewards_loser:
-                                    result += f"🎊 **Уровень {reward['level']}!**\n"
+                                    result += f"🎊 Уровень {reward['level']}!\n"
                                     if reward["reward_type"] == "card":
                                         result += f"🃏 Получено: {reward['card_name']}\n"
                                     elif reward["reward_type"] == "gold":
@@ -7372,7 +7351,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                     special_card = find_card_by_id(reward["card_id"], data["cards"])
                                     if special_card:
                                         caption = generate_card_caption(special_card, data["users"][player_id], count=1, show_bonus=True)
-                                        caption += "\n\n🎉 **Награда за повышение уровня в сражениях!**"
+                                        caption += "\n\n🎉 Награда за повышение уровня в сражениях!"
                                         await send_card(update, special_card, context, caption=caption)
             
                         if player_id == loser and level_up_rewards_loser:
@@ -7381,7 +7360,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                     special_card = find_card_by_id(reward["card_id"], data["cards"])
                                     if special_card:
                                         caption = generate_card_caption(special_card, data["users"][player_id], count=1, show_bonus=True)
-                                        caption += "\n\n🎉 **Награда за повышение уровня в сражениях!**"
+                                        caption += "\n\n🎉 Награда за повышение уровня в сражениях!"
                                         await send_card(update, special_card, context, caption=caption)
                         
                     except:
@@ -7446,7 +7425,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             save_data(data)
     
             await query.edit_message_text(
-                "✅ **Битва завершена!**\n\n"
+                "✅ Битва завершена!\n\n"
                 "Данные о сражении очищены.\n"
                 "Все существа остались в вашей казарме."
             )
@@ -7515,16 +7494,15 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             ]
     
             await query.edit_message_text(
-                f"🏳️ **Вы уверены, что хотите сдаться?**\n\n"
-                f"💀 **Погибшие существа:**\n"
+                f"🏳️ Вы уверены, что хотите сдаться?\n\n"
+                f"💀 Погибшие существа:\n"
                 f"• Ваши потери: {dead_red} существ\n"
                 f"• Потери противника: {dead_blue} существ\n\n"
-                f"💰 **Стоимость капитуляции:** {surrender_cost} золота\n"
+                f"💰 Стоимость капитуляции: {surrender_cost} золота\n"
                 f"(7 × суммарное здоровье оставшихся существ)\n\n"
                 f"⚠️ Погибшие существа будут удалены из казарм ОБОИХ игроков!\n"
                 f"Золото будет списано с вас и передано противнику.",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
             return
 
@@ -7569,12 +7547,11 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await context.bot.send_message(
                     chat_id=surrendering_player,
                     text=(
-                        f"🏳️ **Вы сдались!**\n\n"
+                        f"🏳️ Вы сдались!\n\n"
                         f"💸 С вашего баланса списано {surrender_cost} золота.\n"
                         f"💰 Противник получил {surrender_cost} золота.\n\n"
                         f"⚰️ Погибшие существа удалены из казарм ОБОИХ игроков."
-                    ),
-                    parse_mode="Markdown"
+                    )
                 )
             except:
                 pass
@@ -7583,17 +7560,16 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await context.bot.send_message(
                     chat_id=winner_id,
                     text=(
-                        f"🏆 **Противник сдался!**\n\n"
-                        f"🏆 **Вы победили!**\n"
+                        f"🏆 Противник сдался!\n\n"
+                        f"🏆 Вы победили!\n"
                         f"💰 Вы получили {surrender_cost} золота.\n\n"
                         f"⚰️ Погибшие существа удалены из вашей казармы."
-                    ),
-                    parse_mode="Markdown"
+                    )
                 )
             except:
                 pass
     
-            await query.edit_message_text("✅ **Вы сдались!** Битва завершена.")
+            await query.edit_message_text("✅ Вы сдались! Битва завершена.")
             return
 
         # ⭐ ОТМЕНА КАПИТУЛЯЦИИ ⭐
@@ -7800,12 +7776,12 @@ async def show_battle_menu(
         
         # ⭐ ФОРМИРУЕМ CAPTION ⭐
         caption = (
-            f"⚔️ **БИТВА!**\n"
-            f"🟥 **Красный игрок:** {red_player}\n"
-            f"🟦 **Синий игрок:** {blue_player}\n"
-            f"📋 **Порядок инициативы:**\n"
+            f"⚔️ БИТВА!\n"
+            f"🟥 Красный игрок: {red_player}\n"
+            f"🟦 Синий игрок: {blue_player}\n"
+            f"📋 Порядок инициативы:\n"
             f"Отряды расположены в порядке скорости (сверху — самые быстрые)\n"
-            f"🎯 **Сейчас ходит:** {current_turn_color} {current_turn['card_name']}\n"
+            f"🎯 Сейчас ходит: {current_turn_color} {current_turn['card_name']}\n"
             f"Выберите отряд противника для атаки:"
         )
         
@@ -7815,8 +7791,7 @@ async def show_battle_menu(
                 await context.bot.send_message(
                     chat_id=player_id,
                     text=caption,
-                    reply_markup=InlineKeyboardMarkup(inline_keyboard),
-                    parse_mode="Markdown"
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard)
                 )
                 logger.info(f"Меню битвы отправлено игроку {player_id}")
             except Exception as e:
@@ -7847,7 +7822,7 @@ async def end_battle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         save_data(data)
         
         await update.message.reply_text(
-            "✅ **Битва завершена!**\n\n"
+            "✅ Битва завершена!\n\n"
             "Данные о сражении очищены.\n"
             "Вы можете начать новое сражение.",
             reply_markup=ReplyKeyboardMarkup(
@@ -7980,11 +7955,10 @@ async def notify_army_rebuild_needed(update: Update, context: ContextTypes.DEFAU
             missing_text += f"\n• ... и ещё {len(missing_cards) - 5} существ"
         
         await update.message.reply_text(
-            f"⚠️ **Ваша армия требует пересборки!**\n\n"
+            f"⚠️ Ваша армия требует пересборки!\n\n"
             f"Некоторые существа из вашей армии больше не доступны:\n"
             f"{missing_text}\n\n"
-            f"Пожалуйста, зайдите в 🛡️ **Моя Армия** и пересоберите её.",
-            parse_mode="Markdown"
+            f"Пожалуйста, зайдите в 🛡️ Моя Армия и пересоберите её."
         )
     except Exception as e:
         logger.error(f"Ошибка notify_army_rebuild_needed: {e}")
@@ -8210,7 +8184,7 @@ async def top_battles(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         top_10 = sorted_users[:10]
         
         # Формируем сообщение
-        message_text = "🏆 **Топ сражений этого сезона**\n"
+        message_text = "🏆 Топ сражений этого сезона\n"
         if not top_10:
             message_text += "📭 Пока нет героев в топе!"
         else:
@@ -8252,19 +8226,17 @@ async def top_battles(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 user_rank = len(sorted_users) + 1
             message_text += "\n" + "─" * 30 + "\n"
             if user_rank <= 10:
-                message_text += f"✅ **Ваше место:** {user_rank}\n"
+                message_text += f"✅ Ваше место: {user_rank}\n"
             else:
-                message_text += f"📍 **Ваше место:** {user_rank}\n"
-            message_text += f"💥 **Ваш боевой опыт:** {current_battle_exp}"
+                message_text += f"📍 Ваше место: {user_rank}\n"
+            message_text += f"💥 Ваш боевой опыт: {current_battle_exp}"
         else:
             # ⭐ ДЛЯ АДМИНОВ - СООБЩЕНИЕ ЧТО ОНИ НЕ УЧАСТВУЮТ ⭐
             message_text += "\n" + "─" * 30 + "\n"
-            message_text += "⚙️ **Вы администратор**\n"
+            message_text += "⚙️ Вы администратор\n"
             message_text += "Ваш прогресс не учитывается в топе"
-        
         await update.message.reply_text(
-            message_text,
-            parse_mode="Markdown"
+            message_text
         )
     except Exception as e:
         logger.error(f"Ошибка в top_battles: {e}")
