@@ -6704,6 +6704,17 @@ async def process_opponent_selection(update: Update, context: ContextTypes.DEFAU
         logger.error(f"Ошибка process_opponent_selection: {e}")
         await update.message.reply_text("❌ Ошибка при обработке запроса")
 
+def has_non_shooter_allies(battle_data: Dict, player_owner: str) -> bool:
+    """
+    Проверяет, есть ли у игрока живые не-стреляющие союзники.
+    Возвращает: True если есть не-стрелки, False если все стрелки
+    """
+    initiative_list = battle_data.get("initiative_list", [])
+    for squad in initiative_list:
+        if squad["owner"] == player_owner and squad["count"] > 0:
+            if not squad.get("shooter_active", False):
+                return True
+    return False
 
 async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик кнопок сражений."""
@@ -8377,18 +8388,6 @@ def can_attack_target(attacker_squad, target_squad, initiative_list, data) -> tu
     
     # Все не-стрелки мертвы, можно атаковать стрелка
     return True, ""
-
-def has_non_shooter_allies(battle_data: Dict, player_owner: str) -> bool:
-    """
-    Проверяет, есть ли у игрока живые не-стреляющие союзники.
-    Возвращает: True если есть не-стрелки, False если все стрелки
-    """
-    initiative_list = battle_data.get("initiative_list", [])
-    for squad in initiative_list:
-        if squad["owner"] == player_owner and squad["count"] > 0:
-            if not squad.get("shooter_active", False):
-                return True
-    return False
 
 async def process_gold_digger_income(application: Application) -> None:
     """
