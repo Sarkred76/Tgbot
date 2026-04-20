@@ -55,16 +55,16 @@ AUTO_ANIMATED_RARITIES = ["Animated!"]
 SUPER_ADMIN_ID = "881692999"
 _gold_digger_last_check = None
 
-FORT_IMAGE_URL = "https://files.catbox.moe/jfvt8d.jpg"
-FOREST_IMAGE_URL = "https://files.catbox.moe/1p3gd9.jpg"
-TAVERN_IMAGE_URL = "https://files.catbox.moe/jes2nn.jpg"
-BARRACKS_IMAGE_URL = "https://files.catbox.moe/a5kew7.jpg"
-DUNGEON_IMAGE_URL = "https://files.catbox.moe/6kx269.png"
-ALTAR_IMAGE_URL = "https://files.catbox.moe/oonjfr.jpg"
-REFUGEE_CAMP_IMAGE_URL = "https://files.catbox.moe/eplmfl.jpg"
-MERCENARY_GUILD_IMAGE_URL = "https://files.catbox.moe/k7gzi0.jpg"
-FREE_ROLLS_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
-BATTLES_IMAGE_URL = "https://files.catbox.moe/joyo4r.jpg"
+FORT_IMAGE_URL = "https://ibb.co/gZwy5v0G"
+FOREST_IMAGE_URL = "https://ibb.co/DgTPVmTr"
+TAVERN_IMAGE_URL = "https://ibb.co/jPQv7mYn"
+BARRACKS_IMAGE_URL = "https://ibb.co/cSVxP3kh"
+DUNGEON_IMAGE_URL = "https://ibb.co/yBckMfHf"
+ALTAR_IMAGE_URL = "https://ibb.co/S7c5NL6v"
+REFUGEE_CAMP_IMAGE_URL = "https://ibb.co/qY2W2TpR"
+MERCENARY_GUILD_IMAGE_URL = "https://ibb.co/dwV8jyks"
+FREE_ROLLS_IMAGE_URL = "https://ibb.co/Zpc9ntMB"
+BATTLES_IMAGE_URL = "https://ibb.co/Zpc9ntMB"
 
 ANTI_SHOOTER_CREATURES = [69, 114]
 GOLD_DIGGER_CARD_IDS = [180, 181]
@@ -1301,12 +1301,14 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=profile_text,
-                reply_markup=InlineKeyboardMarkup(keyboard)
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode = "Markdown"
             )
         else:
             await update.message.reply_text(
                 profile_text,
-                reply_markup=InlineKeyboardMarkup(keyboard)
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode = "Markdown"
             )
         
     except Exception as e:
