@@ -4126,7 +4126,7 @@ async def check_card_notifications(application: Application) -> None:
                     notified_count += 1
                     logger.info(f"Уведомление отправлено пользователю {user_id}")
                 except Exception as send_error:
-                    logger.error(f"Не удалось отправить уведомление {user_id}: {send_error}")
+                    logger.error(f"Бот блокнул короче {user_id}")
             
             # ⭐ СОХРАНЯЕМ ДАННЫЕ ОДИН РАЗ ПОСЛЕ ВСЕХ УВЕДОМЛЕНИЙ ⭐
             if notified_count > 0:
