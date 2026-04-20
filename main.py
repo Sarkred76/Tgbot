@@ -7524,6 +7524,81 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
             return
 
+        # ⭐ ПРОПУСТИТЬ ХОД ⭐
+        if query.data == "battle_skip_turn":
+            # Находим активную битву
+            battle_key = None
+            for key, battle in data.get("active_battles", {}).items():
+                if user_id in [battle.get("red_player"), battle.get("blue_player")]:
+                    battle_key = key
+                    break
+            if not battle_key:
+                await query.answer("❌ Активная битва не найдена!", show_alert=True)
+                return
+            battle_data = data["active_battles"][battle_key]
+            initiative_list = battle_data.get("initiative_list", [])
+            current_turn_index = battle_data.get("current_turn_index", 0)
+    
+            # Проверяем чей сейчас ход
+            if current_turn_index >= len(initiative_list):
+                await query.answer("❌ Битва завершена!", show_alert=True)
+                return
+            current_turn = initiative_list[current_turn_index]
+    
+            # Проверяем что игрок может действовать
+            if user_id not in [battle_data.get("red_player"), battle_data.get("blue_player")]:
+                await query.answer("❌ Вы не участник этой битвы!", show_alert=True)
+                return
+            if current_turn["owner"] == "red" and user_id != battle_data.get("red_player"):
+                await query.answer("🚫 Сейчас ходит не ваш отряд!", show_alert=True)
+                return
+            if current_turn["owner"] == "blue" and user_id != battle_data.get("blue_player"):
+                await query.answer("🚫 Сейчас ходит не ваш отряд!", show_alert=True)
+                return
+    
+            # ⭐ ЗАПОМИНАЕМ ИНДЕКС ТЕКУЩЕГО ХОДА ДЛЯ ПРОВЕРКИ СМЕНЫ РАУНДА ⭐
+            previous_turn_index = current_turn_index
+    
+            # ⭐ ОТПРАВЛЯЕМ СООБЩЕНИЕ ОБ ПРОПУСКЕ ХОДА ⭐
+            skip_message = f"⏭️ {current_turn['card_name']} пропускает ход!"
+            for player_id in [battle_data.get("red_player"), battle_data.get("blue_player")]:
+                try:
+                    await context.bot.send_message(
+                        chat_id=player_id,
+                        text=skip_message
+                    )
+                except:
+                    pass
+    
+            # ⭐ ПЕРЕХОДИМ К СЛЕДУЮЩЕМУ ХОДУ ⭐
+            current_turn_index = (current_turn_index + 1) % len(initiative_list)
+    
+            # ⭐ ПРОВЕРКА СМЕНЫ РАУНДА — СБРОС КОНТРАТАК ⭐
+            if current_turn_index < previous_turn_index or len(initiative_list) == 0:
+                # Раунд завершился, сбрасываем счётчики контратак у всех отрядов
+                for squad in initiative_list:
+                    card = find_card_by_id(squad["card_id"], data["cards"])
+                    if card:
+                        # ⭐ ВОССТАНАВЛИВАЕМ ПЕРВОНАЧАЛЬНОЕ КОЛИЧЕСТВО КОНТРАТАК ⭐
+                        if card["id"] == DOUBLE_COUNTERATTACK_CREATURE_ID:
+                            squad["counter_attacks_remaining"] = 2
+                        elif card["id"] in INFINITE_COUNTERATTACK_CREATURE_IDS:
+                            squad["counter_attacks_remaining"] = 999
+                        else:
+                            squad["counter_attacks_remaining"] = 1
+    
+            # ⭐ КОРРЕКТИРУЕМ ИНДЕКС ЕСЛИ ВЫШЕЛ ЗА ГРАНИЦЫ ⭐
+            if initiative_list and current_turn_index >= len(initiative_list):
+                current_turn_index = 0
+    
+            battle_data["current_turn_index"] = current_turn_index
+            battle_data["initiative_list"] = initiative_list
+            save_data(data)
+    
+            # ⭐ ОБНОВЛЯЕМ МЕНЮ ⭐
+            await show_battle_menu(context, battle_data)
+            return
+
         # ⭐ СДАТЬСЯ ⭐
         if query.data == "battle_surrender":
             # Находим активную битву
@@ -7856,7 +7931,11 @@ async def show_battle_menu(
             inline_keyboard.append([
                 InlineKeyboardButton(button_text, callback_data=callback_data)
             ])
-
+            
+        # ⭐ ДОБАВЛЯЕМ КНОПКУ "ПРОПУСТИТЬ ХОД" ⭐
+        inline_keyboard.append([
+            InlineKeyboardButton("⏭️ Пропустить ход", callback_data="battle_skip_turn")
+        ])
         inline_keyboard.append([
             InlineKeyboardButton("🏳️ Сдаться", callback_data="battle_surrender")
         ])
