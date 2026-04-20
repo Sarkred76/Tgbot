@@ -118,6 +118,7 @@ RARITY_BONUSES = {
     "T7 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
     "T8 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
     "T4 (HoMM4)": {"cents": 0, "points": 0, "probability": 0},
+    "T4 (Olden era)": {"cents": 0, "points": 0, "probability": 0},
 }
 
 
@@ -796,7 +797,7 @@ async def show_faction_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         # Список всех фракций
         all_factions = [
             "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Причал", "Фабрика", "Нейтральный"
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Причал", "Фабрика", "Кронверк","Нейтральный"
         ]
         
         # Создаём клавиатуру
