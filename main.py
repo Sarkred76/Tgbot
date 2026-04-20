@@ -4126,7 +4126,7 @@ async def check_card_notifications(application: Application) -> None:
                     notified_count += 1
                     logger.info(f"Уведомление отправлено пользователю {user_id}")
                 except Exception as send_error:
-                    logger.error(f"Бот блокнул короче {user_id}")
+                    pass
             
             # ⭐ СОХРАНЯЕМ ДАННЫЕ ОДИН РАЗ ПОСЛЕ ВСЕХ УВЕДОМЛЕНИЙ ⭐
             if notified_count > 0:
@@ -4134,8 +4134,8 @@ async def check_card_notifications(application: Application) -> None:
                 logger.info(f"Отправлено {notified_count} уведомлений, данные сохранены")
             
         except Exception as e:
-            logger.error(f"Ошибка в check_card_notifications: {e}")
-            await asyncio.sleep(60)
+            pass
+        await asyncio.sleep(60)
 
 async def create_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Создание промокода на карту."""
