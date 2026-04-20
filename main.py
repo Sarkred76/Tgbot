@@ -7674,64 +7674,150 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # ⭐ ПОДТВЕРЖДЕНИЕ КАПИТУЛЯЦИИ ⭐
         if query.data.startswith("battle_surrender_confirm_"):
             battle_key = query.data.replace("battle_surrender_confirm_", "")
-    
+
             if battle_key not in data.get("active_battles", {}):
                 await query.answer("❌ Битва не найдена!", show_alert=True)
                 return
-    
+
             battle_data = data["active_battles"][battle_key]
-    
+
             # Определяем кто сдался и кто победил
             surrendering_player = user_id
             winner_id = battle_data.get("blue_player") if user_id == battle_data.get("red_player") else battle_data.get("red_player")
-    
-            # Считаем стоимость капитуляции
+            loser_id = surrendering_player
+
+            # ⭐ РАССЧИТЫВАЕМ НАГРАДЫ ЗА УБИТЫХ СУЩЕСТВ (как в обычной битве) ⭐
+            rewards, red_killed_health, blue_killed_health = calculate_battle_rewards(battle_data, data)
+
+            # ⭐ НАГРАДА ПОБЕДИТЕЛЮ (×5) ⭐
+            if winner_id in data["users"]:
+                killed_health = rewards[winner_id]["killed_health"]
+                # Опыт и золото за убитых существ
+                data["users"][winner_id]["battle_experience"] += killed_health * 5
+                data["users"][winner_id]["cents"] += killed_health * 5
+        
+                # Увеличиваем серию побед
+                data["users"][winner_id]["win_streak"] = data["users"][winner_id].get("win_streak", 0) + 1
+                win_streak = data["users"][winner_id]["win_streak"]
+        
+                # Награда за серию побед (каждые 5 побед)
+                streak_reward = 0
+                if win_streak % 5 == 0:
+                    streak_reward = win_streak
+                    data["users"][winner_id]["free_rolls"] = data["users"][winner_id].get("free_rolls", 0) + streak_reward
+        
+                # Проверяем повышение уровня
+                level_up_rewards = check_battle_level_up(winner_id, data)
+
+            # ⭐ НАГРАДА ПРОИГРАВШЕМУ (×2) ⭐
+            if loser_id in data["users"]:
+                killed_health = rewards[loser_id]["killed_health"]
+                # Опыт и золото за убитых существ
+                data["users"][loser_id]["battle_experience"] += killed_health * 2
+                data["users"][loser_id]["cents"] += killed_health * 2
+        
+                # Сбрасываем серию побед
+                data["users"][loser_id]["win_streak"] = 0
+        
+                # Проверяем повышение уровня
+                level_up_rewards_loser = check_battle_level_up(loser_id, data)
+
+            # ⭐ СЧИТАЕМ СТОИМОСТЬ КАПИТУЛЯЦИИ ⭐
             surrender_cost = 0
             for squad in battle_data.get("initiative_list", []):
                 max_health = squad.get("max_health", 10)
                 surrender_cost += squad["count"] * max_health
             surrender_cost *= 7
+
+            # ⭐ ДОПОЛНИТЕЛЬНОЕ ЗОЛОТО ОТ СДАВШЕГОСЯ ПОБЕДИТЕЛЮ ⭐
+            if loser_id in data["users"]:
+                data["users"][loser_id]["cents"] = max(0, data["users"][loser_id].get("cents", 0) - surrender_cost)
     
-            # Списываем золото у сдавшегося
-            if user_id in data["users"]:
-                data["users"][user_id]["cents"] = max(0, data["users"][user_id].get("cents", 0) - surrender_cost)
-    
-            # Добавляем золото победителю
             if winner_id in data["users"]:
                 data["users"][winner_id]["cents"] = data["users"][winner_id].get("cents", 0) + surrender_cost
-    
+
             # ⭐ УДАЛЯЕМ ПОГИБШИХ СУЩЕСТВ ИЗ КАЗАРМ ОБОИХ ИГРОКОВ ⭐
             remove_dead_creatures_from_barracks(battle_data, data)
-    
+
             # Удаляем битву
             del data["active_battles"][battle_key]
             save_data(data)
+
+            # ⭐ ФОРМИРУЕМ СООБЩЕНИЕ ПОБЕДИТЕЛЮ ⭐
+            winner_killed_health = rewards[winner_id]["killed_health"]
+            winner_result = (
+                f"🏆 **Противник сдался! Вы победили!**\n\n"
+                f"💥 +{winner_killed_health * 5} боевого опыта\n"
+                f"💰 +{winner_killed_health * 5} золота (за убитых)\n"
+                f"💰 +{surrender_cost} золота (от противника)\n"
+                f"🔥 Серия побед: {data['users'][winner_id]['win_streak']}"
+            )
     
+            # Добавляем информацию о серии побед
+            if streak_reward > 0:
+                winner_result += f"\n🎁 **НАГРАДА ЗА СЕРИЮ:** +{streak_reward} наймов!"
+    
+            # Добавляем информацию о повышении уровня
+            if winner_id in data["users"]:
+                level_up_rewards = check_battle_level_up(winner_id, data)
+                if level_up_rewards:
+                    winner_result += "\n\n🎉 **ПОВЫШЕНИЕ УРОВНЯ!**\n"
+                    for reward in level_up_rewards:
+                        winner_result += f"🎊 **Уровень {reward['level']}!**\n"
+                        if reward["reward_type"] == "card":
+                            winner_result += f"🃏 Получено: {reward['card_name']}\n"
+                        elif reward["reward_type"] == "gold":
+                            winner_result += f"💰 Получено: {reward['gold']} золота\n"
+                        elif reward["reward_type"] == "rolls":
+                            winner_result += f"🎲 Получено: {reward['rolls']} наймов\n"
+                        elif reward["reward_type"] == "special_card":
+                            winner_result += f"🌟 Получена special-карта!\n"
+
+            # ⭐ ФОРМИРУЕМ СООБЩЕНИЕ ПРОИГРАВШЕМУ ⭐
+            loser_killed_health = rewards[loser_id]["killed_health"]
+            loser_result = (
+                f"🏳️ **Вы сдались! Битва проиграна.**\n\n"
+                f"💥 +{loser_killed_health * 2} боевого опыта\n"
+                f"💰 +{loser_killed_health * 2} золота (за убитых)\n"
+                f"💸 -{surrender_cost} золота (передано противнику)\n"
+                f"🔥 Серия побед сброшена!"
+            )
+    
+            # Добавляем информацию о повышении уровня
+            if loser_id in data["users"]:
+                level_up_rewards_loser = check_battle_level_up(loser_id, data)
+                if level_up_rewards_loser:
+                    loser_result += "\n\n🎉 **ПОВЫШЕНИЕ УРОВНЯ!**\n"
+                    for reward in level_up_rewards_loser:
+                        loser_result += f"🎊 **Уровень {reward['level']}!**\n"
+                        if reward["reward_type"] == "card":
+                            loser_result += f"🃏 Получено: {reward['card_name']}\n"
+                        elif reward["reward_type"] == "gold":
+                            loser_result += f"💰 Получено: {reward['gold']} золота\n"
+                        elif reward["reward_type"] == "rolls":
+                            loser_result += f"🎲 Получено: {reward['rolls']} наймов\n"
+                        elif reward["reward_type"] == "special_card":
+                            loser_result += f"🌟 Получена special-карта!\n"
+
             # Уведомляем обоих игроков
             try:
                 await context.bot.send_message(
-                    chat_id=surrendering_player,
-                    text=(
-                        f"🏳️ Вы сдались!\n\n"
-                        f"💸 С вашего баланса списано {surrender_cost} золота.\n"
-                        f"💰 Противник получил {surrender_cost} золота.\n\n"
-                    )
+                    chat_id=loser_id,
+                    text=loser_result,
+                    parse_mode="Markdown"
                 )
             except:
                 pass
-    
+
             try:
                 await context.bot.send_message(
                     chat_id=winner_id,
-                    text=(
-                        f"🏆 Противник сдался!\n\n"
-                        f"🏆 Вы победили!\n"
-                        f"💰 Вы получили {surrender_cost} золота.\n\n"
-                    )
+                    text=winner_result,
+                    parse_mode="Markdown"
                 )
             except:
                 pass
-    
+
             await query.edit_message_text("✅ Вы сдались! Битва завершена.")
             return
 
