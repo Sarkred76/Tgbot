@@ -7175,6 +7175,7 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     pass
             
             # ⭐ ПРОВЕРЯЕМ УНИЧТОЖЕНИЕ ОТРЯДА ⭐
+            attacker_died = current_turn["count"] <= 0
             
             if target_squad["count"] <= 0:
                 # Удаляем отряд из инициативы
@@ -7194,12 +7195,31 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 if target_index < current_turn_index:
                     # Удалён отряд ДО текущего хода - сдвигаем индекс на 1 назад
                     current_turn_index -= 1
-                elif target_index == current_turn_index:
-                    # Удалён ТЕКУЩИЙ отряд (например, от контратаки)
-                    # current_turn_index теперь указывает на следующий отряд
-                    # Если это был последний отряд, индекс будет за пределами списка
-                    if current_turn_index >= len(initiative_list):
-                        current_turn_index = 0
+
+            # ⭐ ВАЖНО: Если атакующий умер от контратаки, удаляем его тоже ⭐
+            if attacker_died:
+                # Находим текущий индекс атакующего (мог измениться после удаления цели)
+                current_attacker_index = -1
+                for idx, squad in enumerate(initiative_list):
+                    if squad["card_id"] == current_turn["card_id"] and squad["count"] <= 0:
+                        current_attacker_index = idx
+                        break
+    
+                if current_attacker_index >= 0:
+                    initiative_list.pop(current_attacker_index)
+                    # ⭐ ОЧИЩАЕМ ОПУТЫВАНИЕ ОТ ЭТОГО ОТРЯДА ⭐
+                    attacker_card_id = current_turn["card_id"]
+                    freed_targets = [k for k, v in battle_data["entangled"].items() if v == attacker_card_id]
+                    for freed_id in freed_targets:
+                        if freed_id in battle_data["entangled"]:
+                            del battle_data["entangled"][freed_id]
+                    # Корректируем индекс текущего хода
+                    if current_attacker_index < current_turn_index:
+                        current_turn_index -= 1
+                
+                # ⭐ КОРРЕКТИРУЕМ ИНДЕКС ТЕКУЩЕГО ХОДА ⭐
+                if current_turn_index >= len(initiative_list):
+                    current_turn_index = 0
             
             # ⭐ ПРОВЕРЯЕМ ОКОНЧАНИЕ БИТВЫ ⭐
             red_squads = [u for u in initiative_list if u["owner"] == "red"]
