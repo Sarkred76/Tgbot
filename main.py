@@ -3802,7 +3802,7 @@ async def achievements_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         # Список фракций
         factions = [
             "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение"
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Фабрика"
         ]
 
         # Создаём клавиатуру
@@ -3974,7 +3974,7 @@ async def claim_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         achievement_num = int(query.data.split("_")[-1])
         factions = [
             "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение"
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Фабрика"
         ]
         if achievement_num < 1 or achievement_num > len(factions):
             await query.edit_message_text("❌ Неверное достижение!")
@@ -4056,7 +4056,7 @@ async def set_achievement_cards(update: Update, context: ContextTypes.DEFAULT_TY
         
         valid_factions = [
             "Замок", "Оплот", "Башня", "Инферно",
-            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение"
+            "Некрополис", "Темница", "Цитадель", "Крепость", "Сопряжение", "Фабрика"
         ]
         
         if faction not in valid_factions:
