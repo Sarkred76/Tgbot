@@ -163,6 +163,7 @@ def load_data() -> Dict[str, Any]:
                     "Цитадель": {"cards": [], "reward_claimed": False},
                     "Крепость": {"cards": [], "reward_claimed": False},
                     "Сопряжение": {"cards": [], "reward_claimed": False},
+                    "Фабрика": {"cards": [], "reward_claimed": False},
                     "Могущество_царя_драконов": {"cards": [], "reward_claimed": False},
                 }
 
