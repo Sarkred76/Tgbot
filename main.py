@@ -2694,7 +2694,7 @@ async def craft(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         craftable_by_rarity = {}
         for card_id, count in craftable_cards.items():
             card = find_card_by_id(card_id, data["cards"])
-            if card and card.get("rarity") in ["T1"]:
+            if card and card.get("rarity") in ["T1", "T2", "T3", "T4", "T5", "T6", "T7"]:
                 craftable_by_rarity[card_id] = {
                     "count": count,
                     "rarity": card["rarity"],
@@ -3060,7 +3060,7 @@ async def craft_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 craftable_by_rarity = {}
                 for cid, count in craftable_cards.items():
                     card = find_card_by_id(cid, data["cards"])
-                    if card and card.get("rarity") in ["T1"]:
+                    if card and card.get("rarity") in ["T1", "T2", "T3", "T4", "T5", "T6", "T7"]:
                         craftable_by_rarity[cid] = {
                             "count": count,
                             "rarity": card["rarity"],
