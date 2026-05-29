@@ -7647,12 +7647,22 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             dead_red = sum(initial_red.get(cid, 0) - remaining_red.get(cid, 0) for cid in initial_red)
             dead_blue = sum(initial_blue.get(cid, 0) - remaining_blue.get(cid, 0) for cid in initial_blue)
     
-            # Считаем стоимость капитуляции (7 × суммарное здоровье оставшихся существ)
-            surrender_cost = 0
-            for squad in initiative_list:
-                max_health = squad.get("max_health", 10)
-                surrender_cost += squad["count"] * max_health
-            surrender_cost *= 7
+            # ⭐ ИСПРАВЛЕНИЕ: Используем готовую функцию для корректного расчета (только свои войска) ⭐
+            surrender_cost = calculate_surrender_cost(battle_data, user_id)
+    
+            # ⭐ ПРОВЕРКА БАЛАНСА ⭐
+            user_cents = data["users"].get(user_id, {}).get("cents", 0)
+            if user_cents < surrender_cost:
+                await query.edit_message_text(
+                    f"❌ Недостаточно золота для капитуляции!\n"
+                    f"💰 Стоимость: {surrender_cost} золота\n"
+                    f"💳 У вас: {user_cents} золота\n\n"
+                    f"Сражайтесь до победного конца!",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("🔙 Назад в битву", callback_data="battle_surrender_cancel")
+                    ]])
+                )
+                return
     
             # Кнопки подтверждения
             keyboard = [
@@ -7686,6 +7696,21 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             surrendering_player = user_id
             winner_id = battle_data.get("blue_player") if user_id == battle_data.get("red_player") else battle_data.get("red_player")
             loser_id = surrendering_player
+
+            surrender_cost = calculate_surrender_cost(battle_data, loser_id)
+
+            # ⭐ ПРОВЕРКА БАЛАНСА ПЕРЕД СПИСАНИЕМ (на случай, если игрок потратил золото во время боя) ⭐
+            loser_cents = data["users"].get(loser_id, {}).get("cents", 0)
+            if loser_cents < surrender_cost:
+                await query.edit_message_text(
+                    f"❌ Недостаточно золота для капитуляции!\n"
+                    f"💰 Нужно: {surrender_cost} золота\n"
+                    f"💳 У вас: {loser_cents} золота\n"
+                    f"Бой продолжается."
+                )
+                # Возвращаем меню битвы
+                await show_battle_menu(context, battle_data)
+                return
 
             # ⭐ РАССЧИТЫВАЕМ НАГРАДЫ ЗА УБИТЫХ СУЩЕСТВ (как в обычной битве) ⭐
             rewards, red_killed_health, blue_killed_health = calculate_battle_rewards(battle_data, data)
@@ -7722,13 +7747,6 @@ async def battle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         
                 # Проверяем повышение уровня
                 level_up_rewards_loser = check_battle_level_up(loser_id, data)
-
-            # ⭐ СЧИТАЕМ СТОИМОСТЬ КАПИТУЛЯЦИИ ⭐
-            surrender_cost = 0
-            for squad in battle_data.get("initiative_list", []):
-                max_health = squad.get("max_health", 10)
-                surrender_cost += squad["count"] * max_health
-            surrender_cost *= 7
 
             # ⭐ ДОПОЛНИТЕЛЬНОЕ ЗОЛОТО ОТ СДАВШЕГОСЯ ПОБЕДИТЕЛЮ ⭐
             if loser_id in data["users"]:
