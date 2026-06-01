@@ -205,6 +205,10 @@ def load_data() -> Dict[str, Any]:
                     user_data["gold_digger_last_income"] = ""
                 if "thievery_last_use_date" not in user_data:
                     user_data["thievery_last_use_date"] = ""
+                if "darts_plays_today" not in user_data:
+                    user_data["darts_plays_today"] = 0
+                if "last_darts_reset" not in user_data:
+                    user_data["last_darts_reset"] = 0
             return data
             
         except Exception as e:
@@ -1730,6 +1734,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
             await open_casino_from_button(update, context)
 
+        elif text == "🎯 Дартс":  # ⭐ НОВОЕ ⭐
+            await darts_game(update, context)
+            return
+
         elif text == "👑 Мой герой":
 
             await my_profile(update, context)
@@ -3014,7 +3022,7 @@ async def mini_games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         # ⭐ КЛАВИАТУРА С КНОПКАМИ ⭐
         keyboard = [
             [KeyboardButton("🎲 Бросить кубик")],
-            [KeyboardButton("🎰 Казино")],
+            [KeyboardButton("🎰 Казино"), KeyboardButton("🎯 Дартс")],
             [KeyboardButton("🏆 Топ героев")],
             [KeyboardButton("🔄 Трейд")],
             [KeyboardButton("🔙 Назад в меню")],
@@ -8566,6 +8574,78 @@ async def process_thievery_input(update: Update, context: ContextTypes.DEFAULT_T
     except Exception as e:
         logger.error(f"Ошибка process_thievery_input: {e}")
         await update.message.reply_text("❌ Ошибка при выполнении грабежа")
+
+def check_darts_reset(user_data: Dict) -> None:
+    """Проверяет и сбрасывает счётчик игр в Дартс в полночь по МСК."""
+    import datetime
+    msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+    now_msk = datetime.datetime.now(msk_tz)
+    last_reset = user_data.get("last_darts_reset", 0)
+    if last_reset == 0 or now_msk.day != datetime.datetime.fromtimestamp(last_reset, msk_tz).day:
+        user_data["darts_plays_today"] = 0
+        user_data["last_darts_reset"] = int(now_msk.timestamp())
+
+async def darts_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Мини-игра Дартс."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        if not user_data:
+            await update.message.reply_text("❌ Вы ещё не начали игру!")
+            return
+
+        check_darts_reset(user_data)
+        save_data(data)
+
+        plays_today = user_data.get("darts_plays_today", 0)
+        if plays_today >= 5:
+            await update.message.reply_text("❌ Лимит игр в Дартс исчерпан на сегодня!\n⏰ Счётчик обновится в 00:00 МСК.")
+            return
+
+        if user_data.get("cents", 0) < 800:
+            await update.message.reply_text("❌ Недостаточно золота! Нужно 800 золота.")
+            return
+
+        # Списываем золото и увеличиваем счётчик
+        user_data["cents"] -= 800
+        user_data["darts_plays_today"] = plays_today + 1
+        save_data(data)
+
+        await update.message.reply_text("🎯 Бросаем 5 дротиков...")
+
+        total_score = 0
+        darts_results = []
+        # Маппинг очков Telegram 🎯 (1-6): 6->5, 5->4, 4->3, 3->2, 1-2->1
+        points_map = {1: 1, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5}
+
+        for i in range(5):
+            dice_msg = await context.bot.send_dice(chat_id=update.effective_chat.id, emoji="🎯")
+            value = dice_msg.dice.value
+            points = points_map.get(value, 1)
+            total_score += points
+            darts_results.append(f"Бросок {i+1}: 🎯{value} → {points} очк.")
+            await asyncio.sleep(1.5)  # Задержка для эффекта броска
+
+        reward_msg = ""
+        if total_score >= 10:
+            user_data["free_rolls"] = user_data.get("free_rolls", 0) + 3
+            save_data(data)
+            reward_msg = "\n🎉 **Отличный результат! Вы получили +3 бесплатных найма!**"
+
+        result_text = (
+            f"🎯 **Результат игры в Дартс:**\n"
+            f"{'\n'.join(darts_results)}\n"
+            f"🏆 **Итого очков:** {total_score}/25\n"
+            f"💰 Списано: 800 золота\n"
+            f"🎮 Осталось игр сегодня: {5 - user_data['darts_plays_today']}/5"
+            f"{reward_msg}"
+        )
+        await update.message.reply_text(result_text, parse_mode="Markdown")
+
+    except Exception as e:
+        logger.error(f"Ошибка darts_game: {e}")
+        await update.message.reply_text("❌ Ошибка при игре в Дартс")
 
         
 # ===== ЗАПУСК БОТА =====
