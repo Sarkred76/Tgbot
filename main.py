@@ -188,6 +188,8 @@ def load_data() -> Dict[str, Any]:
                     user_data["refugee_camp_purchased"] = False
                 if "gold_digger_last_income" not in user_data:
                     user_data["gold_digger_last_income"] = ""
+                if "thievery_last_use_date" not in user_data:
+                    user_data["thievery_last_use_date"] = ""
             return data
             
         except Exception as e:
@@ -1497,10 +1499,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         text = update.message.text
         
-        # ⭐ ПРОВЕРКА: если пользователь в шаге выбора партнёра для трейда ⭐
+        # ⭐ ПРОВЕРКА: если пользователь в шаге выбора партнёра для трейда ИЛИ в шаге грабежа ⭐
         if user_id in context.user_data:
-            trade_info = context.user_data[user_id]
-            step = trade_info.get("step", "")
+            step = context.user_data[user_id].get("step", "")
+            if step == "thievery_target":
+                await process_thievery_input(update, context)
+                return
             if step in ["select_partner", "search_mode"]:
                 await process_partner_selection(update, context)
                 return
@@ -1538,6 +1542,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         elif text.startswith("💰 Купить за ") and "золота" in text:
             await buy_refugee_creature(update, context)
+            return
+
+        elif text == "🗡️ Гильдия Воров":
+            await start_thievery(update, context)
             return
 
         elif text == "🏰 Город":
@@ -4138,7 +4146,8 @@ async def forest_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         # ⭐ КЛАВИАТУРА С КНОПКАМИ МЕНЮ ⭐
         keyboard = [
             [KeyboardButton("🏰 Форт на холме")],
-            [KeyboardButton("🏕️ Лагерь Беженцев")], 
+            [KeyboardButton("🏕️ Лагерь Беженцев")],
+            [KeyboardButton("🗡️ Гильдия Воров")],
             [KeyboardButton("🔙 Назад в меню")],
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -8374,6 +8383,163 @@ async def check_gold_digger_reset(user_id: str, user_data: Dict, data: Dict, con
                 logger.info(f"Игрок {user_id} получил {gold_income} золота от золотоискателей")
             except Exception as send_error:
                 logger.error(f"Не удалось отправить сообщение игроку {user_id}: {send_error}")
+
+async def start_thievery(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Запускает процесс грабежа."""
+    try:
+        user_id = str(update.effective_user.id)
+        data = load_data()
+        user_data = data["users"].get(user_id)
+        if not user_data:
+            await update.message.reply_text("❌ Вы ещё не начали игру!")
+            return
+
+        # Проверка кулдауна (раз в день по МСК)
+        msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+        today = str(datetime.datetime.now(msk_tz).date())
+        last_use = user_data.get("thievery_last_use_date", "")
+
+        if last_use == today:
+            await update.message.reply_text("❌ Вы уже совершали грабеж сегодня!\nПопробуйте завтра после 00:00 МСК.")
+            return
+
+        if user_data.get("cents", 0) < 10000:
+            await update.message.reply_text("❌ Для грабежа требуется 10 000 золота!")
+            return
+
+        # Запрос ника
+        context.user_data[user_id] = {"step": "thievery_target"}
+        await update.message.reply_text(
+            "🗡️ **Воровская гильдия**\n"
+            "Введите @никнейм игрока, у которого хотите украсть случайную карту.\n"
+            "💰 Стоимость: 10 000 золота\n"
+            "❌ Для отмены: /cancel",
+            reply_markup=ReplyKeyboardMarkup(
+                [[KeyboardButton("🔙 Назад в Лес")]],
+                resize_keyboard=True
+            ),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка start_thievery: {e}")
+        await update.message.reply_text("❌ Ошибка при открытии грабежа")
+
+async def process_thievery_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает ввод никнейма для грабежа."""
+    try:
+        user_id = str(update.effective_user.id)
+        text = update.message.text.strip()
+        data = load_data()
+        user_data = data["users"].get(user_id)
+
+        # Отмена
+        if text.lower() == "/cancel" or text == "🔙 Назад в Лес":
+            if user_id in context.user_data:
+                del context.user_data[user_id]
+            await update.message.reply_text(
+                "❌ Грабеж отменён.",
+                reply_markup=ReplyKeyboardMarkup(
+                    [[KeyboardButton("🔙 Назад в Лес")]],
+                    resize_keyboard=True
+                )
+            )
+            return
+
+        # Валидация ника
+        if not text.startswith("@"):
+            await update.message.reply_text("⚠️ Введите корректный @никнейм (начинается с @)!")
+            return
+
+        target_username = text[1:].strip()
+        target_id = None
+        for uid, udata in data["users"].items():
+            if udata.get("username") and udata["username"].lower() == target_username.lower():
+                target_id = uid
+                break
+
+        if not target_id:
+            await update.message.reply_text("⚠️ Игрок не найден!")
+            return
+        if target_id == user_id:
+            await update.message.reply_text("⚠️ Нельзя грабить самого себя!")
+            return
+
+        target_data = data["users"].get(target_id)
+        if not target_data or not target_data.get("cards"):
+            await update.message.reply_text("❌ У этого игрока нет карт для кражи!")
+            return
+
+        # Повторная проверка баланса
+        if user_data.get("cents", 0) < 10000:
+            await update.message.reply_text("❌ Недостаточно золота! Нужно 10 000.")
+            return
+
+        # Выполнение кражи
+        user_data["cents"] -= 10000
+        stolen_card_id = random.choice(target_data["cards"])
+        target_data["cards"].remove(stolen_card_id)
+        user_data["cards"].append(stolen_card_id)
+
+        # Обновление кулдауна
+        msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+        user_data["thievery_last_use_date"] = str(datetime.datetime.now(msk_tz).date())
+        save_data(data)
+
+        # Очистка шага
+        if user_id in context.user_data:
+            del context.user_data[user_id]
+
+        # 🗡️ Получаем данные карты
+        stolen_card = find_card_by_id(stolen_card_id, data["cards"])
+        card_name = stolen_card["title"] if stolen_card else f"Карта #{stolen_card_id}"
+        
+        # 🗡️ Текст для вора
+        thief_caption = (
+            f"🗡️ **Грабеж успешен!**\n"
+            f"Вы украли у @{target_username} карту: {card_name}\n"
+            f"💰 Списано: 10 000 золота\n"
+            f"⏳ Следующий грабеж доступен завтра в 00:00 МСК"
+        )
+        
+        # 🛡️ Текст для жертвы
+        victim_caption = (
+            f"🚨 **У вас украли карту!**\n"
+            f"🗡️ Вор украл у вас: {card_name}\n"
+            f"💔 Карта удалена из вашей коллекции."
+        )
+        
+        # Отправляем уведомления с изображением карты
+        if stolen_card:
+            # 🗡️ Вору (с фото карты)
+            await send_card(update, stolen_card, context, caption=thief_caption)
+            
+            # 🛡️ Жертве (с фото карты)
+            try:
+                await context.bot.send_photo(
+                    chat_id=target_id,
+                    photo=stolen_card["image_url"],
+                    caption=victim_caption,
+                    parse_mode="Markdown"
+                )
+            except Exception as send_err:
+                logger.error(f"Не удалось отправить уведомление жертве {target_id}: {send_err}")
+        else:
+            # Если карта не найдена, отправляем только текст
+            await update.message.reply_text(thief_caption, parse_mode="Markdown")
+            try:
+                await context.bot.send_message(
+                    chat_id=target_id,
+                    text=victim_caption,
+                    parse_mode="Markdown"
+                )
+            except Exception as send_err:
+                logger.error(f"Не удалось отправить текстовое уведомление жертве {target_id}: {send_err}")
+
+    except Exception as e:
+        logger.error(f"Ошибка process_thievery_input: {e}")
+        await update.message.reply_text("❌ Ошибка при выполнении грабежа")
+
+
         
 # ===== ЗАПУСК БОТА =====
 
