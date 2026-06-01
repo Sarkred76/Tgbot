@@ -1247,7 +1247,6 @@ async def my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"📈 По редкостям:\n"
             f"{rarity_text}\n"
             f"🎲 Бесплатные наймы: {user_data.get('free_rolls', 0)}\n"
-            f"🏆 Достижения: {claimed_count}/6\n"
         )
         
         keyboard = [[InlineKeyboardButton("🏆 Достижения", callback_data="achievements_menu")]]
