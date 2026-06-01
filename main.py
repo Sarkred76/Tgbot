@@ -1735,7 +1735,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await open_casino_from_button(update, context)
 
         elif text == "🎯 Дартс":  # ⭐ НОВОЕ ⭐
-            await darts_game(update, context)
+            await show_darts_rules(update, context)
             return
 
         elif text == "👑 Мой герой":
@@ -8585,14 +8585,33 @@ def check_darts_reset(user_data: Dict) -> None:
         user_data["darts_plays_today"] = 0
         user_data["last_darts_reset"] = int(now_msk.timestamp())
 
-async def darts_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Мини-игра Дартс."""
+async def show_darts_rules(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает правила Дартса и кнопку для начала."""
+    keyboard = [[InlineKeyboardButton("🎯 Начать игру (800 золота)", callback_data="darts_start")]]
+    await update.message.reply_text(
+        "🎯 Правила игры в Дартс:\n"
+        "• Стоимость игры: 800 золота\n"
+        "• Вы бросаете 5 дротиков.\n"
+        "• Очки зависят от точности:\n"
+        "  🎯 Центр - 5 очков\n"
+        "  🎯 ..."
+        "  🎯 Промах - 0 очков\n"
+        "• При наборе 10+ очков вы получаете 3 бесплатных найма!\n"
+        "• Играть можно 5 раз в день (сброс в 00:00 МСК).",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def darts_start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Запускает игру в Дартс после подтверждения."""
     try:
-        user_id = str(update.effective_user.id)
+        query = update.callback_query
+        await query.answer()
+        
+        user_id = str(query.from_user.id)
         data = load_data()
         user_data = data["users"].get(user_id)
         if not user_data:
-            await update.message.reply_text("❌ Вы ещё не начали игру!")
+            await query.edit_message_text("❌ Вы ещё не начали игру!")
             return
 
         check_darts_reset(user_data)
@@ -8600,11 +8619,11 @@ async def darts_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
         plays_today = user_data.get("darts_plays_today", 0)
         if plays_today >= 5:
-            await update.message.reply_text("❌ Лимит игр в Дартс исчерпан на сегодня!\n⏰ Счётчик обновится в 00:00 МСК.")
+            await query.edit_message_text("❌ Лимит игр в Дартс исчерпан на сегодня!\n⏰ Счётчик обновится в 00:00 МСК.")
             return
 
         if user_data.get("cents", 0) < 800:
-            await update.message.reply_text("❌ Недостаточно золота! Нужно 800 золота.")
+            await query.edit_message_text("❌ Недостаточно золота! Нужно 800 золота.")
             return
 
         # Списываем золото и увеличиваем счётчик
@@ -8612,17 +8631,17 @@ async def darts_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         user_data["darts_plays_today"] = plays_today + 1
         save_data(data)
 
-        await update.message.reply_text("🎯 Бросаем 5 дротиков...")
+        await query.edit_message_text("🎯 Бросаем 5 дротиков...")
 
         total_score = 0
         darts_results = []
-        # Маппинг очков Telegram 🎯 (1-6): 6->5, 5->4, 4->3, 3->2, 1-2->1
-        points_map = {1: 1, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5}
+        # ⭐ 1 - ПРОМАХ (0 очков), 6 - ЦЕНТР (5 очков) ⭐
+        points_map = {1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5}
 
         for i in range(5):
-            dice_msg = await context.bot.send_dice(chat_id=update.effective_chat.id, emoji="🎯")
+            dice_msg = await context.bot.send_dice(chat_id=query.message.chat_id, emoji="🎯")
             value = dice_msg.dice.value
-            points = points_map.get(value, 1)
+            points = points_map.get(value, 0)
             total_score += points
             darts_results.append(f"Бросок {i+1}: 🎯{value} → {points} очк.")
             await asyncio.sleep(1.5)  # Задержка для эффекта броска
@@ -8631,21 +8650,21 @@ async def darts_game(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         if total_score >= 10:
             user_data["free_rolls"] = user_data.get("free_rolls", 0) + 3
             save_data(data)
-            reward_msg = "\n🎉 **Отличный результат! Вы получили +3 бесплатных найма!**"
+            reward_msg = "\n🎉 Отличный результат! Вы получили +3 бесплатных найма!"
 
         result_text = (
-            f"🎯 **Результат игры в Дартс:**\n"
+            f"🎯 Результат игры в Дартс:\n"
             f"{'\n'.join(darts_results)}\n"
-            f"🏆 **Итого очков:** {total_score}/25\n"
+            f"🏆 Итого очков: {total_score}\n"
             f"💰 Списано: 800 золота\n"
             f"🎮 Осталось игр сегодня: {5 - user_data['darts_plays_today']}/5"
             f"{reward_msg}"
         )
-        await update.message.reply_text(result_text, parse_mode="Markdown")
+        await query.message.reply_text(result_text)
 
     except Exception as e:
-        logger.error(f"Ошибка darts_game: {e}")
-        await update.message.reply_text("❌ Ошибка при игре в Дартс")
+        logger.error(f"Ошибка darts_start_callback: {e}")
+        await query.answer("❌ Произошла ошибка", show_alert=True)
 
         
 # ===== ЗАПУСК БОТА =====
@@ -8725,6 +8744,7 @@ def main() -> None:
             CallbackQueryHandler(mercenary_callback, pattern=r"^mercenary_.*"),
             CallbackQueryHandler(army_callback, pattern=r"^army_.*"),
             CallbackQueryHandler(battle_callback, pattern=r"^battle_.*"),
+            CallbackQueryHandler(darts_start_callback, pattern=r"^darts_start$"),
         ]
 
         for handler in handlers:
