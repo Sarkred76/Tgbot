@@ -8474,9 +8474,24 @@ async def process_thievery_input(update: Update, context: ContextTypes.DEFAULT_T
             await update.message.reply_text("❌ Недостаточно золота! Нужно 10 000.")
             return
 
+        # ⭐ НОВОЕ: ФИЛЬТРАЦИЯ КАРТ (исключаем редкость Special) ⭐
+        available_to_steal = []
+        for card_id in target_data["cards"]:
+            card = find_card_by_id(card_id, data["cards"])
+            # ⭐ Пропускаем карты, у которых редкость == "Special" ⭐
+            if card and card.get("rarity") != "Special":
+                available_to_steal.append(card_id)
+
+        if not available_to_steal:
+            await update.message.reply_text(
+                "❌ У этого игрока нет доступных для кражи карт!\n"
+                "(Все карты в коллекции имеют редкость Special или коллекция пуста)"
+            )
+            return
+
         # Выполнение кражи
         user_data["cents"] -= 10000
-        stolen_card_id = random.choice(target_data["cards"])
+        stolen_card_id = random.choice(available_to_steal)  # ← Выбираем только из разрешённых
         target_data["cards"].remove(stolen_card_id)
         user_data["cards"].append(stolen_card_id)
 
@@ -8524,7 +8539,6 @@ async def process_thievery_input(update: Update, context: ContextTypes.DEFAULT_T
             except Exception as send_err:
                 logger.error(f"Не удалось отправить уведомление жертве {target_id}: {send_err}")
         else:
-            # Если карта не найдена, отправляем только текст
             await update.message.reply_text(thief_caption, parse_mode="Markdown")
             try:
                 await context.bot.send_message(
@@ -8538,7 +8552,6 @@ async def process_thievery_input(update: Update, context: ContextTypes.DEFAULT_T
     except Exception as e:
         logger.error(f"Ошибка process_thievery_input: {e}")
         await update.message.reply_text("❌ Ошибка при выполнении грабежа")
-
 
         
 # ===== ЗАПУСК БОТА =====
