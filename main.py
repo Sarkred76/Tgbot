@@ -146,15 +146,30 @@ def load_data() -> Dict[str, Any]:
             if "promo_codes" not in data:
                 data["promo_codes"] = {}
 
+            # ⭐ ИНИЦИАЛИЗАЦИЯ И ОБНОВЛЕНИЕ ДОСТИЖЕНИЙ ⭐
             if "achievements" not in data:
-                data["achievements"] = {
-                    "Обитель": {"cards": [], "reward_claimed": False},
-                    "Заповедник": {"cards": [], "reward_claimed": False},
-                    "Академия": {"cards": [], "reward_claimed": False},
-                    "Некрополис": {"cards": [], "reward_claimed": False},
-                    "Пристанище": {"cards": [], "reward_claimed": False},
-                    "Крепость": {"cards": [], "reward_claimed": False},
-                }
+                data["achievements"] = {}
+
+             # Список актуальных достижений
+            new_achievements = [
+                "Обитель", "Заповедник", "Академия", "Некрополис", "Пристанище", "Крепость"
+            ]
+    
+            # Список старых достижений для удаления (чтобы очистить базу)
+            old_achievements = [
+                "Замок", "Оплот", "Башня", "Инферно", "Темница", "Цитадель", 
+                "Сопряжение", "Могущество_царя_драконов"
+            ]
+    
+            # Удаляем старые достижения, если они есть
+            for old in old_achievements:
+                if old in data["achievements"]:
+                    del data["achievements"][old]
+            
+            # Добавляем новые достижения, если они отсутствуют
+            for ach in new_achievements:
+                if ach not in data["achievements"]:
+                    data["achievements"][ach] = {"cards": [], "reward_claimed": False}
 
             if "mercenary_guild" not in data:
                 data["mercenary_guild"] = {
