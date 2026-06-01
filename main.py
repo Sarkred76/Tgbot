@@ -490,7 +490,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             [KeyboardButton("🏰 Город")],
             [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
             [KeyboardButton("🦇 Подземелье")],
-            [KeyboardButton("⚔️ Сражения")], 
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(
@@ -1577,7 +1576,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 [KeyboardButton("🏰 Город")],
                 [KeyboardButton("🌲 Лес"), KeyboardButton("🍺 Таверна")],
                 [KeyboardButton("🦇 Подземелье")],
-                [KeyboardButton("⚔️ Сражения")],
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             await update.message.reply_text(
@@ -1615,10 +1613,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await mercenary_guild(update, context)
             return
 
-        elif text == "⚔️ Сражения":
-            await battles_menu(update, context)
-            return
-
         elif text == "🛡️ Моя Армия":
             await my_army(update, context)
             return
@@ -1628,10 +1622,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         elif text == "🔙 Назад в Подземелье":
             await dungeon_menu(update, context)
-            return
-
-        elif text == "🔙 Назад в Сражения":
-            await battles_menu(update, context)
             return
 
         # ⭐ КНОПКА "🔙 НАЗАД В ТАВЕРНУ" ⭐
