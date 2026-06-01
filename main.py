@@ -172,25 +172,6 @@ def load_data() -> Dict[str, Any]:
                     "creatures": [],  # Список существ для продажи
                     "max_slots": 4    # Максимум 4 существа
                 }
-
-            if "pending_battles" not in data:
-                data["pending_battles"] = {}
-
-            if "active_battles" not in data:
-                data["active_battles"] = {}
-
-            # Добавьте в load_data() после загрузки данных:
-            for card in data.get("cards", []):
-                if "attack" not in card:
-                    card["attack"] = 0
-                if "defense" not in card:
-                    card["defense"] = 0
-                if "damage" not in card:
-                    card["damage"] = 0
-                if "health" not in card:
-                    card["health"] = 0
-                if "speed" not in card:
-                    card["speed"] = 0
             
             for user_id, user_data in data.get("users", {}).items():
                 if "last_card_time" not in user_data:
@@ -216,20 +197,6 @@ def load_data() -> Dict[str, Any]:
                     user_data["refugee_camp_offered_card"] = None
                 if "refugee_camp_purchased" not in user_data:
                     user_data["refugee_camp_purchased"] = False
-                if "army_squads" not in user_data:
-                    user_data["army_squads"] = []  # Список из 5 отрядов
-                if "army_page" not in user_data:
-                    user_data["army_page"] = 0
-                if "battle_level" not in user_data:
-                    user_data["battle_level"] = 0  # ← Уровень боевого опыта
-                if "battle_experience" not in user_data:
-                    user_data["battle_experience"] = 0  # Боевой опыт за сражения
-                if "win_streak" not in user_data:
-                    user_data["win_streak"] = 0
-                if "battle_challenges_today" not in user_data:
-                    user_data["battle_challenges_today"] = 0  # Количество вызовов сегодня
-                if "battle_challenges_last_reset" not in user_data:
-                    user_data["battle_challenges_last_reset"] = 0  # Время последнего сброса
                 if "gold_digger_last_income" not in user_data:
                     user_data["gold_digger_last_income"] = ""
             return data
@@ -393,19 +360,6 @@ def generate_card_caption(
     # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
     if card.get("faction"):
         caption += f"\nФракция: {card['faction']}"
-    
-    # ⭐ ДОБАВЛЯЕМ АТРИБУТЫ ⭐
-    if card.get("attack") or card.get("defense") or card.get("damage") or card.get("health") or card.get("speed"):
-        if card.get("attack"):
-            caption += f"\n⚔️ {card['attack']}"
-        if card.get("defense"):
-            caption += f"\n🛡️ {card['defense']}"
-        if card.get("damage"):
-            caption += f"\n💥 {format_damage_display(card['damage'])}"
-        if card.get("health"):
-            caption += f"\n❤️ {card['health']}"
-        if card.get("speed"):
-            caption += f"\n👟 {card['speed']}"
     
     # ⭐ ПОКАЗЫВАЕМ БОНУСЫ ТОЛЬКО ПРИ ПОЛУЧЕНИИ НОВОЙ КАРТЫ ⭐
     if show_bonus and user_data is not None:
@@ -1804,8 +1758,7 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         full_text = update.message.text
         lines = full_text.split("\n")
         
-        # ⭐ НОВЫЙ ФОРМАТ: 6 строк (с уроном) ⭐
-        if len(lines) < 6:
+        if len(lines) < 5:
             await update.message.reply_text(
                 "ℹ️ Формат:\n"
                 "/add_card\n"
@@ -1813,7 +1766,6 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "Название\n"
                 "Редкость\n"
                 "Фракция (или 'нет')\n"
-                "Урон (число или диапазон, например: 15 или 10-20)"
             )
             return
         
@@ -1821,26 +1773,6 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         title = lines[2].strip()
         rarity = lines[3].strip()
         faction = lines[4].strip()
-        damage = lines[5].strip()  # ⭐ УРОН ⭐
-        
-        # ⭐ ПРОВЕРКА ФОРМАТА УРОНА ⭐
-        if "-" in damage:
-            # Диапазон
-            try:
-                min_dmg, max_dmg = map(int, damage.split("-"))
-                if min_dmg > max_dmg:
-                    await update.message.reply_text("⚠️ Минимальный урон не может быть больше максимального!")
-                    return
-            except ValueError:
-                await update.message.reply_text("⚠️ Некорректный формат урона! Пример: 15 или 10-20")
-                return
-        else:
-            # Число
-            try:
-                int(damage)
-            except ValueError:
-                await update.message.reply_text("⚠️ Урон должен быть числом или диапазоном! Пример: 15 или 10-20")
-                return
         
         if rarity not in RARITY_BONUSES:
             await update.message.reply_text(
@@ -1867,25 +1799,17 @@ async def add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "faction": faction if faction.lower() != "нет" else None,
             "available": True,
             "media_type": media_type,
-            # ⭐ АТРИБУТЫ ⭐
-            "attack": 0,
-            "defense": 0,
-            "damage": damage,  # ← МОЖЕТ БЫТЬ "10-20" ИЛИ "15"
-            "health": 0,
-            "speed": 0,
         }
         
         data["cards"].append(new_card)
         save_data(data)
         
         faction_text = f"\n⚔️ {faction}" if faction.lower() != "нет" else ""
-        damage_display = format_damage_display(damage)
         
         await update.message.reply_text(
             f"✅ Карточка #{new_id} добавлена!\n"
             f"🏷 {title}\n"
             f"🌟 {rarity}{faction_text}\n"
-            f"💥 Урон: {damage_display}\n"
             f"📺 {'Анимация' if media_type == 'animation' else 'Фото'}"
         )
         
@@ -2290,19 +2214,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "• url - URL изображения\n"
                 "• rarity - редкость (T1-T8, UpgradeT1-UpgradeT7)\n"
                 "• faction - фракция (текст)\n"
-                "• available - статус (true/false)\n"
-                "• attack - атака (число или диапазон, например: 15 или 10-20)\n"
-                "• defense - защита (число или диапазон)\n"
-                "• damage - урон (число или диапазон)\n"
-                "• health - здоровье (число или диапазон)\n"
-                "• speed - скорость (число или диапазон)\n"
-                "• stats - ВСЕ характеристики сразу (атака защита урон здоровье скорость)\n"
-                "**Примеры:**\n"
-                "/edit_card 45 title Новая карта\n"
-                "/edit_card 45 damage 15\n"
-                "/edit_card 45 damage 10-20\n"
-                "/edit_card 45 attack 100\n"
-                "/edit_card 45 stats 100 50 75 200 30",
+                "• available - статус (true/false)\n",
                 parse_mode="HTML",
             )
             return
@@ -2319,8 +2231,7 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # Обновляем параметр
         valid_params = [
-            "title", "url", "rarity", "faction", "available",
-            "attack", "defense", "damage", "health", "speed", "stats", "shooter", "ability", "hates", "resistant_to"
+            "title", "url", "rarity", "faction", "available"
         ]
         if param not in valid_params:
             await update.message.reply_text(
@@ -2330,79 +2241,6 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
         # Сохраняем старое значение
         old_value = card.get(param, "не задано")
-        
-        # ⭐ ОБРАБОТКА ВСЕХ ХАРАКТЕРИСТИК СРАЗУ ⭐
-        if param == "stats":
-            # Ожидаем 5 чисел или диапазонов: атака защита урон здоровье скорость
-            stats_parts = new_value.split()
-            if len(stats_parts) != 5:
-                await update.message.reply_text(
-                    "⚠️ **Неверный формат!**\n"
-                    "Нужно указать 5 значений:\n"
-                    "/edit_card [ID] stats [атака] [защита] [урон] [здоровье] [скорость]\n"
-                    "Пример: /edit_card 45 stats 100 50 10-20 200 30",
-                    parse_mode="HTML"
-                )
-                return
-            
-            try:
-                # Проверяем и сохраняем каждое значение (может быть числом или диапазоном)
-                for i, stat_name in enumerate(["attack", "defense", "damage", "health", "speed"]):
-                    value = stats_parts[i]
-                    # Проверяем, является ли диапазоном
-                    if "-" in value:
-                        parts = value.split("-")
-                        if len(parts) != 2:
-                            raise ValueError(f"Неверный формат диапазона: {value}")
-                        min_val, max_val = int(parts[0]), int(parts[1])
-                        if min_val > max_val:
-                            raise ValueError(f"Минимальное значение больше максимального: {value}")
-                        card[stat_name] = value  # Сохраняем как строку "10-20"
-                    else:
-                        # Обычное число
-                        card[stat_name] = int(value)
-                
-                old_value = (
-                    f"⚔️{card.get('attack', 0)} 🛡️{card.get('defense', 0)} "
-                    f"💥{card.get('damage', 0)} ❤️{card.get('health', 0)} "
-                    f"👟{card.get('speed', 0)}"
-                )
-                new_value = (
-                    f"⚔️{stats_parts[0]} 🛡️{stats_parts[1]} 💥{stats_parts[2]} "
-                    f"❤️{stats_parts[3]} 👟{stats_parts[4]}"
-                )
-            except ValueError as e:
-                await update.message.reply_text(f"⚠️ Ошибка: {e}")
-                return
-        
-        # ⭐ ОБРАБОТКА ОТДЕЛЬНЫХ ХАРАКТЕРИСТИК ⭐
-        elif param in ["attack", "defense", "damage", "health", "speed"]:
-            # Проверяем, является ли значение диапазоном
-            if "-" in new_value:
-                parts = new_value.split("-")
-                if len(parts) != 2:
-                    await update.message.reply_text(
-                        "⚠️ Неверный формат диапазона! Пример: 10-20"
-                    )
-                    return
-                try:
-                    min_val, max_val = int(parts[0]), int(parts[1])
-                    if min_val > max_val:
-                        await update.message.reply_text(
-                            "⚠️ Минимальное значение не может быть больше максимального!"
-                        )
-                        return
-                    card[param] = new_value  # Сохраняем как строку "10-20"
-                except ValueError:
-                    await update.message.reply_text("⚠️ Значение должно быть числом или диапазоном!")
-                    return
-            else:
-                # Обычное число
-                try:
-                    card[param] = int(new_value)
-                except ValueError:
-                    await update.message.reply_text(f"⚠️ {param} должно быть числом!")
-                    return
         
         # ⭐ ОБРАБОТКА ОСТАЛЬНЫХ ПАРАМЕТРОВ ⭐
         elif param == "available":
@@ -2449,14 +2287,6 @@ async def edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if card.get("faction"):
             response += f"\n⚔️ {card['faction']}"
         
-        # ⭐ ОТОБРАЖАЕМ ВСЕ ХАРАКТЕРИСТИКИ ⭐
-        response += f"\n\n**Характеристики:**"
-        response += f"\n⚔️ Атака: {card.get('attack', 0)}"
-        response += f"\n🛡️ Защита: {card.get('defense', 0)}"
-        response += f"\n💥 Урон: {card.get('damage', 0)}"
-        response += f"\n❤️ Здоровье: {card.get('health', 0)}"
-        response += f"\n👟 Скорость: {card.get('speed', 0)}"
-        
         response += f"\n\n{'✅ Включена' if card.get('available') else '❌ Выключена'}"
         
         await update.message.reply_text(response, parse_mode="HTML")
@@ -2497,14 +2327,6 @@ async def card_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # ⭐ ДОБАВЛЯЕМ ФРАКЦИЮ ⭐
         if card.get("faction"):
             info_text += f"⚔️ **Фракция:** {card['faction']}\n"
-        
-        # ⭐ ДОБАВЛЯЕМ АТРИБУТЫ ⭐
-        info_text += "\n**Характеристики:**\n"
-        info_text += f"⚔️ Атака: {card.get('attack', 0)}\n"
-        info_text += f"🛡️ Защита: {card.get('defense', 0)}\n"
-        info_text += f"💥 Урон: {format_damage_display(card.get('damage', 0))}\n"  # ← ФОРМАТИРОВАНИЕ
-        info_text += f"❤️ Здоровье: {card.get('health', 0)}\n"
-        info_text += f"👟 Скорость: {card.get('speed', 0)}\n"
         
         info_text += (
             f"📺 **Тип:** {'Анимация' if card.get('media_type') == 'animation' else 'Фото'}\n"
