@@ -8417,8 +8417,8 @@ async def start_thievery(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await update.message.reply_text("❌ Вы уже совершали грабеж сегодня!\nПопробуйте завтра после 00:00 МСК.")
             return
 
-        if user_data.get("cents", 0) < 10000:
-            await update.message.reply_text("❌ Для грабежа требуется 10 000 золота!")
+        if user_data.get("cents", 0) < 4000:
+            await update.message.reply_text("❌ Для грабежа требуется 4000 золота!")
             return
 
         # Запрос ника
@@ -8426,7 +8426,7 @@ async def start_thievery(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text(
             "🗡️ **Воровская гильдия**\n"
             "Введите @никнейм игрока, у которого хотите украсть случайную карту.\n"
-            "💰 Стоимость: 10 000 золота\n"
+            "💰 Стоимость: 4000 золота\n"
             "❌ Для отмены: /cancel",
             reply_markup=ReplyKeyboardMarkup(
                 [[KeyboardButton("🔙 Назад в Лес")]],
@@ -8484,8 +8484,8 @@ async def process_thievery_input(update: Update, context: ContextTypes.DEFAULT_T
             return
 
         # Повторная проверка баланса
-        if user_data.get("cents", 0) < 10000:
-            await update.message.reply_text("❌ Недостаточно золота! Нужно 10 000.")
+        if user_data.get("cents", 0) < 4000:
+            await update.message.reply_text("❌ Недостаточно золота! Нужно 4000.")
             return
 
         # ⭐ НОВОЕ: ФИЛЬТРАЦИЯ КАРТ (исключаем редкость Special) ⭐
@@ -8504,7 +8504,7 @@ async def process_thievery_input(update: Update, context: ContextTypes.DEFAULT_T
             return
 
         # Выполнение кражи
-        user_data["cents"] -= 10000
+        user_data["cents"] -= 4000
         stolen_card_id = random.choice(available_to_steal)  # ← Выбираем только из разрешённых
         target_data["cards"].remove(stolen_card_id)
         user_data["cards"].append(stolen_card_id)
@@ -8524,9 +8524,9 @@ async def process_thievery_input(update: Update, context: ContextTypes.DEFAULT_T
         
         # 🗡️ Текст для вора
         thief_caption = (
-            f"🗡️ **Грабеж успешен!**\n"
+            f"🗡️ Грабеж успешен!\n"
             f"Вы украли у @{target_username} карту: {card_name}\n"
-            f"💰 Списано: 10 000 золота\n"
+            f"💰 Списано: 4000 золота\n"
             f"⏳ Следующий грабеж доступен завтра в 00:00 МСК"
         )
         
