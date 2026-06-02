@@ -3837,7 +3837,7 @@ async def check_card_notifications_job(context: ContextTypes.DEFAULT_TYPE) -> No
                 data["users"][user_id]["notification_sent"] = True
                 notified_count += 1
                 logger.info(f"Уведомление отправлено пользователю {user_id}")
-            except Exception as e
+            except Exception as e:
 
         if notified_count > 0:
             save_data(data)
