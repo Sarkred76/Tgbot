@@ -37,7 +37,7 @@ from trade_functions import (
     trade_search_callback,
     search_creatures_for_trade,
 )
-from telegram.error import NetworkError, TimedOut
+from telegram.error import NetworkError, TimedOut, Forbidden
 from dotenv import load_dotenv
 load_dotenv()
 # ===== КОНФИГУРАЦИЯ =====
@@ -3837,6 +3837,12 @@ async def check_card_notifications_job(context: ContextTypes.DEFAULT_TYPE) -> No
                 data["users"][user_id]["notification_sent"] = True
                 notified_count += 1
                 logger.info(f"Уведомление отправлено пользователю {user_id}")
+
+             # ⭐ ОБРАБОТКА ЗАБЛОКИРОВАННОГО ПОЛЬЗОВАТЕЛЯ ⭐
+            except Forbidden:
+                # Бот заблокирован, просто пропускаем и пишем в лог (не как ошибку)
+                logger.info(f"Пользователь {user_id} заблокировал бота, уведомление пропущено.")
+                
             except Exception as e:
                 logger.error(f"Ошибка в задаче уведомлений: {e}")
         if notified_count > 0:
