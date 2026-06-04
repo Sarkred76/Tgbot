@@ -8379,20 +8379,28 @@ async def start_thievery(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     try:
         user_id = str(update.effective_user.id)
         data = load_data()
+        
+        # ⭐ ПРОВЕРКА: является ли пользователь админом ⭐
+        is_admin_user = is_admin(user_id, data)
+
         user_data = data["users"].get(user_id)
         if not user_data:
             await update.message.reply_text("❌ Вы ещё не начали игру!")
             return
 
         # Проверка кулдауна (раз в день по МСК)
-        msk_tz = datetime.timezone(datetime.timedelta(hours=3))
-        today = str(datetime.datetime.now(msk_tz).date())
-        last_use = user_data.get("thievery_last_use_date", "")
+        # ⭐ АДМИНЫ ПРОПУСКАЮТ ПРОВЕРКУ КУЛДАУНА ⭐
+        if not is_admin_user:
+            msk_tz = datetime.timezone(datetime.timedelta(hours=3))
+            today = str(datetime.datetime.now(msk_tz).date())
+            last_use = user_data.get("thievery_last_use_date", "")
+            
+            if last_use == today:
+                await update.message.reply_text("❌ Вы уже совершали грабеж сегодня!\nПопробуйте завтра после 00:00 МСК.")
+                return
 
-        if last_use == today:
-            await update.message.reply_text("❌ Вы уже совершали грабеж сегодня!\nПопробуйте завтра после 00:00 МСК.")
-            return
-
+        # Проверка баланса
+        # Можно сделать бесплатно для админов или оставить платным, если хотите
         if user_data.get("cents", 0) < 4000:
             await update.message.reply_text("❌ Для грабежа требуется 4000 золота!")
             return
